@@ -1,0 +1,39 @@
+{
+  "policy": {
+    "cost_method": "fifo",
+    "lot_scope": "compartment",
+    "functional_currency": "EUR",
+    "cash": ["USDC", "EUR"],
+    "minor_unit": 2,
+    "liability_valuation": "cost"
+  },
+  "max_age": "P90D",
+  "prices": [
+    {"asset": "ETH", "quote": "EUR", "time": "2026-01-01T00:00:00Z", "source": "market", "price": "2000"},
+    {"asset": "USDC", "quote": "EUR", "time": "2026-01-01T00:00:00Z", "source": "market", "price": "0.9"},
+    {"asset": "ETH", "quote": "EUR", "time": "2026-04-01T00:00:00Z", "source": "market", "price": "2000"},
+    {"asset": "USDC", "quote": "EUR", "time": "2026-04-01T00:00:00Z", "source": "market", "price": "0.9"},
+    {"asset": "USDC", "quote": "EUR", "time": "2026-05-01T00:00:00Z", "source": "market", "price": "0.95"},
+    {"asset": "ETH", "quote": "EUR", "time": "2026-05-01T00:00:00Z", "source": "market", "price": "2100"}
+  ],
+  "events": [
+    {"id": "buy", "time": "2026-01-10T10:00:00Z", "description": "buy 1 ETH", "legs": [
+      {"asset": "ETH", "quantity": "1", "compartment": "evm:0xabc", "tag": "trade"},
+      {"asset": "EUR", "quantity": "-2000", "compartment": "evm:0xabc", "tag": "trade"}
+    ]},
+    {"id": "borrow", "time": "2026-03-01T12:00:00Z", "description": "Aave: borrow 5000 USDC", "legs": [
+      {"asset": "USDC", "quantity": "5000", "compartment": "evm:0xabc", "tag": "borrow", "label": "aave-v3"},
+      {"asset": "ETH", "quantity": "-0.001", "compartment": "evm:0xabc", "tag": "expense", "fee": true, "label": "gas"}
+    ]},
+    {"id": "accrue", "time": "2026-04-01T00:00:00Z", "description": "Aave: interest accrued, unpaid", "legs": [
+      {"asset": "USDC", "quantity": "20", "compartment": "evm:0xabc", "tag": "borrow", "label": "interest"}
+    ]},
+    {"id": "swap", "time": "2026-04-15T09:00:00Z", "description": "swap 0.01 ETH for 20 USDC", "legs": [
+      {"asset": "ETH", "quantity": "-0.01", "compartment": "evm:0xabc", "tag": "trade"},
+      {"asset": "USDC", "quantity": "20", "compartment": "evm:0xabc", "tag": "trade"}
+    ]},
+    {"id": "repay", "time": "2026-05-01T12:00:00Z", "description": "Aave: repay 5000 USDC", "legs": [
+      {"asset": "USDC", "quantity": "-5000", "compartment": "evm:0xabc", "tag": "repay", "label": "aave-v3"}
+    ]}
+  ]
+}

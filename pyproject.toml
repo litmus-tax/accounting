@@ -1,0 +1,37 @@
+# Repository tooling; package metadata and dependencies live in pkg/pyproject.toml.
+
+[tool.ruff]
+indent-width = 2
+target-version = "py311"
+
+[tool.ruff.format]
+quote-style = "single"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+docstring-code-format = true
+
+[tool.ruff.lint]
+# TID251: banned imports (see below). UP006: built-in generics (`list[str]`, not
+# `typing.List`). UP045: `X | None` over `Optional[X]`. UP007 stays off so both
+# `Union[X, Y]` and `X | Y` are allowed. The rest of pyupgrade is deliberately off:
+# UP035 would demand `typing` over `typing_extensions`, contradicting TID251.
+select = ["TID251", "UP006", "UP045"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"__future__.annotations" = { msg = "Do not use from __future__ import annotations. It breaks runtime type checking libraries like Pydantic or FastAPI." }
+"typing" = { msg = "Import from typing_extensions instead of typing. It backports the newer typing features to every supported runtime, so the same annotation means the same thing everywhere." }
+
+# Generated protobuf is machine output, not hand-authored source: it is rewritten
+# wholesale by protoc/betterproto2, so a style rule cannot be satisfied there and a
+# violation is not a defect anyone can fix in the file. Every generated tree lives in a
+# `protos/` package, which is what this matches.
+[tool.ruff.lint.per-file-ignores]
+"**/protos/**" = ["TID251"]
+
+[tool.pyright]
+include = ["pkg/src", "pkg/tests"]
+extraPaths = ["pkg/src"]
+typeCheckingMode = "standard"
+strict = ["pkg/src/litmus/accounting/engine", "pkg/src/litmus/accounting/model.py", "pkg/src/litmus/accounting/codec.py", "pkg/src/litmus/accounting/pricing.py", "pkg/src/litmus/accounting/valuation.py", "pkg/src/litmus/accounting/schema.py"]
+pythonVersion = "3.11"

@@ -1,0 +1,22 @@
+{
+  "schema_version": "0.3",
+  "policy": {"cost_method": "fifo", "lot_scope": "compartment", "functional_currency": "EUR"},
+  "events": [
+    {"id": "evidence:opening", "time": "2026-01-01T00:00:00Z", "legs": [
+      {"asset": "TOKEN", "quantity": "10", "compartment": "wallet", "tag": "trade"},
+      {"asset": "EUR", "quantity": "-1000", "compartment": "wallet", "tag": "trade"}
+    ]},
+    {"id": "evidence:entry", "time": "2026-02-01T00:00:00Z", "depends_on": ["evidence:opening"], "legs": [
+      {"asset": "TOKEN", "quantity": "-10", "compartment": "wallet", "tag": "rollover"},
+      {"asset": "RECEIPT", "quantity": "100", "compartment": "wallet", "tag": "rollover"}
+    ], "rollover": {"inputs": [{"leg": 0}], "outputs": [{"leg": 1}], "acquisition_date": "carry"}},
+    {"id": "evidence:withdraw-request", "time": "2026-03-01T00:00:00Z", "depends_on": ["evidence:entry"], "legs": [
+      {"asset": "RECEIPT", "quantity": "-100", "compartment": "wallet", "tag": "rollover"},
+      {"asset": "CLAIM", "quantity": "1", "compartment": "wallet", "tag": "rollover"}
+    ], "rollover": {"inputs": [{"leg": 0}], "outputs": [{"leg": 1}]}},
+    {"id": "evidence:claim-settlement", "time": "2026-04-01T00:00:00Z", "depends_on": ["evidence:withdraw-request"], "legs": [
+      {"asset": "CLAIM", "quantity": "-1", "compartment": "wallet", "tag": "trade"},
+      {"asset": "EUR", "quantity": "1300", "compartment": "wallet", "tag": "trade"}
+    ]}
+  ]
+}

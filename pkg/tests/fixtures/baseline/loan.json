@@ -1,0 +1,166 @@
+{
+  "policy": {
+    "cost_method": "fifo",
+    "lot_scope": "compartment",
+    "functional_currency": "EUR",
+    "price_time": "trade_time",
+    "quote_path": [],
+    "fiat": [],
+    "cash": [
+      "USDC",
+      "EUR"
+    ],
+    "trade_valuation": "received",
+    "fee_treatment": "expense",
+    "position_assets": [],
+    "minor_unit": 2,
+    "liability_valuation": "cost"
+  },
+  "lots": [
+    {
+      "id": "lot-1",
+      "asset": "ETH",
+      "compartment": "evm:0xabc",
+      "quantity": "0.989",
+      "cost": "1978.00",
+      "acquired": "2026-01-10T10:00:00Z",
+      "event": "buy"
+    },
+    {
+      "id": "lot-3",
+      "asset": "USDC",
+      "compartment": "evm:0xabc",
+      "quantity": "20",
+      "cost": "18.00",
+      "acquired": "2026-04-15T09:00:00Z",
+      "event": "swap"
+    }
+  ],
+  "liabilities": [
+    {
+      "id": "liability-1",
+      "asset": "USDC",
+      "compartment": "evm:0xabc",
+      "quantity": "20",
+      "cost": "18.00",
+      "label": "aave-v3",
+      "opened": "2026-03-01T12:00:00Z",
+      "updated": "2026-05-01T12:00:00Z",
+      "event": "borrow"
+    }
+  ],
+  "realized": [
+    {
+      "event": "borrow",
+      "time": "2026-03-01T12:00:00Z",
+      "asset": "ETH",
+      "compartment": "evm:0xabc",
+      "quantity": "-0.001",
+      "proceeds": "2.00",
+      "cost": "2.00",
+      "pnl": "0.00",
+      "lots": [
+        "lot-1"
+      ],
+      "fees": "0.00"
+    },
+    {
+      "event": "swap",
+      "time": "2026-04-15T09:00:00Z",
+      "asset": "ETH",
+      "compartment": "evm:0xabc",
+      "quantity": "-0.01",
+      "proceeds": "18.00",
+      "cost": "20.00",
+      "pnl": "-2.00",
+      "lots": [
+        "lot-1"
+      ],
+      "fees": "0.00"
+    },
+    {
+      "event": "repay",
+      "time": "2026-05-01T12:00:00Z",
+      "asset": "USDC",
+      "compartment": "evm:0xabc",
+      "quantity": "-5000",
+      "proceeds": "4750.00",
+      "cost": "4500.00",
+      "pnl": "250.00",
+      "lots": [
+        "lot-2"
+      ],
+      "fees": "0.00"
+    }
+  ],
+  "flows": [
+    {
+      "event": "borrow",
+      "time": "2026-03-01T12:00:00Z",
+      "asset": "ETH",
+      "compartment": "evm:0xabc",
+      "quantity": "-0.001",
+      "value": "2.00",
+      "kind": "expense",
+      "fee": true,
+      "label": "gas"
+    }
+  ],
+  "moves": [],
+  "balances": [
+    {
+      "compartment": "evm:0xabc",
+      "asset": "ETH",
+      "quantity": "0.989"
+    },
+    {
+      "compartment": "evm:0xabc",
+      "asset": "EUR",
+      "quantity": "-2000"
+    },
+    {
+      "compartment": "evm:0xabc",
+      "asset": "USDC",
+      "quantity": "40"
+    }
+  ],
+  "prices": [
+    {
+      "asset": "USDC",
+      "quote": "EUR",
+      "time": "2026-03-01T12:00:00Z",
+      "source": "market",
+      "price": "0.9"
+    },
+    {
+      "asset": "ETH",
+      "quote": "EUR",
+      "time": "2026-03-01T12:00:00Z",
+      "source": "market",
+      "price": "2000"
+    },
+    {
+      "asset": "USDC",
+      "quote": "EUR",
+      "time": "2026-04-01T00:00:00Z",
+      "source": "market",
+      "price": "0.9"
+    },
+    {
+      "asset": "USDC",
+      "quote": "EUR",
+      "time": "2026-04-15T09:00:00Z",
+      "source": "market",
+      "price": "0.9"
+    },
+    {
+      "asset": "USDC",
+      "quote": "EUR",
+      "time": "2026-05-01T12:00:00Z",
+      "source": "market",
+      "price": "0.95"
+    }
+  ],
+  "exceptions": [],
+  "complete": true
+}

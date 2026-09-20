@@ -1,0 +1,172 @@
+{
+  "policy": {
+    "cost_method": "average",
+    "lot_scope": "global",
+    "functional_currency": "EUR",
+    "price_time": "trade_time",
+    "quote_path": [],
+    "fiat": [],
+    "cash": [
+      "USDT",
+      "EUR"
+    ],
+    "trade_valuation": "received",
+    "fee_treatment": "expense",
+    "position_assets": [],
+    "minor_unit": 2,
+    "liability_valuation": "cost"
+  },
+  "lots": [
+    {
+      "id": "lot-1",
+      "asset": "USDT",
+      "compartment": null,
+      "quantity": "1028.35",
+      "cost": "925.52",
+      "acquired": "2026-01-01T10:00:00Z",
+      "event": "cex:dep"
+    }
+  ],
+  "liabilities": [],
+  "realized": [
+    {
+      "event": "cex:pnl-1",
+      "time": "2026-01-02T10:00:00Z",
+      "asset": "USDT",
+      "compartment": "cex:futures",
+      "quantity": "-0.4",
+      "proceeds": "0.36",
+      "cost": "0.36",
+      "pnl": "0.00",
+      "lots": [
+        "lot-1"
+      ],
+      "fees": "0.00"
+    },
+    {
+      "event": "cex:funding",
+      "time": "2026-01-02T16:00:00Z",
+      "asset": "USDT",
+      "compartment": "cex:futures",
+      "quantity": "-1.25",
+      "proceeds": "1.13",
+      "cost": "1.13",
+      "pnl": "0.00",
+      "lots": [
+        "lot-1"
+      ],
+      "fees": "0.00"
+    },
+    {
+      "event": "cex:pnl-2",
+      "time": "2026-01-03T10:00:00Z",
+      "asset": "USDT",
+      "compartment": "cex:futures",
+      "quantity": "-20",
+      "proceeds": "18.00",
+      "cost": "18.00",
+      "pnl": "0.00",
+      "lots": [
+        "lot-1"
+      ],
+      "fees": "0.00"
+    }
+  ],
+  "flows": [
+    {
+      "event": "cex:pnl-1",
+      "time": "2026-01-02T10:00:00Z",
+      "asset": "USDT",
+      "compartment": "cex:futures",
+      "quantity": "50",
+      "value": "45.00",
+      "kind": "income",
+      "fee": false,
+      "label": "realized_pnl"
+    },
+    {
+      "event": "cex:pnl-1",
+      "time": "2026-01-02T10:00:00Z",
+      "asset": "USDT",
+      "compartment": "cex:futures",
+      "quantity": "-0.4",
+      "value": "0.36",
+      "kind": "expense",
+      "fee": true,
+      "label": "commission"
+    },
+    {
+      "event": "cex:funding",
+      "time": "2026-01-02T16:00:00Z",
+      "asset": "USDT",
+      "compartment": "cex:futures",
+      "quantity": "-1.25",
+      "value": "1.13",
+      "kind": "expense",
+      "fee": false,
+      "label": "funding"
+    },
+    {
+      "event": "cex:pnl-2",
+      "time": "2026-01-03T10:00:00Z",
+      "asset": "USDT",
+      "compartment": "cex:futures",
+      "quantity": "-20",
+      "value": "18.00",
+      "kind": "expense",
+      "fee": false,
+      "label": "realized_pnl"
+    }
+  ],
+  "moves": [],
+  "balances": [
+    {
+      "compartment": "cex:futures",
+      "asset": "USDT",
+      "quantity": "1028.35"
+    }
+  ],
+  "prices": [
+    {
+      "asset": "USDT",
+      "quote": "EUR",
+      "time": "2026-01-01T10:00:00Z",
+      "source": "market",
+      "price": "0.9"
+    },
+    {
+      "asset": "USDT",
+      "quote": "EUR",
+      "time": "2026-01-02T10:00:00Z",
+      "source": "market",
+      "price": "0.9"
+    },
+    {
+      "asset": "USDT",
+      "quote": "EUR",
+      "time": "2026-01-02T16:00:00Z",
+      "source": "market",
+      "price": "0.9"
+    },
+    {
+      "asset": "USDT",
+      "quote": "EUR",
+      "time": "2026-01-03T10:00:00Z",
+      "source": "market",
+      "price": "0.9"
+    }
+  ],
+  "exceptions": [
+    {
+      "code": "unmatched_transfer",
+      "event": "cex:dep",
+      "message": "unlinked transfer of 1000 USDT in cex:futures booked at market value",
+      "detail": {
+        "asset": "USDT",
+        "compartment": "cex:futures",
+        "quantity": "1000"
+      }
+    }
+  ],
+  "complete": true
+}

@@ -1,0 +1,44 @@
+[project]
+name = "litmus-accounting"
+version = "0.3.0"
+description = "Pure accounting engine: ledger-input model to lots, cost basis, realized PnL and an exceptions report."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+authors = [{ name = "Tribulnation Labs" }]
+keywords = ["accounting", "cost-basis", "fifo", "lifo", "hifo", "crypto", "ledger"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Financial and Insurance Industry",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Office/Business :: Financial :: Accounting",
+  "Typing :: Typed",
+]
+dependencies = [
+  "typing_extensions>=4.12",
+  "pydantic>=2.7",
+  "typer>=0.12",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "jsonschema>=4.20", "ruff>=0.11,<1", "pyright>=1.1.407,<2"]
+
+[project.scripts]
+accounting = "litmus.accounting.cli:entry"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"litmus.accounting" = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

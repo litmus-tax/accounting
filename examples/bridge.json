@@ -1,0 +1,40 @@
+{
+  "policy": {
+    "cost_method": "fifo",
+    "lot_scope": "compartment",
+    "functional_currency": "EUR",
+    "cash": ["USDC", "EUR"],
+    "minor_unit": 2
+  },
+  "prices": [
+    {"asset": "ETH", "quote": "EUR", "time": "2026-01-01T00:00:00Z", "source": "market", "price": "1500"},
+    {"asset": "ETH", "quote": "EUR", "time": "2026-02-01T00:00:00Z", "source": "market", "price": "2000"},
+    {"asset": "HYPE", "quote": "EUR", "time": "2026-02-01T00:00:00Z", "source": "market", "price": "20"},
+    {"asset": "USDC", "quote": "EUR", "time": "2026-01-01T00:00:00Z", "source": "market", "price": "0.9"}
+  ],
+  "events": [
+    {"id": "evm:buy", "time": "2026-01-05T10:00:00Z", "description": "buy 1 ETH on a DEX", "legs": [
+      {"asset": "ETH", "quantity": "1", "compartment": "evm:0xabc", "tag": "trade"},
+      {"asset": "USDC", "quantity": "-1700", "compartment": "evm:0xabc", "tag": "trade"},
+      {"asset": "ETH", "quantity": "-0.001", "compartment": "evm:0xabc", "tag": "expense", "fee": true, "label": "gas"}
+    ]},
+    {"id": "evm:usdc-in", "time": "2026-01-05T09:00:00Z", "description": "external USDC deposit (unlinked on purpose)", "legs": [
+      {"asset": "USDC", "quantity": "1700", "compartment": "evm:0xabc", "tag": "transfer", "label": "deposit"}
+    ]},
+    {"id": "bridge:evm->hl", "time": "2026-02-10T12:00:00Z", "description": "asset-changing bridge: ETH on Ethereum becomes HYPE on Hyperliquid; one two-leg trade across compartments", "legs": [
+      {"asset": "ETH", "quantity": "-0.999", "compartment": "evm:0xabc", "tag": "trade", "label": "bridge_initiate"},
+      {"asset": "HYPE", "quantity": "99", "compartment": "hl:0xabc", "tag": "trade", "label": "bridge_claim"}
+    ]},
+    {"id": "hl:usdc-out", "time": "2026-02-11T12:00:00Z", "description": "same-asset bridge, initiate side", "legs": [
+      {"asset": "USDC", "quantity": "-100", "compartment": "hl:0xabc", "tag": "transfer", "label": "bridge_initiate"}
+    ]},
+    {"id": "evm:usdc-claim", "time": "2026-02-11T12:20:00Z", "description": "same-asset bridge, claim side; the missing 0.5 USDC is the bridge fee as a separate fee leg", "legs": [
+      {"asset": "USDC", "quantity": "100", "compartment": "evm:0xabc", "tag": "transfer", "label": "bridge_claim"},
+      {"asset": "USDC", "quantity": "-0.5", "compartment": "evm:0xabc", "tag": "expense", "fee": true, "label": "bridge_fee"}
+    ]},
+    {"id": "hl:usdc-in", "time": "2026-02-09T12:00:00Z", "legs": [
+      {"asset": "USDC", "quantity": "100", "compartment": "hl:0xabc", "tag": "transfer", "label": "deposit"}
+    ]}
+  ],
+  "links": [{"src": "hl:usdc-out", "dst": "evm:usdc-claim"}]
+}

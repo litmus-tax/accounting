@@ -1,0 +1,40 @@
+{
+  "policy": {
+    "cost_method": "fifo",
+    "lot_scope": "compartment",
+    "functional_currency": "EUR",
+    "price_time": "trade_time",
+    "quote_path": ["USD"],
+    "fiat": ["USD"],
+    "cash": ["USDC", "USD", "EUR"]
+  },
+  "prices": [
+    {"asset": "USDC", "quote": "USD", "time": "2026-01-01T00:00:00Z", "source": "market", "price": "1"},
+    {"asset": "USD", "quote": "EUR", "time": "2026-01-01T00:00:00Z", "source": "official", "price": "0.9"}
+  ],
+  "events": [
+    {"id": "dep", "time": "2026-01-01T10:00:00Z", "description": "deposit from outside", "legs": [
+      {"asset": "USDC", "quantity": "100000", "compartment": "dydx:0", "tag": "transfer", "label": "deposit"}
+    ]},
+    {"id": "open", "time": "2026-01-02T10:00:00Z", "legs": [
+      {"asset": "BTC-PERP", "quantity": "1", "compartment": "dydx:0", "tag": "trade"},
+      {"asset": "USDC", "quantity": "-50000", "compartment": "dydx:0", "tag": "trade"},
+      {"asset": "USDC", "quantity": "-10", "compartment": "dydx:0", "tag": "expense", "fee": true}
+    ]},
+    {"id": "fund", "time": "2026-01-02T11:00:00Z", "legs": [
+      {"asset": "USDC", "quantity": "-2.5", "compartment": "dydx:0", "tag": "expense", "label": "funding"}
+    ]},
+    {"id": "close", "time": "2026-01-03T10:00:00Z", "legs": [
+      {"asset": "BTC-PERP", "quantity": "-1", "compartment": "dydx:0", "tag": "trade"},
+      {"asset": "USDC", "quantity": "55000", "compartment": "dydx:0", "tag": "trade"},
+      {"asset": "USDC", "quantity": "-11", "compartment": "dydx:0", "tag": "expense", "fee": true}
+    ]},
+    {"id": "wd", "time": "2026-01-04T10:00:00Z", "legs": [
+      {"asset": "USDC", "quantity": "-1000", "compartment": "dydx:0", "tag": "transfer"}
+    ]},
+    {"id": "recv", "time": "2026-01-04T10:05:00Z", "legs": [
+      {"asset": "USDC", "quantity": "1000", "compartment": "evm:0xabc", "tag": "transfer"}
+    ]}
+  ],
+  "links": [{"src": "wd", "dst": "recv"}]
+}

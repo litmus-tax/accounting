@@ -1,0 +1,264 @@
+{
+  "policy": {
+    "cost_method": "fifo",
+    "lot_scope": "compartment",
+    "functional_currency": "EUR",
+    "price_time": "trade_time",
+    "quote_path": [
+      "USD"
+    ],
+    "fiat": [
+      "USD"
+    ],
+    "cash": [
+      "USDC",
+      "USD",
+      "EUR"
+    ],
+    "trade_valuation": "received",
+    "fee_treatment": "expense",
+    "position_assets": [],
+    "minor_unit": null,
+    "liability_valuation": "cost"
+  },
+  "lots": [
+    {
+      "id": "lot-1",
+      "asset": "USDC",
+      "compartment": "dydx:0",
+      "quantity": "48976.5",
+      "cost": "44078.85",
+      "acquired": "2026-01-01T10:00:00Z",
+      "event": "dep"
+    },
+    {
+      "id": "lot-3",
+      "asset": "USDC",
+      "compartment": "dydx:0",
+      "quantity": "55000",
+      "cost": "49500.0",
+      "acquired": "2026-01-03T10:00:00Z",
+      "event": "close"
+    },
+    {
+      "id": "lot-4",
+      "asset": "USDC",
+      "compartment": "evm:0xabc",
+      "quantity": "1000",
+      "cost": "900.0",
+      "acquired": "2026-01-01T10:00:00Z",
+      "event": "dep"
+    }
+  ],
+  "liabilities": [],
+  "realized": [
+    {
+      "event": "open",
+      "time": "2026-01-02T10:00:00Z",
+      "asset": "USDC",
+      "compartment": "dydx:0",
+      "quantity": "-50000",
+      "proceeds": "45000.0",
+      "cost": "45000.0",
+      "pnl": "0.0",
+      "lots": [
+        "lot-1"
+      ],
+      "fees": "0"
+    },
+    {
+      "event": "open",
+      "time": "2026-01-02T10:00:00Z",
+      "asset": "USDC",
+      "compartment": "dydx:0",
+      "quantity": "-10",
+      "proceeds": "9.0",
+      "cost": "9.0",
+      "pnl": "0.0",
+      "lots": [
+        "lot-1"
+      ],
+      "fees": "0"
+    },
+    {
+      "event": "fund",
+      "time": "2026-01-02T11:00:00Z",
+      "asset": "USDC",
+      "compartment": "dydx:0",
+      "quantity": "-2.5",
+      "proceeds": "2.25",
+      "cost": "2.25",
+      "pnl": "0.00",
+      "lots": [
+        "lot-1"
+      ],
+      "fees": "0"
+    },
+    {
+      "event": "close",
+      "time": "2026-01-03T10:00:00Z",
+      "asset": "BTC-PERP",
+      "compartment": "dydx:0",
+      "quantity": "-1",
+      "proceeds": "49500.0",
+      "cost": "45000.0",
+      "pnl": "4500.0",
+      "lots": [
+        "lot-2"
+      ],
+      "fees": "0"
+    },
+    {
+      "event": "close",
+      "time": "2026-01-03T10:00:00Z",
+      "asset": "USDC",
+      "compartment": "dydx:0",
+      "quantity": "-11",
+      "proceeds": "9.9",
+      "cost": "9.9",
+      "pnl": "0.0",
+      "lots": [
+        "lot-1"
+      ],
+      "fees": "0"
+    }
+  ],
+  "flows": [
+    {
+      "event": "open",
+      "time": "2026-01-02T10:00:00Z",
+      "asset": "USDC",
+      "compartment": "dydx:0",
+      "quantity": "-10",
+      "value": "9.0",
+      "kind": "expense",
+      "fee": true,
+      "label": null
+    },
+    {
+      "event": "fund",
+      "time": "2026-01-02T11:00:00Z",
+      "asset": "USDC",
+      "compartment": "dydx:0",
+      "quantity": "-2.5",
+      "value": "2.25",
+      "kind": "expense",
+      "fee": false,
+      "label": "funding"
+    },
+    {
+      "event": "close",
+      "time": "2026-01-03T10:00:00Z",
+      "asset": "USDC",
+      "compartment": "dydx:0",
+      "quantity": "-11",
+      "value": "9.9",
+      "kind": "expense",
+      "fee": true,
+      "label": null
+    }
+  ],
+  "moves": [
+    {
+      "link": {
+        "src": "wd",
+        "dst": "recv"
+      },
+      "time": "2026-01-04T10:00:00Z",
+      "asset": "USDC",
+      "quantity": "1000",
+      "cost": "900.0",
+      "lots": [
+        "lot-4"
+      ]
+    }
+  ],
+  "balances": [
+    {
+      "compartment": "dydx:0",
+      "asset": "BTC-PERP",
+      "quantity": "0"
+    },
+    {
+      "compartment": "dydx:0",
+      "asset": "USDC",
+      "quantity": "103976.5"
+    },
+    {
+      "compartment": "evm:0xabc",
+      "asset": "USDC",
+      "quantity": "1000"
+    }
+  ],
+  "prices": [
+    {
+      "asset": "USDC",
+      "quote": "USD",
+      "time": "2026-01-01T10:00:00Z",
+      "source": "market",
+      "price": "1"
+    },
+    {
+      "asset": "USD",
+      "quote": "EUR",
+      "time": "2026-01-01T10:00:00Z",
+      "source": "official",
+      "price": "0.9"
+    },
+    {
+      "asset": "USDC",
+      "quote": "USD",
+      "time": "2026-01-02T10:00:00Z",
+      "source": "market",
+      "price": "1"
+    },
+    {
+      "asset": "USD",
+      "quote": "EUR",
+      "time": "2026-01-02T10:00:00Z",
+      "source": "official",
+      "price": "0.9"
+    },
+    {
+      "asset": "USDC",
+      "quote": "USD",
+      "time": "2026-01-02T11:00:00Z",
+      "source": "market",
+      "price": "1"
+    },
+    {
+      "asset": "USD",
+      "quote": "EUR",
+      "time": "2026-01-02T11:00:00Z",
+      "source": "official",
+      "price": "0.9"
+    },
+    {
+      "asset": "USDC",
+      "quote": "USD",
+      "time": "2026-01-03T10:00:00Z",
+      "source": "market",
+      "price": "1"
+    },
+    {
+      "asset": "USD",
+      "quote": "EUR",
+      "time": "2026-01-03T10:00:00Z",
+      "source": "official",
+      "price": "0.9"
+    }
+  ],
+  "exceptions": [
+    {
+      "code": "unmatched_transfer",
+      "event": "dep",
+      "message": "unlinked transfer of 100000 USDC in dydx:0 booked at market value",
+      "detail": {
+        "asset": "USDC",
+        "compartment": "dydx:0",
+        "quantity": "100000"
+      }
+    }
+  ],
+  "complete": true
+}

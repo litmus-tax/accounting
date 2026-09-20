@@ -1,0 +1,61 @@
+{
+  "policy": {
+    "cost_method": "hifo",
+    "lot_scope": "global",
+    "functional_currency": "EUR",
+    "price_time": "trade_time",
+    "quote_path": [],
+    "fiat": [],
+    "cash": [],
+    "trade_valuation": "received",
+    "fee_treatment": "capitalize",
+    "position_assets": [],
+    "minor_unit": 2,
+    "liability_valuation": "cost"
+  },
+  "lots": [
+    {
+      "id": "lot-1",
+      "asset": "BTC",
+      "compartment": null,
+      "quantity": "1",
+      "cost": "10010.00",
+      "acquired": "2026-01-01T10:00:00Z",
+      "event": "b1"
+    }
+  ],
+  "liabilities": [],
+  "realized": [
+    {
+      "event": "s1",
+      "time": "2026-01-03T10:00:00Z",
+      "asset": "BTC",
+      "compartment": "cex:spot",
+      "quantity": "-1",
+      "proceeds": "24975.00",
+      "cost": "30030.00",
+      "pnl": "-5055.00",
+      "lots": [
+        "lot-2"
+      ],
+      "fees": "25.00"
+    }
+  ],
+  "flows": [],
+  "moves": [],
+  "balances": [
+    {
+      "compartment": "cex:spot",
+      "asset": "BTC",
+      "quantity": "1"
+    },
+    {
+      "compartment": "cex:spot",
+      "asset": "EUR",
+      "quantity": "-15065"
+    }
+  ],
+  "prices": [],
+  "exceptions": [],
+  "complete": true
+}

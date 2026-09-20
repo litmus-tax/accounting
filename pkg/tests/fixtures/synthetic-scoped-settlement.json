@@ -1,0 +1,139 @@
+{
+  "ledger": {
+    "schema_version": "0.3",
+    "events": [
+      {
+        "id": "synthetic-margin-1",
+        "time": "2026-01-01T12:00:00Z",
+        "legs": [
+          {
+            "asset": "USD-A",
+            "quantity": "-10",
+            "compartment": "margin",
+            "tag": "trade"
+          },
+          {
+            "asset": "EUR",
+            "quantity": "9",
+            "compartment": "margin",
+            "tag": "trade"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-margin-2",
+        "time": "2026-01-01T12:00:00Z",
+        "legs": [
+          {
+            "asset": "USD-B",
+            "quantity": "-10",
+            "compartment": "margin",
+            "tag": "trade"
+          },
+          {
+            "asset": "EUR",
+            "quantity": "9",
+            "compartment": "margin",
+            "tag": "trade"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-margin-3",
+        "time": "2026-01-01T12:00:00Z",
+        "legs": [
+          {
+            "asset": "USD-C",
+            "quantity": "-10",
+            "compartment": "margin",
+            "tag": "trade"
+          },
+          {
+            "asset": "EUR",
+            "quantity": "9",
+            "compartment": "margin",
+            "tag": "trade"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-spot-1",
+        "time": "2026-01-02T12:00:00Z",
+        "legs": [
+          {
+            "asset": "USD-A",
+            "quantity": "-5",
+            "compartment": "exchange-a:spot",
+            "tag": "trade"
+          },
+          {
+            "asset": "EUR",
+            "quantity": "4.5",
+            "compartment": "exchange-a:spot",
+            "tag": "trade"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-spot-2",
+        "time": "2026-01-02T12:00:00Z",
+        "legs": [
+          {
+            "asset": "USD-A",
+            "quantity": "-5",
+            "compartment": "exchange-b:spot",
+            "tag": "trade"
+          },
+          {
+            "asset": "EUR",
+            "quantity": "4.5",
+            "compartment": "exchange-b:spot",
+            "tag": "trade"
+          }
+        ]
+      }
+    ],
+    "policy": {
+      "cost_method": "fifo",
+      "lot_scope": "compartment",
+      "functional_currency": "EUR",
+      "notional_scopes": [
+        {
+          "compartment": "margin",
+          "asset": "USD-A"
+        },
+        {
+          "compartment": "margin",
+          "asset": "USD-B"
+        },
+        {
+          "compartment": "margin",
+          "asset": "USD-C"
+        }
+      ]
+    },
+    "prices": [
+      {
+        "asset": "USD-A",
+        "quote": "EUR",
+        "time": "2026-01-01T00:00:00Z",
+        "source": "market",
+        "price": "0.9"
+      },
+      {
+        "asset": "USD-B",
+        "quote": "EUR",
+        "time": "2026-01-01T00:00:00Z",
+        "source": "market",
+        "price": "0.9"
+      },
+      {
+        "asset": "USD-C",
+        "quote": "EUR",
+        "time": "2026-01-01T00:00:00Z",
+        "source": "market",
+        "price": "0.9"
+      }
+    ]
+  }
+}

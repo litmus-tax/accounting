@@ -1,0 +1,226 @@
+{
+  "policy": {
+    "cost_method": "fifo",
+    "lot_scope": "compartment",
+    "functional_currency": "EUR",
+    "price_time": "trade_time",
+    "quote_path": [],
+    "fiat": [],
+    "cash": [
+      "USDC",
+      "EUR"
+    ],
+    "trade_valuation": "received",
+    "fee_treatment": "expense",
+    "position_assets": [],
+    "minor_unit": 2,
+    "liability_valuation": "cost"
+  },
+  "lots": [
+    {
+      "id": "lot-5",
+      "asset": "USDC",
+      "compartment": "evm:0xabc",
+      "quantity": "99.5",
+      "cost": "89.55",
+      "acquired": "2026-02-09T12:00:00Z",
+      "event": "hl:usdc-in"
+    },
+    {
+      "id": "lot-4",
+      "asset": "HYPE",
+      "compartment": "hl:0xabc",
+      "quantity": "99",
+      "cost": "1980.00",
+      "acquired": "2026-02-10T12:00:00Z",
+      "event": "bridge:evm->hl"
+    }
+  ],
+  "liabilities": [],
+  "realized": [
+    {
+      "event": "evm:buy",
+      "time": "2026-01-05T10:00:00Z",
+      "asset": "USDC",
+      "compartment": "evm:0xabc",
+      "quantity": "-1700",
+      "proceeds": "1530.00",
+      "cost": "1530.00",
+      "pnl": "0.00",
+      "lots": [
+        "lot-1"
+      ],
+      "fees": "0.00"
+    },
+    {
+      "event": "evm:buy",
+      "time": "2026-01-05T10:00:00Z",
+      "asset": "ETH",
+      "compartment": "evm:0xabc",
+      "quantity": "-0.001",
+      "proceeds": "1.50",
+      "cost": "1.53",
+      "pnl": "-0.03",
+      "lots": [
+        "lot-2"
+      ],
+      "fees": "0.00"
+    },
+    {
+      "event": "bridge:evm->hl",
+      "time": "2026-02-10T12:00:00Z",
+      "asset": "ETH",
+      "compartment": "evm:0xabc",
+      "quantity": "-0.999",
+      "proceeds": "1980.00",
+      "cost": "1528.47",
+      "pnl": "451.53",
+      "lots": [
+        "lot-2"
+      ],
+      "fees": "0.00"
+    },
+    {
+      "event": "evm:usdc-claim",
+      "time": "2026-02-11T12:20:00Z",
+      "asset": "USDC",
+      "compartment": "evm:0xabc",
+      "quantity": "-0.5",
+      "proceeds": "0.45",
+      "cost": "0.45",
+      "pnl": "0.00",
+      "lots": [
+        "lot-5"
+      ],
+      "fees": "0.00"
+    }
+  ],
+  "flows": [
+    {
+      "event": "evm:buy",
+      "time": "2026-01-05T10:00:00Z",
+      "asset": "ETH",
+      "compartment": "evm:0xabc",
+      "quantity": "-0.001",
+      "value": "1.50",
+      "kind": "expense",
+      "fee": true,
+      "label": "gas"
+    },
+    {
+      "event": "evm:usdc-claim",
+      "time": "2026-02-11T12:20:00Z",
+      "asset": "USDC",
+      "compartment": "evm:0xabc",
+      "quantity": "-0.5",
+      "value": "0.45",
+      "kind": "expense",
+      "fee": true,
+      "label": "bridge_fee"
+    }
+  ],
+  "moves": [
+    {
+      "link": {
+        "src": "hl:usdc-out",
+        "dst": "evm:usdc-claim"
+      },
+      "time": "2026-02-11T12:00:00Z",
+      "asset": "USDC",
+      "quantity": "100",
+      "cost": "90.00",
+      "lots": [
+        "lot-5"
+      ]
+    }
+  ],
+  "balances": [
+    {
+      "compartment": "evm:0xabc",
+      "asset": "ETH",
+      "quantity": "0.000"
+    },
+    {
+      "compartment": "evm:0xabc",
+      "asset": "USDC",
+      "quantity": "99.5"
+    },
+    {
+      "compartment": "hl:0xabc",
+      "asset": "HYPE",
+      "quantity": "99"
+    },
+    {
+      "compartment": "hl:0xabc",
+      "asset": "USDC",
+      "quantity": "0"
+    }
+  ],
+  "prices": [
+    {
+      "asset": "USDC",
+      "quote": "EUR",
+      "time": "2026-01-05T09:00:00Z",
+      "source": "market",
+      "price": "0.9"
+    },
+    {
+      "asset": "USDC",
+      "quote": "EUR",
+      "time": "2026-01-05T10:00:00Z",
+      "source": "market",
+      "price": "0.9"
+    },
+    {
+      "asset": "ETH",
+      "quote": "EUR",
+      "time": "2026-01-05T10:00:00Z",
+      "source": "market",
+      "price": "1500"
+    },
+    {
+      "asset": "USDC",
+      "quote": "EUR",
+      "time": "2026-02-09T12:00:00Z",
+      "source": "market",
+      "price": "0.9"
+    },
+    {
+      "asset": "HYPE",
+      "quote": "EUR",
+      "time": "2026-02-10T12:00:00Z",
+      "source": "market",
+      "price": "20"
+    },
+    {
+      "asset": "USDC",
+      "quote": "EUR",
+      "time": "2026-02-11T12:20:00Z",
+      "source": "market",
+      "price": "0.9"
+    }
+  ],
+  "exceptions": [
+    {
+      "code": "unmatched_transfer",
+      "event": "evm:usdc-in",
+      "message": "unlinked transfer of 1700 USDC in evm:0xabc booked at market value",
+      "detail": {
+        "asset": "USDC",
+        "compartment": "evm:0xabc",
+        "quantity": "1700"
+      }
+    },
+    {
+      "code": "unmatched_transfer",
+      "event": "hl:usdc-in",
+      "message": "unlinked transfer of 100 USDC in hl:0xabc booked at market value",
+      "detail": {
+        "asset": "USDC",
+        "compartment": "hl:0xabc",
+        "quantity": "100"
+      }
+    }
+  ],
+  "complete": true
+}

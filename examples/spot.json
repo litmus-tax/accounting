@@ -1,0 +1,27 @@
+{
+  "policy": {
+    "cost_method": "hifo",
+    "lot_scope": "global",
+    "functional_currency": "EUR",
+    "fee_treatment": "capitalize",
+    "minor_unit": 2
+  },
+  "prices": [],
+  "events": [
+    {"id": "b1", "time": "2026-01-01T10:00:00Z", "legs": [
+      {"asset": "BTC", "quantity": "1", "compartment": "cex:spot", "tag": "trade"},
+      {"asset": "EUR", "quantity": "-10000", "compartment": "cex:spot", "tag": "trade"},
+      {"asset": "EUR", "quantity": "-10", "compartment": "cex:spot", "tag": "expense", "fee": true}
+    ]},
+    {"id": "b2", "time": "2026-01-02T10:00:00Z", "legs": [
+      {"asset": "BTC", "quantity": "1", "compartment": "cex:spot", "tag": "trade"},
+      {"asset": "EUR", "quantity": "-30000", "compartment": "cex:spot", "tag": "trade"},
+      {"asset": "EUR", "quantity": "-30", "compartment": "cex:spot", "tag": "expense", "fee": true}
+    ]},
+    {"id": "s1", "time": "2026-01-03T10:00:00Z", "legs": [
+      {"asset": "BTC", "quantity": "-1", "compartment": "cex:spot", "tag": "trade"},
+      {"asset": "EUR", "quantity": "25000", "compartment": "cex:spot", "tag": "trade"},
+      {"asset": "EUR", "quantity": "-25", "compartment": "cex:spot", "tag": "expense", "fee": true}
+    ]}
+  ]
+}

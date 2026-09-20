@@ -1,0 +1,151 @@
+{
+  "policy": {
+    "cost_method": "fifo",
+    "lot_scope": "compartment",
+    "functional_currency": "EUR",
+    "price_time": "trade_time",
+    "quote_path": [],
+    "fiat": [],
+    "cash": [],
+    "trade_valuation": "received",
+    "fee_treatment": "expense",
+    "position_assets": [],
+    "minor_unit": null,
+    "liability_valuation": "cost",
+    "notional_scopes": []
+  },
+  "lots": [],
+  "liabilities": [],
+  "realized": [
+    {
+      "event": "evidence:claim-settlement",
+      "time": "2026-04-01T00:00:00Z",
+      "asset": "CLAIM",
+      "compartment": "wallet",
+      "quantity": "-1",
+      "proceeds": "1300",
+      "cost": "1000",
+      "pnl": "300",
+      "lots": [
+        "lot-3"
+      ],
+      "fees": "0"
+    }
+  ],
+  "flows": [],
+  "moves": [],
+  "balances": [
+    {
+      "compartment": "wallet",
+      "asset": "CLAIM",
+      "quantity": "0"
+    },
+    {
+      "compartment": "wallet",
+      "asset": "EUR",
+      "quantity": "300"
+    },
+    {
+      "compartment": "wallet",
+      "asset": "RECEIPT",
+      "quantity": "0"
+    },
+    {
+      "compartment": "wallet",
+      "asset": "TOKEN",
+      "quantity": "0"
+    }
+  ],
+  "prices": [],
+  "exceptions": [],
+  "complete": true,
+  "rollovers": [
+    {
+      "event": "evidence:entry",
+      "consumed": [
+        {
+          "leg": 0,
+          "lot": "lot-1",
+          "quantity": "10",
+          "cost": "1000",
+          "acquired": "2026-01-01T00:00:00Z",
+          "origins": [
+            {
+              "event": "evidence:opening",
+              "acquired": "2026-01-01T00:00:00Z",
+              "cost": "1000"
+            }
+          ]
+        }
+      ],
+      "created": [
+        {
+          "leg": 1,
+          "lot": "lot-2",
+          "quantity": "100",
+          "cost": "1000",
+          "acquired": "2026-01-01T00:00:00Z",
+          "origins": [
+            {
+              "event": "evidence:opening",
+              "acquired": "2026-01-01T00:00:00Z",
+              "cost": "1000"
+            }
+          ]
+        }
+      ],
+      "allocations": [
+        "1"
+      ],
+      "basis_in": "1000",
+      "capitalized_costs": "0",
+      "basis_out": "1000",
+      "written_off": "0",
+      "cost_reference": null
+    },
+    {
+      "event": "evidence:withdraw-request",
+      "consumed": [
+        {
+          "leg": 0,
+          "lot": "lot-2",
+          "quantity": "100",
+          "cost": "1000",
+          "acquired": "2026-01-01T00:00:00Z",
+          "origins": [
+            {
+              "event": "evidence:opening",
+              "acquired": "2026-01-01T00:00:00Z",
+              "cost": "1000"
+            }
+          ]
+        }
+      ],
+      "created": [
+        {
+          "leg": 1,
+          "lot": "lot-3",
+          "quantity": "1",
+          "cost": "1000",
+          "acquired": "2026-01-01T00:00:00Z",
+          "origins": [
+            {
+              "event": "evidence:opening",
+              "acquired": "2026-01-01T00:00:00Z",
+              "cost": "1000"
+            }
+          ]
+        }
+      ],
+      "allocations": [
+        "1"
+      ],
+      "basis_in": "1000",
+      "capitalized_costs": "0",
+      "basis_out": "1000",
+      "written_off": "0",
+      "cost_reference": null
+    }
+  ],
+  "schema_version": "0.3"
+}

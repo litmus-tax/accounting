@@ -1,0 +1,30 @@
+[
+  {
+    "source": {
+      "asset": {
+        "decimals": 2
+      },
+      "balance_from_raw": "10000",
+      "movements_raw": "2000",
+      "balance_to_raw": "11500",
+      "accrual": "-5",
+      "from_time": "2026-01-01T00:00:00Z",
+      "time": "2026-01-02T00:00:00Z",
+      "id": "synthetic-adjustment-1"
+    }
+  },
+  {
+    "source": {
+      "asset": {
+        "decimals": 2
+      },
+      "balance_from_raw": "11500",
+      "movements_raw": "-1500",
+      "balance_to_raw": "9800",
+      "accrual": "-2",
+      "from_time": "2026-01-02T00:00:00Z",
+      "time": "2026-01-03T00:00:00Z",
+      "id": "synthetic-adjustment-2"
+    }
+  }
+]

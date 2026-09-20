@@ -1,0 +1,27 @@
+{
+  "policy": {
+    "cost_method": "average",
+    "lot_scope": "global",
+    "functional_currency": "EUR",
+    "cash": ["USDT", "EUR"],
+    "minor_unit": 2
+  },
+  "prices": [
+    {"asset": "USDT", "quote": "EUR", "time": "2026-01-01T00:00:00Z", "source": "market", "price": "0.9"}
+  ],
+  "events": [
+    {"id": "cex:dep", "time": "2026-01-01T10:00:00Z", "legs": [
+      {"asset": "USDT", "quantity": "1000", "compartment": "cex:futures", "tag": "transfer", "label": "deposit"}
+    ]},
+    {"id": "cex:pnl-1", "time": "2026-01-02T10:00:00Z", "description": "venue-settled realized PnL on a closed BTCUSDT position; the position itself is invisible", "legs": [
+      {"asset": "USDT", "quantity": "50", "compartment": "cex:futures", "tag": "income", "label": "realized_pnl"},
+      {"asset": "USDT", "quantity": "-0.4", "compartment": "cex:futures", "tag": "expense", "fee": true, "label": "commission"}
+    ]},
+    {"id": "cex:funding", "time": "2026-01-02T16:00:00Z", "legs": [
+      {"asset": "USDT", "quantity": "-1.25", "compartment": "cex:futures", "tag": "expense", "label": "funding"}
+    ]},
+    {"id": "cex:pnl-2", "time": "2026-01-03T10:00:00Z", "legs": [
+      {"asset": "USDT", "quantity": "-20", "compartment": "cex:futures", "tag": "expense", "label": "realized_pnl"}
+    ]}
+  ]
+}
