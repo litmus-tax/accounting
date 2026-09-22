@@ -6,15 +6,16 @@ import sys
 
 
 def main():
-  """Check formatting, lint, and types without modifying source files."""
+  """Check structure, formatting, lint, and types without modifying source files."""
   root = Path(__file__).resolve().parents[1]
   paths = ['pkg/src', 'pkg/tests']
   for arguments in (
-    ['ruff', 'check', *paths],
-    ['ruff', 'format', '--check', *paths],
-    ['pyright', '--pythonpath', sys.executable],
+    [str(root / 'scripts/structure.py')],
+    ['-m', 'ruff', 'check', *paths],
+    ['-m', 'ruff', 'format', '--check', *paths],
+    ['-m', 'pyright', '--pythonpath', sys.executable],
   ):
-    command = [sys.executable, '-m', *arguments]
+    command = [sys.executable, *arguments]
     print(' '.join(command), flush=True)
     result = subprocess.run(command, cwd=root)
     if result.returncode:

@@ -132,6 +132,15 @@ for `pkg/src` and `pkg/tests` using that Python interpreter. In the shared Litmu
 environment, use `../platform/.venv/bin/python scripts/check.py` (or
 `.venv/bin/python scripts/check.py` from platform).
 
+`scripts/check.py` runs `scripts/structure.py` first. It checks the package against
+the module map in `structure.toml`, rendered as tables in
+[docs/architecture.md](docs/architecture.md): every module needs an entry, no module
+may exceed 400 lines unless its entry says `split_pending = N`, and a module may
+import only the layers its own layer allows unless its entry says `layering = N`.
+Adding a module means adding its entry; `python scripts/structure.py --print-unlisted`
+drafts one, and `python scripts/structure.py --render` refreshes the tables, which
+the check requires to be current.
+
 Ruff and Pyright settings live in the repository-root `pyproject.toml` under
 `[tool.ruff]` and `[tool.pyright]`. Package metadata and dependencies remain in
 `pkg/pyproject.toml`. Shared tooling sections are synchronized manually across the

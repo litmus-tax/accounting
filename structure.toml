@@ -1,0 +1,34 @@
+# Module map for litmus.accounting: the source of truth for scripts/structure.py.
+# Layers are top-level packages (root modules are layers named by their stem);
+# each lists the layers it may import. `layering = N` records that issue N
+# tracks a module's import violations (its import check is skipped);
+# `split_pending = N` records that issue N tracks splitting it past max_lines.
+
+package = "litmus.accounting"
+src = "pkg/src/litmus/accounting"
+max_lines = 400
+
+[layers]
+model = []
+codec = ["model"]
+schema = ["codec"]
+pricing = ["model"]
+engine = ["engine", "model", "pricing"]
+valuation = ["model", "pricing", "engine"]
+cli = ["codec", "schema", "engine", "model", "pricing", "valuation"]
+__init__ = ["engine", "valuation", "pricing"]
+
+[modules]
+"__init__.py" = { doc = "Exposes `calculation`, `valuation` and `pricing` as package attributes." }
+"model.py" = { doc = "Frozen-dataclass ledger input (events, legs, links, liabilities, policy) and output records; the one schema for library, CLI and JSON.", split_pending = 0 }
+"codec.py" = { doc = "JSON in and out through `pydantic.TypeAdapter` over the model dataclasses (Decimal strings, ISO datetimes)." }
+"schema.py" = { doc = "JSON Schema for ledger, result and valuation generated from the model, for `accounting schema`." }
+"pricing.py" = { doc = "The `Pricing` protocol, the policy-applying `Valuer`, recorded price answers and `PriceGap`." }
+"valuation.py" = { doc = "Period-end valuation of open lots and liabilities at one point in time through the pricing protocol." }
+"cli.py" = { doc = "`accounting [--json] {run,validate,value,schema}` Typer app; findings in results, runtime failures exit 1, usage errors exit 2." }
+"engine/__init__.py" = { doc = "Exposes `calculation` and re-exports `run` and `validate`." }
+"engine/arithmetic.py" = { doc = "Exact finite-decimal sums and differences for conservation after bounded division." }
+"engine/calculation.py" = { doc = "The pure engine: events, links, policy and pricing to lots, realized PnL, flows, internal moves, prices used and exceptions.", split_pending = 0 }
+"engine/lots.py" = { doc = "`LotBook`: open lots per key, sign-crossing closes and FIFO/LIFO/HIFO/average consumption order." }
+"engine/operations.py" = { doc = "Structural checks and stable causal ordering for generic basis operations." }
+"engine/rounding.py" = { doc = "Rounds functional-currency money outputs to the minor unit, recomputing derived amounts from rounded parts." }
