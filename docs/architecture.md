@@ -14,7 +14,7 @@
 | `__init__.py` | Exposes `calculation`, `valuation` and `pricing` as package attributes. | `engine`, `valuation`, `pricing` |
 | `cli.py` | `accounting [--json] {run,validate,value,schema}` Typer app; findings in results, runtime failures exit 1, usage errors exit 2. | `codec`, `schema`, `engine`, `model`, `pricing`, `valuation` |
 | `codec.py` | JSON in and out through `pydantic.TypeAdapter` over the model dataclasses (Decimal strings, ISO datetimes). | `model` |
-| `model.py` | Frozen-dataclass ledger input (events, legs, links, liabilities, policy) and output records; the one schema for library, CLI and JSON. (split pending: #0) | — |
+| `model.py` | Frozen-dataclass ledger input (events, legs, links, liabilities, policy) and output records; the one schema for library, CLI and JSON. (split pending: #1) | — |
 | `pricing.py` | The `Pricing` protocol, the policy-applying `Valuer`, recorded price answers and `PriceGap`. | `model` |
 | `schema.py` | JSON Schema for ledger, result and valuation generated from the model, for `accounting schema`. | `codec` |
 | `valuation.py` | Period-end valuation of open lots and liabilities at one point in time through the pricing protocol. | `model`, `pricing`, `engine` |
@@ -25,7 +25,7 @@
 | --- | --- | --- |
 | `engine/__init__.py` | Exposes `calculation` and re-exports `run` and `validate`. | `engine`, `model`, `pricing` |
 | `engine/arithmetic.py` | Exact finite-decimal sums and differences for conservation after bounded division. | `engine`, `model`, `pricing` |
-| `engine/calculation.py` | The pure engine: events, links, policy and pricing to lots, realized PnL, flows, internal moves, prices used and exceptions. (split pending: #0) | `engine`, `model`, `pricing` |
+| `engine/calculation.py` | The pure engine: events, links, policy and pricing to lots, realized PnL, flows, internal moves, prices used and exceptions. (split pending: #1) | `engine`, `model`, `pricing` |
 | `engine/lots.py` | `LotBook`: open lots per key, sign-crossing closes and FIFO/LIFO/HIFO/average consumption order. | `engine`, `model`, `pricing` |
 | `engine/operations.py` | Structural checks and stable causal ordering for generic basis operations. | `engine`, `model`, `pricing` |
 | `engine/rounding.py` | Rounds functional-currency money outputs to the minor unit, recomputing derived amounts from rounded parts. | `engine`, `model`, `pricing` |
