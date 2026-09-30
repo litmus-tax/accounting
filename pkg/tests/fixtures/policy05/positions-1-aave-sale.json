@@ -1,0 +1,146 @@
+{
+ "example": "positions example 1 item 5: the aUSDC sold on a DEX",
+ "ledger": {
+  "policy": {
+   "cost_method": "fifo",
+   "lot_scope": "global",
+   "functional_currency": "USD",
+   "cash": [
+    "USDC",
+    "USDT"
+   ],
+   "minor_unit": 2
+  },
+  "prices": [
+   {
+    "asset": "aUSDC",
+    "quote": "USD",
+    "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "ETH",
+    "quote": "USD",
+    "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "3500"
+   },
+   {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDT",
+    "quote": "USD",
+    "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   }
+  ],
+  "events": [
+   {
+    "id": "buy",
+    "time": "2026-01-01T01:00:00Z",
+    "legs": [
+     {
+      "asset": "USDC",
+      "quantity": "1000",
+      "compartment": "wallet",
+      "tag": "trade"
+     },
+     {
+      "asset": "USD",
+      "quantity": "-1000",
+      "compartment": "wallet",
+      "tag": "trade"
+     }
+    ]
+   },
+   {
+    "id": "supply",
+    "time": "2026-01-01T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDC",
+      "quantity": "-1000",
+      "compartment": "wallet",
+      "tag": "rollover"
+     },
+     {
+      "asset": "aUSDC",
+      "quantity": "1000",
+      "compartment": "wallet",
+      "tag": "rollover"
+     }
+    ],
+    "rollover": {
+     "inputs": [
+      {
+       "leg": 0
+      }
+     ],
+     "outputs": [
+      {
+       "leg": 1
+      }
+     ]
+    }
+   },
+   {
+    "id": "accrual",
+    "time": "2026-01-31T12:00:00Z",
+    "legs": [
+     {
+      "asset": "aUSDC",
+      "quantity": "4",
+      "compartment": "wallet",
+      "tag": "income",
+      "label": "yield"
+     }
+    ]
+   },
+   {
+    "id": "sell",
+    "time": "2026-02-02T12:00:00Z",
+    "legs": [
+     {
+      "asset": "aUSDC",
+      "quantity": "-1004",
+      "compartment": "wallet",
+      "tag": "trade"
+     },
+     {
+      "asset": "ETH",
+      "quantity": "0.3",
+      "compartment": "wallet",
+      "tag": "trade"
+     }
+    ]
+   }
+  ]
+ },
+ "cases": [
+  {
+   "name": "sale",
+   "rules": [
+    "positions 12"
+   ],
+   "expected": {
+    "complete": true,
+    "realized": [
+     {
+      "event": "sell",
+      "asset": "aUSDC",
+      "proceeds": "1050.00",
+      "cost": "1004.00",
+      "pnl": "46.00"
+     }
+    ]
+   }
+  }
+ ]
+}

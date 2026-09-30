@@ -1,0 +1,305 @@
+{
+ "example": "guide \u00a73: a worked example",
+ "ledger": {
+  "policy": {
+   "cost_method": "fifo",
+   "lot_scope": "compartment",
+   "functional_currency": "USD",
+   "cash": [
+    "USDC"
+   ],
+   "minor_unit": 2
+  },
+  "prices": [
+   {
+    "asset": "ETH",
+    "quote": "USD",
+    "time": "2026-01-02T00:00:00Z",
+    "source": "market",
+    "price": "3000"
+   },
+   {
+    "asset": "ETH",
+    "quote": "USD",
+    "time": "2026-01-03T00:00:00Z",
+    "source": "market",
+    "price": "3200"
+   },
+   {
+    "asset": "ETH",
+    "quote": "USD",
+    "time": "2026-01-04T00:00:00Z",
+    "source": "market",
+    "price": "3500"
+   },
+   {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDT",
+    "quote": "USD",
+    "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   }
+  ],
+  "events": [
+   {
+    "id": "deposit",
+    "time": "2026-01-01T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USD",
+      "quantity": "10000",
+      "compartment": "binance",
+      "tag": "transfer"
+     }
+    ],
+    "description": "10,000 USD from the bank"
+   },
+   {
+    "id": "trade",
+    "time": "2026-01-02T12:00:00Z",
+    "legs": [
+     {
+      "asset": "ETH",
+      "quantity": "1",
+      "compartment": "binance",
+      "tag": "trade"
+     },
+     {
+      "asset": "USD",
+      "quantity": "-3000",
+      "compartment": "binance",
+      "tag": "trade"
+     },
+     {
+      "asset": "USD",
+      "quantity": "-3",
+      "compartment": "binance",
+      "tag": "expense",
+      "fee": true,
+      "label": "fee"
+     }
+    ],
+    "description": "buy 1 ETH for 3,000 USD, fee 3 USD"
+   },
+   {
+    "id": "withdraw",
+    "time": "2026-01-03T12:00:00Z",
+    "legs": [
+     {
+      "asset": "ETH",
+      "quantity": "-0.999",
+      "compartment": "binance",
+      "tag": "transfer"
+     },
+     {
+      "asset": "ETH",
+      "quantity": "-0.001",
+      "compartment": "binance",
+      "tag": "expense",
+      "fee": true,
+      "label": "transfer_fee"
+     }
+    ],
+    "description": "withdraw 1 ETH; the 0.001 residual is the withdrawal fee"
+   },
+   {
+    "id": "deposit-wallet",
+    "time": "2026-01-03T13:00:00Z",
+    "legs": [
+     {
+      "asset": "ETH",
+      "quantity": "0.999",
+      "compartment": "wallet",
+      "tag": "transfer"
+     }
+    ],
+    "description": "wallet receives 0.999 ETH"
+   },
+   {
+    "id": "sale",
+    "time": "2026-01-04T12:00:00Z",
+    "legs": [
+     {
+      "asset": "ETH",
+      "quantity": "-0.5",
+      "compartment": "wallet",
+      "tag": "trade"
+     },
+     {
+      "asset": "USDC",
+      "quantity": "1750",
+      "compartment": "wallet",
+      "tag": "trade"
+     },
+     {
+      "asset": "ETH",
+      "quantity": "-0.0002",
+      "compartment": "wallet",
+      "tag": "expense",
+      "fee": true,
+      "label": "gas"
+     }
+    ],
+    "description": "sell 0.5 ETH for 1,750 USDC, gas 0.0002 ETH"
+   }
+  ],
+  "links": [
+   {
+    "src": "withdraw",
+    "dst": "deposit-wallet"
+   }
+  ]
+ },
+ "cases": [
+  {
+   "name": "expense",
+   "rules": [
+    "6.1",
+    "7",
+    "13.1",
+    "13.2",
+    "20"
+   ],
+   "expected": {
+    "complete": true,
+    "realized": [
+     {
+      "event": "withdraw",
+      "asset": "ETH",
+      "proceeds": "3.20",
+      "cost": "3.00",
+      "pnl": "0.20"
+     },
+     {
+      "event": "sale",
+      "asset": "ETH",
+      "proceeds": "1750.00",
+      "cost": "1500.00",
+      "pnl": "250.00"
+     },
+     {
+      "event": "sale",
+      "asset": "ETH",
+      "proceeds": "0.70",
+      "cost": "0.60",
+      "pnl": "0.10"
+     }
+    ],
+    "flows": [
+     {
+      "event": "trade",
+      "kind": "expense",
+      "label": "fee",
+      "value": "3.00"
+     },
+     {
+      "event": "withdraw",
+      "kind": "expense",
+      "label": "transfer_fee",
+      "value": "3.20"
+     },
+     {
+      "event": "sale",
+      "kind": "expense",
+      "label": "gas",
+      "value": "0.70"
+     }
+    ],
+    "moves": [
+     {
+      "asset": "ETH",
+      "quantity": "0.999",
+      "cost": "2997.00"
+     }
+    ],
+    "holdings": [
+     {
+      "compartment": "wallet",
+      "asset": "ETH",
+      "quantity": "0.4988",
+      "cost": "1496.40"
+     },
+     {
+      "compartment": "wallet",
+      "asset": "USDC",
+      "quantity": "1750",
+      "cost": "1750.00"
+     }
+    ],
+    "balances": [
+     {
+      "compartment": "binance",
+      "asset": "USD",
+      "quantity": "6997"
+     }
+    ],
+    "totals": {
+     "realized": "250.30",
+     "income": "0",
+     "expenses": "6.90"
+    }
+   }
+  },
+  {
+   "name": "capitalize",
+   "rules": [
+    "6.1",
+    "17"
+   ],
+   "policy": {
+    "fee_treatment": "capitalize"
+   },
+   "expected": {
+    "complete": true,
+    "realized": [
+     {
+      "event": "withdraw",
+      "asset": "ETH",
+      "pnl": "0.20"
+     },
+     {
+      "event": "sale",
+      "asset": "ETH",
+      "proceeds": "1749.30",
+      "cost": "1501.50",
+      "pnl": "247.80"
+     },
+     {
+      "event": "sale",
+      "asset": "ETH",
+      "pnl": "0.10"
+     }
+    ],
+    "flows": [
+     {
+      "event": "withdraw",
+      "kind": "expense",
+      "label": "transfer_fee",
+      "value": "3.20"
+     }
+    ],
+    "holdings": [
+     {
+      "compartment": "wallet",
+      "asset": "ETH",
+      "quantity": "0.4988",
+      "cost": "1497.90"
+     },
+     {
+      "compartment": "wallet",
+      "asset": "USDC",
+      "quantity": "1750",
+      "cost": "1750.00"
+     }
+    ]
+   }
+  }
+ ]
+}

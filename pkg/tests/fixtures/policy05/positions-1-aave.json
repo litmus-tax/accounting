@@ -1,0 +1,163 @@
+{
+ "example": "positions example 1: Aave supply, accrual and withdrawal",
+ "ledger": {
+  "policy": {
+   "cost_method": "fifo",
+   "lot_scope": "global",
+   "functional_currency": "USD",
+   "cash": [
+    "USDC",
+    "USDT"
+   ],
+   "minor_unit": 2
+  },
+  "prices": [
+   {
+    "asset": "aUSDC",
+    "quote": "USD",
+    "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "ETH",
+    "quote": "USD",
+    "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "3500"
+   },
+   {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDT",
+    "quote": "USD",
+    "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   }
+  ],
+  "events": [
+   {
+    "id": "buy",
+    "time": "2026-01-01T01:00:00Z",
+    "legs": [
+     {
+      "asset": "USDC",
+      "quantity": "1000",
+      "compartment": "wallet",
+      "tag": "trade"
+     },
+     {
+      "asset": "USD",
+      "quantity": "-1000",
+      "compartment": "wallet",
+      "tag": "trade"
+     }
+    ]
+   },
+   {
+    "id": "supply",
+    "time": "2026-01-01T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDC",
+      "quantity": "-1000",
+      "compartment": "wallet",
+      "tag": "rollover"
+     },
+     {
+      "asset": "aUSDC",
+      "quantity": "1000",
+      "compartment": "wallet",
+      "tag": "rollover"
+     }
+    ],
+    "rollover": {
+     "inputs": [
+      {
+       "leg": 0
+      }
+     ],
+     "outputs": [
+      {
+       "leg": 1
+      }
+     ]
+    }
+   },
+   {
+    "id": "accrual",
+    "time": "2026-01-31T12:00:00Z",
+    "legs": [
+     {
+      "asset": "aUSDC",
+      "quantity": "4",
+      "compartment": "wallet",
+      "tag": "income",
+      "label": "yield"
+     }
+    ]
+   },
+   {
+    "id": "withdraw",
+    "time": "2026-02-02T12:00:00Z",
+    "legs": [
+     {
+      "asset": "aUSDC",
+      "quantity": "-1004",
+      "compartment": "wallet",
+      "tag": "trade"
+     },
+     {
+      "asset": "USDC",
+      "quantity": "1004",
+      "compartment": "wallet",
+      "tag": "trade"
+     }
+    ]
+   }
+  ]
+ },
+ "cases": [
+  {
+   "name": "withdraw",
+   "rules": [
+    "positions 3.1",
+    "positions 4.1",
+    "positions 6"
+   ],
+   "expected": {
+    "complete": true,
+    "flows": [
+     {
+      "event": "accrual",
+      "kind": "income",
+      "label": "yield",
+      "value": "4.00"
+     }
+    ],
+    "realized": [
+     {
+      "event": "withdraw",
+      "asset": "aUSDC",
+      "proceeds": "1004.00",
+      "cost": "1004.00",
+      "pnl": "0.00"
+     }
+    ],
+    "holdings": [
+     {
+      "asset": "USDC",
+      "quantity": "1004",
+      "cost": "1004.00"
+     }
+    ]
+   }
+  }
+ ]
+}

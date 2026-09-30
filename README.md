@@ -152,7 +152,8 @@ See the [tooling policy](../platform/docs/technical/python-tooling.md) for detai
 ## Repository structure
 
 - `pkg/`: installable Python package, including the models, engine, CLI, and tests.
-  Synthetic regression inputs and expected results live in `pkg/tests/fixtures/`.
+  Synthetic regression inputs and expected results live in `pkg/tests/fixtures/`;
+  policy 05's worked examples are in `pkg/tests/fixtures/policy05/`.
 - `docs/`: technical reference and worked explanations.
 - `examples/`: runnable ledger inputs for library and CLI users.
 - `scripts/check.py`: contributor helper for lint, formatting, and type checks.

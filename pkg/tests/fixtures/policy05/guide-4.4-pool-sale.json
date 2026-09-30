@@ -1,0 +1,161 @@
+{
+ "example": "guide \u00a74.4: LP tokens sold on a market",
+ "ledger": {
+  "policy": {
+   "cost_method": "fifo",
+   "lot_scope": "global",
+   "functional_currency": "USD",
+   "cash": [
+    "USDC",
+    "USDT"
+   ],
+   "minor_unit": 2
+  },
+  "prices": [
+   {
+    "asset": "ETH",
+    "quote": "USD",
+    "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "3500"
+   },
+   {
+    "asset": "ETH",
+    "quote": "USD",
+    "time": "2026-01-05T00:00:00Z",
+    "source": "market",
+    "price": "4000"
+   },
+   {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDT",
+    "quote": "USD",
+    "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   }
+  ],
+  "events": [
+   {
+    "id": "buy-eth",
+    "time": "2026-01-01T01:00:00Z",
+    "legs": [
+     {
+      "asset": "ETH",
+      "quantity": "1",
+      "compartment": "wallet",
+      "tag": "trade"
+     },
+     {
+      "asset": "USD",
+      "quantity": "-3000",
+      "compartment": "wallet",
+      "tag": "trade"
+     }
+    ]
+   },
+   {
+    "id": "buy-usdc",
+    "time": "2026-01-01T02:00:00Z",
+    "legs": [
+     {
+      "asset": "USDC",
+      "quantity": "3500",
+      "compartment": "wallet",
+      "tag": "trade"
+     },
+     {
+      "asset": "USD",
+      "quantity": "-3500",
+      "compartment": "wallet",
+      "tag": "trade"
+     }
+    ]
+   },
+   {
+    "id": "deposit",
+    "time": "2026-01-01T12:00:00Z",
+    "legs": [
+     {
+      "asset": "ETH",
+      "quantity": "-1",
+      "compartment": "wallet",
+      "tag": "rollover"
+     },
+     {
+      "asset": "USDC",
+      "quantity": "-3500",
+      "compartment": "wallet",
+      "tag": "rollover"
+     },
+     {
+      "asset": "LP",
+      "quantity": "100",
+      "compartment": "wallet",
+      "tag": "rollover"
+     }
+    ],
+    "rollover": {
+     "inputs": [
+      {
+       "leg": 0
+      },
+      {
+       "leg": 1
+      }
+     ],
+     "outputs": [
+      {
+       "leg": 2
+      }
+     ]
+    }
+   },
+   {
+    "id": "sell",
+    "time": "2026-01-05T12:00:00Z",
+    "legs": [
+     {
+      "asset": "LP",
+      "quantity": "-100",
+      "compartment": "wallet",
+      "tag": "trade"
+     },
+     {
+      "asset": "USDC",
+      "quantity": "7500",
+      "compartment": "wallet",
+      "tag": "trade"
+     }
+    ]
+   }
+  ]
+ },
+ "cases": [
+  {
+   "name": "carry",
+   "rules": [
+    "15.5",
+    "positions 12.1"
+   ],
+   "expected": {
+    "complete": true,
+    "realized": [
+     {
+      "event": "sell",
+      "asset": "LP",
+      "proceeds": "7500.00",
+      "cost": "6500.00",
+      "pnl": "1000.00"
+     }
+    ]
+   }
+  }
+ ]
+}

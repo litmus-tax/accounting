@@ -1,0 +1,126 @@
+{
+ "example": "guide \u00a74.1: debt: borrow, accrue, repay",
+ "ledger": {
+  "policy": {
+   "cost_method": "fifo",
+   "lot_scope": "global",
+   "functional_currency": "USD",
+   "cash": [
+    "USDC",
+    "USDT"
+   ],
+   "minor_unit": 2
+  },
+  "prices": [
+   {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDT",
+    "quote": "USD",
+    "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   }
+  ],
+  "events": [
+   {
+    "id": "buy",
+    "time": "2026-01-01T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDC",
+      "quantity": "200",
+      "compartment": "wallet",
+      "tag": "trade"
+     },
+     {
+      "asset": "USD",
+      "quantity": "-200",
+      "compartment": "wallet",
+      "tag": "trade"
+     }
+    ]
+   },
+   {
+    "id": "borrow",
+    "time": "2026-01-02T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDC",
+      "quantity": "1000",
+      "compartment": "wallet",
+      "tag": "borrow",
+      "label": "aave"
+     }
+    ]
+   },
+   {
+    "id": "accrue",
+    "time": "2026-01-31T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDC",
+      "quantity": "5",
+      "compartment": "wallet",
+      "tag": "borrow",
+      "label": "interest"
+     }
+    ],
+    "description": "month-end accrual in debt:aave-usdc"
+   },
+   {
+    "id": "repay",
+    "time": "2026-02-02T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDC",
+      "quantity": "-1005",
+      "compartment": "wallet",
+      "tag": "repay",
+      "label": "aave"
+     }
+    ]
+   }
+  ]
+ },
+ "cases": [
+  {
+   "name": "usdc",
+   "rules": [
+    "9.2",
+    "9.3",
+    "9.4"
+   ],
+   "xfail": "gap 11: accrued interest never becomes an expense (#3)",
+   "expected": {
+    "complete": true,
+    "flows": [
+     {
+      "event": "accrue",
+      "kind": "expense",
+      "label": "interest",
+      "value": "5.00"
+     }
+    ],
+    "holdings": [
+     {
+      "asset": "USDC",
+      "quantity": "195",
+      "cost": "195.00"
+     }
+    ],
+    "liabilities": [],
+    "totals": {
+     "realized": "0.00",
+     "income": "0",
+     "expenses": "5.00"
+    }
+   }
+  }
+ ]
+}
