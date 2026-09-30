@@ -4,9 +4,10 @@ lots, realized PnL, income/expense flows, internal moves, prices used and an
 exceptions report.
 
 Ordering is part of the contract: events are processed by time, ties in input
-order; within an event borrow legs, then trades, then transfers, then repay
-legs, then income and expense legs, then fee legs. A linked pair is booked when
-the earlier of its two events is processed.
+order; within an event borrow legs, then trades, then perpetual fills, then
+income legs, then transfers, then repay legs, then expense legs, then fee legs.
+A linked pair is booked when the earlier of its two events is processed, after
+the income legs of both.
 """
 
 from dataclasses import dataclass, replace
@@ -258,6 +259,8 @@ class Engine:
     self.cash = set(policy.cash)
     self.positions = set(policy.position_assets)
     self.perps = PositionBook(policy.perp_cost_method)
+    self.earned: set[str] = set()
+    """Events whose income legs are booked (policy 05 rule 14.3)."""
     self.journal = Journal()
     self.perp_compartments: set[str] = set()
     """Compartments holding perpetual positions: a settlement asset there never goes below zero (rule 8.6)."""
@@ -882,15 +885,31 @@ class Engine:
     self.lots(event, replace(leg, quantity=-leg.quantity), -value)
     self.clear(event, leg, value)
 
+  def income(self, event: Event):
+    """
+    Book an event's income legs, once. They come before its transfers, so a
+    withdrawal's `performance` leg is recognised before the transfer takes the
+    units out (policy 05 rule 14.3).
+    """
+    if event.id in self.earned:
+      return
+    self.earned.add(event.id)
+    for leg in event.legs:
+      if leg.tag == 'income' and not leg.fee:
+        self.flow(event, leg)
+
   def transfer(self, event: Event, legs: list[Leg], linked: Linked):
     """
     Route transfer legs: a linked pair is booked once, when the earlier of its
-    two events is processed (ties in input order), at that event's time.
+    two events is processed (ties in input order), at that event's time, after
+    the income legs of both events.
     """
     if event.id in linked:
       link, src, dst = linked[event.id]
       if (link.src, link.dst) not in self.booked_links:
         self.booked_links.add((link.src, link.dst))
+        self.income(src)
+        self.income(dst)
         self.internal(event.time, link, src, dst)
       return
     for leg in legs:
@@ -1120,7 +1139,7 @@ class Engine:
     )
 
   def process(self, event: Event, linked: Linked):
-    """Book one event: borrows, trades, transfers, repays, income and expenses, then fees."""
+    """Book one event: borrows, trades, fills, income, transfers, repays, expenses, then fees."""
     before = len(self.exceptions)
     self.rollover(event)
     if event.rollover and any(
@@ -1131,7 +1150,7 @@ class Engine:
     trades = [l for l in event.legs if l.tag == 'trade' and not l.fee]
     transfers = [l for l in event.legs if l.tag == 'transfer' and not l.fee]
     repays = [l for l in event.legs if l.tag == 'repay' and not l.fee]
-    flows = [l for l in event.legs if l.tag in ('income', 'expense') and not l.fee]
+    expenses = [l for l in event.legs if l.tag == 'expense' and not l.fee]
     rollover_fees: set[int] = (
       set(event.rollover.capitalized_fee_legs) if event.rollover else set()
     )
@@ -1146,11 +1165,12 @@ class Engine:
     if trades:
       self.trade(event, trades, fees if capitalized else [])
     self.fill(event)
+    self.income(event)
     if transfers:
       self.transfer(event, transfers, linked)
     for leg in repays:
       self.repay(event, leg)
-    for leg in flows:
+    for leg in expenses:
       self.flow(event, leg)
     if not capitalized:
       for leg in fees:

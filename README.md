@@ -100,8 +100,9 @@ A `Leg` is `{asset, quantity, compartment, tag, fee?, label?, liability?, price?
 `tag ∈ {trade, transfer, income, expense, borrow, repay, rollover, position, notional}`. An `Event` is
 `{id, time, legs}`. A `Link` is `{src, dst}` over event ids and marks one
 internal movement, booked when the earlier of the two events is processed.
-Within an event borrows are booked first, then trades, then transfers, then
-repays, then income and expenses, then fees; across events with the same
+Within an event borrows are booked first, then trades, then perpetual fills,
+then income, then transfers, then repays, then expenses, then fees; across
+events with the same
 timestamp, input order wins. A `borrow` opens a lot at market value and a
 liability of the same quantity under `(liability compartment, asset)`; a `repay`
 is a disposal at market that reduces the liability and realizes its value change;
@@ -110,9 +111,8 @@ that change before repayment. Accrued interest is an expense. The
 caller supplies the cash list, the fiat list, income vs expense by sign, the
 `fee` flag, globally unique event ids, perpetual fills as `position` size legs
 (with their `notional` cash leg, or the venue's price on `pnl` venues), and the
-compartment granularity. Within an event, perpetual fills are applied after
-trades; a fill books nothing but the P&L its reduction realizes on a `notional`
-compartment (policy 05 rule 8).
+compartment granularity. A perpetual fill books nothing but the P&L its
+reduction realizes on a `notional` compartment (policy 05 rule 8).
 
 ## Basis rollover and pending claims
 

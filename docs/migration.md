@@ -1,6 +1,6 @@
 # Versions, migration and extension
 
-Distribution version is 0.8.0. `Ledger.schema_version` accepts `0.2` to `0.8`
+Distribution version is 0.8.1. `Ledger.schema_version` accepts `0.2` to `0.8`
 and defaults to `0.8`; Result explicitly emits `schema_version:"0.8"`.
 Omitting the input version preserves ordinary historical ledgers. New callers
 should pin 0.8 and validate against this repo's generated schemas. The package is
@@ -24,6 +24,13 @@ revision.
 | `0.6` | Ledger: tags `position` and `notional`, `Leg.price` and `Leg.settles_in`, `Policy.perp_cost_method` (default `average`). Result: `positions` (open `PerpPosition`s) and `Flow.instrument`. In a compartment with `position` legs a settlement asset never goes below zero: the shortfall is a liability labelled `settlement`, cleared by later inflows (new liability-side `Realized` rows). | Map perp fills by the compartment's declared settlement: on `notional`, the size leg as `position` and the cash leg as `notional` (price from the legs, never `detail`); on `pnl`, the size leg as `position` with the fill `price` and `settles_in` (specs#72). Stop sending the notional as `trade` legs with `position_assets`. Send `perp_cost_method`. Read `positions` for open positions and `Flow.instrument` for realized P&L per position (rule 30.3). The venue-basis valuation in `perps.py` stays labelled as the venue's. |
 | `0.7` | Result: `journal` (`JournalLine` rows: double entry per event on `holding`, `liability`, `realized`, `income`, `expense`, `external` and `rounding` accounts); exception code `unbalanced`. | Store the journal with the revision and serve it as `rows?kind=journal` and in the reports export (rules 29.3, 31.2, 36). An `unbalanced` exception makes the result incomplete and must be acknowledged to mark a revision final (rule 26.2). |
 | `0.8` | `run(grid=...)` and `Ledger.grid`; Result: `series` (`SeriesPoint` with holdings, liabilities at market, open positions at the mark, cumulative realized and flows, total P&L, net assets, contributions); exception codes `series_mismatch` and `invalid_grid`. | Pass the grid of rule 39.1 (every UTC day end from the first record to `as_of`, plus `as_of`) and prices for every held asset and perp mark (instrument in its settlement asset) at each instant; store the series with the revision and serve it as `{P}/books/{rev}/series` (rule 36). A `series_mismatch` makes the result incomplete. |
+
+Distribution 0.8.1 keeps result schema 0.8 and changes only the order within an
+event: income legs are booked before transfers, and a linked pair after the
+income legs of both its events, so a withdrawal's `performance` leg is
+recognised before the transfer takes the units out (policy 05 rule 14.3).
+Consumer impact: none in shape; an overdrawn opaque compartment now books
+completely once its unit serves the leg (specs#70).
 
 ## 0.3
 

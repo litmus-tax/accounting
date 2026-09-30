@@ -1,6 +1,7 @@
 """Linked pairs are booked when the earlier of the two events is processed."""
 
 from decimal import Decimal as D
+import pytest
 from litmus.accounting import run, FixedPricing
 from litmus.accounting.model import Result
 from tests.conftest import leg, event, link, policy, t
@@ -152,3 +153,42 @@ def test_a_self_link_is_a_conflict():
   )
   assert not r.complete
   assert codes(r) == ['link_conflict', 'unmatched_transfer']
+
+
+def overdraw(out_hour: int = 12, in_hour: int = 12):
+  """Guide §4.5: 1,000 USDT into copy trading, a checkpoint at 1,080, then 1,200 withdrawn with +120 performance."""
+  return [
+    event('dep', 1, leg('USDT', '1000', 'spot'), leg('EUR', '-1000', 'spot')),
+    event('in-out', 2, leg('USDT', '-1000', 'spot', tag='transfer')),
+    event('in-in', 2, leg('USDT', '1000', 'copy', tag='transfer')),
+    event('check', 3, leg('USDT', '80', 'copy', tag='income', label='performance')),
+    event(
+      'wd-out',
+      5,
+      leg('USDT', '-1200', 'copy', tag='transfer'),
+      leg('USDT', '120', 'copy', tag='income', label='performance'),
+      hour=out_hour,
+    ),
+    event('wd-in', 5, leg('USDT', '1200', 'spot', tag='transfer'), hour=in_hour),
+  ]
+
+
+@pytest.mark.parametrize(('out_hour', 'in_hour'), [(12, 13), (13, 12)])
+def test_a_withdrawals_performance_is_booked_before_its_transfer(out_hour, in_hour):
+  """The excess over the replayed balance is income first, so the whole withdrawal moves, whichever clock is ahead."""
+  # policy 05 rule 14.3 (gap 23, probe 8)
+  r = run(
+    overdraw(out_hour, in_hour),
+    links=[link('in-out', 'in-in'), link('wd-out', 'wd-in')],
+    policy=policy('fifo', 'compartment'),
+    pricing=FixedPricing({('USDT', 'EUR'): '1'}),
+  )
+  assert codes(r) == [] and r.complete
+  assert [(l.compartment, l.quantity) for l in r.lots] == [
+    ('spot', D('1000')),
+    ('spot', D('80')),
+    ('spot', D('120')),
+  ]
+  assert sum(f.value for f in r.flows) == D('200')
+  (performance,) = [f for f in r.flows if f.event == 'wd-out']
+  assert performance.time == t(5, out_hour)

@@ -159,8 +159,8 @@ Prices are asked through the same pricing protocol and recorded in `Result.price
 ## Ordering (contract)
 
 1. Events are processed by `time`; events with the same timestamp keep input order. Adapters must therefore emit deterministically.
-2. Within an event: borrow legs, then trade legs, then transfer legs, then repay legs, then income and expense legs, then fee legs. Borrows first and repays after transfers let a borrow-swap or swap-repay event book in one go.
-3. A linked pair is booked once, when the earlier of its two events is processed (ties in input order), at that event's time; `Move.time` records it. When the destination's clock runs ahead of the source's, the lots leave the source at the destination's time, so a disposal in the destination between the two timestamps finds them.
+2. Within an event: borrow legs, then trade legs, then perpetual fills, then income legs, then transfer legs, then repay legs, then expense legs, then fee legs. Borrows first and repays after transfers let a borrow-swap or swap-repay event book in one go. Income before transfers lets a withdrawal's `performance` leg (the excess over an opaque compartment's replayed balance) be recognised before the transfer takes the units out (policy 05 rule 14.3).
+3. A linked pair is booked once, when the earlier of its two events is processed (ties in input order), at that event's time, after the income legs of both events (each valued at its own event's time); `Move.time` records it. When the destination's clock runs ahead of the source's, the lots leave the source at the destination's time, so a disposal in the destination between the two timestamps finds them.
 
 ## Semantics worth knowing
 
