@@ -616,3 +616,73 @@ def test_ordinary_average_pool_retains_legacy_addition_precision():
   lot = book.open(('wallet', 'A'), quantity=D(1), cost=added, time=T, event='second')
   assert lot.cost == first + added
   assert exact_sum(origin.cost for origin in lot.origins) == lot.cost
+
+
+def split(allocations: tuple[str | None, str | None] = (None, None)) -> list[Event]:
+  """Buy 10 X for EUR 1,000, then carry them into 1 A and 4 B."""
+  return [
+    Event(
+      'buy', T, (Leg('X', D(10), 'w', 'trade'), Leg('EUR', D(-1000), 'w', 'trade'))
+    ),
+    Event(
+      'split',
+      T + timedelta(days=1),
+      (
+        Leg('X', D(-10), 'w', 'rollover'),
+        Leg('A', D(1), 'w', 'rollover'),
+        Leg('B', D(4), 'w', 'rollover'),
+      ),
+      rollover=Rollover(
+        inputs=(RolloverInput(0),),
+        outputs=(
+          RolloverOutput(1, None if allocations[0] is None else D(allocations[0])),
+          RolloverOutput(2, None if allocations[1] is None else D(allocations[1])),
+        ),
+      ),
+    ),
+  ]
+
+
+def test_omitted_allocations_follow_market_value():
+  """Several outputs without allocations share the basis by their market value at the operation."""
+  # policy 05 positions rule 5.1 (issue #14)
+  prices = FixedPricing({('A', 'EUR'): '300', ('B', 'EUR'): '150'})
+  result = run(split(), policy=Policy('fifo', 'compartment', 'EUR'), pricing=prices)
+  assert result.complete and not result.exceptions
+  assert {lot.asset: lot.cost for lot in result.lots} == {
+    'A': D('333.3333333333333333333333333'),
+    'B': D('666.6666666666666666666666667'),
+  }
+  (record,) = result.rollovers
+  assert record.basis_out == record.basis_in == D(1000)
+  assert record.allocations == (D(1) / D(3), D(2) / D(3))
+  assert [p.asset for p in result.prices] == ['A', 'B']
+
+
+def test_an_unpriced_output_leaves_the_operation_unbooked():
+  """Without a value for every output there is no allocation: price gap, nothing moves, never an equal split."""
+  # policy 05 positions rule 5.1; policy 06 (never zero)
+  result = run(
+    split(),
+    policy=Policy('fifo', 'compartment', 'EUR'),
+    pricing=FixedPricing({('A', 'EUR'): '300'}),
+  )
+  assert not result.complete
+  assert [x.code for x in result.exceptions] == [
+    'price_gap',
+    'unbooked',
+    'unbooked',
+    'unbooked',
+  ]
+  assert [(lot.asset, lot.quantity) for lot in result.lots] == [('X', D(10))]
+
+
+def test_allocations_are_all_given_or_all_omitted():
+  """Mixing a given and an omitted allocation is invalid."""
+  # policy 05 positions rule 5.1
+  from litmus.accounting import validate
+
+  (problem,) = validate(split(('0.5', None)))
+  assert (
+    'allocations must be all given and nonnegative, or all omitted' in problem.message
+  )

@@ -56,8 +56,10 @@ def rollover_problems(event: Event) -> list[str]:
       issues.append('single output allocation must be 1')
   else:
     allocations = [item.allocation for item in operation.outputs]
-    if any(value is None or value < 0 for value in allocations):
-      issues.append('multiple outputs require nonnegative allocations')
+    if all(value is None for value in allocations):
+      pass  # allocated by market value at the operation (policy 05 positions rule 5.1)
+    elif any(value is None or value < 0 for value in allocations):
+      issues.append('allocations must be all given and nonnegative, or all omitted')
     elif sum(value for value in allocations if value is not None) != 1:
       issues.append('output allocations must sum exactly to 1')
   if operation.capitalized_costs < 0 or (
