@@ -90,6 +90,18 @@ def problems(event: Event) -> list[str]:
       out.append(f'leg {i}: price and settles_in go together, on position legs only')
     elif leg.price is not None and leg.price <= 0:
       out.append(f'leg {i}: price must be positive')
+    elif leg.basis != 'unclassified' and leg.tag != 'transfer':
+      out.append(f'leg {i}: only transfer legs have a basis')
+    elif (leg.cost is not None or leg.acquired is not None) and (
+      leg.basis != 'carried' or leg.quantity < 0
+    ):
+      out.append(f'leg {i}: cost and acquired go on inbound carried transfers only')
+    elif leg.basis == 'carried' and leg.quantity > 0 and leg.cost is None:
+      out.append(f'leg {i}: an inbound carried transfer needs its cost')
+    elif leg.cost is not None and leg.cost < 0:
+      out.append(f'leg {i}: cost must not be negative')
+    elif leg.acquired is not None and leg.acquired.tzinfo is None:
+      out.append(f'leg {i}: naive acquisition time')
   return out
 
 
@@ -305,7 +317,13 @@ class Engine:
     )
 
   def book_leg(
-    self, event: Event, leg: Leg, value: Decimal, *, fees: Decimal = Decimal(0)
+    self,
+    event: Event,
+    leg: Leg,
+    value: Decimal,
+    *,
+    fees: Decimal = Decimal(0),
+    acquired: datetime | None = None,
   ):
     """
     Book a leg worth `value` (signed like its quantity) into lots, recording the
@@ -322,7 +340,7 @@ class Engine:
     if leg.compartment in self.perp_compartments:
       self.settle(event, leg, value, fees=fees)
       return
-    applied = self.lots(event, leg, value, fees=fees)
+    applied = self.lots(event, leg, value, fees=fees, acquired=acquired)
     scope = (leg.compartment, leg.asset)
     self.scope_positions[scope] = (
       self.scope_positions.get(scope, Decimal(0)) + leg.quantity
@@ -348,7 +366,13 @@ class Engine:
       )
 
   def lots(
-    self, event: Event, leg: Leg, value: Decimal, *, fees: Decimal = Decimal(0)
+    self,
+    event: Event,
+    leg: Leg,
+    value: Decimal,
+    *,
+    fees: Decimal = Decimal(0),
+    acquired: datetime | None = None,
   ) -> Applied:
     """
     Apply a leg to the lot book and record the realized row of what it closed.
@@ -356,7 +380,11 @@ class Engine:
     """
     compartment = self.key(leg)[0]
     applied = self.book.apply(
-      self.key(leg), quantity=leg.quantity, value=value, time=event.time, event=event.id
+      self.key(leg),
+      quantity=leg.quantity,
+      value=value,
+      time=acquired or event.time,
+      event=event.id,
     )
     closed = applied.closed
     opened = value
@@ -629,15 +657,23 @@ class Engine:
     self.book_leg(event, leg, value)
 
   def external(self, event: Event, leg: Leg):
-    """Book an unmatched transfer at market value and report it."""
-    self.report(
-      'unmatched_transfer',
-      event.id,
-      f'unlinked transfer of {leg.quantity} {leg.asset} in {leg.compartment} booked at market value',
-      asset=leg.asset,
-      compartment=leg.compartment,
-      quantity=str(leg.quantity),
-    )
+    """
+    Book an unlinked transfer by its basis (policy 05 rules 13.2 to 13.4): at
+    market value, reported when unclassified; or at carried cost. The functional
+    currency needs no classification.
+    """
+    if leg.basis == 'carried' and leg.asset != self.fc:
+      self.carried(event, leg)
+      return
+    if leg.basis == 'unclassified' and leg.asset != self.fc:
+      self.report(
+        'unmatched_transfer',
+        event.id,
+        f'unlinked transfer of {leg.quantity} {leg.asset} in {leg.compartment} booked at market value',
+        asset=leg.asset,
+        compartment=leg.compartment,
+        quantity=str(leg.quantity),
+      )
     try:
       value = self.market(event, leg)
     except PriceGap as e:
@@ -648,6 +684,32 @@ class Engine:
       event, 'external', -value, compartment=leg.compartment, asset=leg.asset
     )
     self.book_leg(event, leg, value)
+
+  def carried(self, event: Event, leg: Leg):
+    """
+    A boundary crossing at cost (rules 11.2.3 and 13.3.1): in, a lot opens at
+    the leg's cost and acquisition time with no income; out, lots leave at cost
+    with no P&L. The external account takes the cost.
+    """
+    key = self.key(leg)
+    scope = (leg.compartment, leg.asset)
+    if leg.quantity > 0:
+      cost = leg.cost if leg.cost is not None else Decimal(0)
+      self.journal.add(
+        event, 'external', -cost, compartment=leg.compartment, asset=leg.asset
+      )
+      self.book_leg(event, leg, cost, acquired=leg.acquired)
+      return
+    taken = self.book.take(key, -leg.quantity)
+    moved = sum((quantity for _, quantity, _ in taken), Decimal(0))
+    cost = exact_sum(share for _, _, share in taken)
+    self.journal.add(event, 'holding', -cost, compartment=key[0], asset=leg.asset)
+    self.journal.add(
+      event, 'external', cost, compartment=leg.compartment, asset=leg.asset
+    )
+    self.scope_positions[scope] = self.scope_positions.get(scope, Decimal(0)) - moved
+    if moved < -leg.quantity:
+      self.unbooked(event, leg, f'only {moved} {leg.asset} held to carry out at cost')
 
   def liability(self, event: Event, leg: Leg) -> OpenLiability:
     """

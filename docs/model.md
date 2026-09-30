@@ -19,12 +19,20 @@ on the wire; timestamps are ISO 8601 and must carry a timezone.
 | `label` | str? | Free-form sub-classification for reporting (`funding`, `gas`, `realized_pnl`). On `borrow` and `repay` legs it describes the facility; `interest` on a `borrow` leg marks an accrual. |
 | `price` | Decimal? | `position` legs on `pnl` compartments only: the venue's fill price, in `settles_in` per unit. |
 | `settles_in` | str? | `position` legs on `pnl` compartments only (with `price`): the settlement asset. |
+| `basis` | `unclassified` \| `market` \| `carried` | Unlinked `transfer` legs only (below); default `unclassified`. |
+| `cost` | Decimal? | Inbound `carried` transfers only (required there): the functional-currency cost the lot opens at. |
+| `acquired` | datetime? | Inbound `carried` transfers only: the lot's acquisition time; absent, the event's. |
 | `liability` | str? | `borrow` and `repay` legs only: the facility's liability compartment (the unit's counter-leg compartment). The liability is `(liability, asset)`; absent, the leg's own compartment. |
 
 Tags:
 
 1. `trade`: one side of an exchange of assets. All trade legs of an event are valued together: the side holding the functional currency fixes the value, else the side holding a `Policy.cash` asset, else `Policy.trade_valuation`. The fixing side is valued at market and the total is allocated to the other side in proportion to market value. Legs may sit in different compartments (an asset-changing bridge is one two-leg trade).
-2. `transfer`: a movement in or out of a compartment. With a `Link` it is internal: basis carries (under `compartment` scope lots move; under `global` scope nothing moves). Without one it is external: booked at market value plus an `unmatched_transfer` exception.
+2. `transfer`: a movement in or out of a compartment. With a `Link` it is internal: basis carries (under `compartment` scope lots move; under `global` scope nothing moves), whatever the legs' `basis`. Without one it crosses the books' boundary and its `basis` decides (policy 05 rules 11 and 13):
+   1. `unclassified` (default): at market value, plus an `unmatched_transfer` exception (rule 13.4);
+   2. `market`: classified as not retained (a payment, sale, purchase or gift): a disposal or acquisition at market value, not reported (rule 13.3.2);
+   3. `carried`: the asset stays the owner's outside the books (`ownership_retained`, rule 13.3.1) or is an unsolicited receipt at zero cost (rule 11.2.3): out, lots leave at cost with no P&L (what is not held is `unbooked`); in, a lot opens at `cost` and `acquired` with no income. The `external` journal account takes the cost.
+
+   The functional currency carries no lots and is never reported, whatever its basis (rule 13.2).
 3. `income`: a positive inflow valued at market at event time; opens a lot at that value and emits a `Flow`.
 4. `expense`: a negative outflow valued at market at event time; consumes lots at that value (realizing PnL on them) and emits a `Flow`.
 5. `borrow`: a positive quantity received against a liability. Opens a lot at market value at event time (no income, no PnL) and opens or grows the liability `(liability or compartment, asset)` by the same quantity and value (policy 05 rule 9.1). Labelled `interest` it is accrued unpaid interest: nothing is received and no lot opens; the liability grows and an `expense` flow labelled `interest` of the same market value is booked (rule 9.3.1). Portfolio sends the unit's accrual leg (negative in the liability compartment) as this positive `borrow` leg in that compartment.
@@ -139,7 +147,7 @@ Prices are asked through the same pricing protocol and recorded in `Result.price
 | Code | Meaning | Incomplete? |
 |---|---|---|
 | `price_gap` | no price along the quote path; the leg (or whole trade) is left unbooked | with `unbooked` |
-| `unmatched_transfer` | a transfer without a link, booked at market | no |
+| `unmatched_transfer` | an unclassified transfer without a link, outside the functional currency, booked at market | no |
 | `link_mismatch` | a link that does not conserve quantity per asset; not moved, its legs `unbooked` | yes |
 | `link_conflict` | a link naming an event already in another link, or an event linked to itself; not booked | yes |
 | `unknown_event` | a link names an event id that does not exist | no |
