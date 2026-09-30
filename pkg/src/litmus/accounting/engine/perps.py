@@ -85,6 +85,8 @@ class PositionBook:
       'notional': LotBook(perp_cost_method, origins=False),
       'pnl': LotBook('average', origins=False),
     }
+    for book in self.books.values():
+      book.report_position = False
     self.terms: dict[PositionKey, tuple[Settlement, str]] = {}
 
   def conflict(self, fill: Fill) -> bool:

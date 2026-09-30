@@ -244,6 +244,8 @@ class Engine:
     self.fc = policy.functional_currency
     self.valuer = Valuer(pricing, policy)
     self.book = LotBook(policy.cost_method)
+    self.book.report_position = not policy.notional_scopes
+    """`Applied.position` is read only without notional scopes (`book_leg`)."""
     self.liabilities: dict[tuple[str, str], OpenLiability] = {}
     self.realized: list[Realized] = []
     self.flows: list[Flow] = []
@@ -841,7 +843,7 @@ class Engine:
         else Decimal(0)
       )
       if self.key(a) != self.key(b):
-        qty = b.quantity * (1 if self.book.position(self.key(a)) >= 0 else -1)
+        qty = b.quantity * (1 if self.book.sign(self.key(a)) >= 0 else -1)
         taken, created = self.book.move(self.key(a), self.key(b), qty)
         for key, sign in ((self.key(a), -1), (self.key(b), 1)):
           self.journal.add(
@@ -920,8 +922,6 @@ class Engine:
     operation = event.rollover
     if operation is None:
       return
-    from copy import deepcopy
-
     fee_values: list[tuple[Leg, Decimal]] = []
     try:
       for index in operation.capitalized_fee_legs:
@@ -936,7 +936,10 @@ class Engine:
       for leg in event.legs:
         self.unbooked(event, leg, 'capitalized_costs does not cover paid fee value')
       return
-    book = deepcopy(self.book)
+    # The operation is atomic: it works on a fork of the keys it touches.
+    book = self.book.fork(
+      self.key(event.legs[item.leg]) for item in (*operation.inputs, *operation.outputs)
+    )
     consumed: list[RolloverSlice] = []
     created: list[RolloverSlice] = []
     reason: str | None = None
@@ -980,7 +983,7 @@ class Engine:
         )
     for item in operation.outputs:
       leg = event.legs[item.leg]
-      if leg.asset == self.fc or book.position(self.key(leg)) < 0:
+      if leg.asset == self.fc or book.sign(self.key(leg)) < 0:
         reason = 'output requires a non-functional-currency, non-short holding'
     if reason:
       for leg in event.legs:

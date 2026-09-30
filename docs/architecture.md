@@ -32,4 +32,5 @@
 | `engine/perps.py` | Open perpetual positions on a settled basis: fill pairing, entry basis per `perp_cost_method`, realized P&L in the settlement asset. | `engine`, `model`, `pricing` |
 | `engine/rounding.py` | Rounds functional-currency money outputs to the minor unit, recomputing derived amounts from rounded parts. | `engine`, `model`, `pricing` |
 | `engine/series.py` | The P&L series: a point per grid instant from the engine's state, valued at market, with the total-P&L check. | `engine`, `model`, `pricing` |
+| `engine/totals.py` | Per-key running totals of a lot book: the context position sum without summing lots, and exact decisions within its rounding margin. | `engine`, `model`, `pricing` |
 <!-- structure:end -->

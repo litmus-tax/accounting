@@ -1,4 +1,4 @@
-"""The pre-#17 `LotBook` (543bbfc), kept verbatim as a test oracle for the linear lot book."""
+"""The pre-#17 `LotBook` (543bbfc), kept verbatim as a test oracle for the linear lot book; only `origins=`, `sign()` and `fork()` are shims for the current engine's calls."""
 
 from dataclasses import dataclass, replace
 from datetime import datetime
@@ -94,6 +94,16 @@ class LotBook:
     """Sequential lot id."""
     self.counter += 1
     return f'lot-{self.counter}'
+
+  def fork(self, keys: object) -> 'LotBook':
+    """Shim for the current engine's call: the whole-book copy the engine used to make."""
+    from copy import deepcopy
+
+    return deepcopy(self)
+
+  def sign(self, key: LotKey) -> int:
+    """Shim for the current engine's call: the sign of the position."""
+    return sign(self.position(key))
 
   def position(self, key: LotKey) -> Decimal:
     """Net signed quantity held under `key`."""
