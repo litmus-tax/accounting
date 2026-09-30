@@ -20,7 +20,15 @@ DOCUMENTED = ConfigDict(use_attribute_docstrings=True, extra='forbid')
 """Pydantic config shared by every model: field docstrings become schema descriptions."""
 
 LegTag = Literal[
-  'trade', 'transfer', 'income', 'expense', 'borrow', 'repay', 'rollover'
+  'trade',
+  'transfer',
+  'income',
+  'expense',
+  'borrow',
+  'repay',
+  'rollover',
+  'position',
+  'notional',
 ]
 """
 How the engine treats a leg:
@@ -45,6 +53,15 @@ How the engine treats a leg:
   its normal PnL; the liability shrinks, and the difference between the value
   given and the basis released is realized against it (policy 05 rule 9.4).
   Quantity must be negative.
+- `rollover`: an input or output of the event's `Rollover`.
+- `position`: the size leg of a perpetual fill: the signed change of the open
+  position in `asset` (the instrument) in the leg's compartment. Books nothing
+  (policy 05 rule 8.1). On a `notional` compartment its price comes from the
+  fill's `notional` leg; on a `pnl` compartment it carries `price` and
+  `settles_in`.
+- `notional`: the notional cash leg of a perpetual fill on a `notional`
+  compartment, in the settlement asset: not booked; it gives the fill price
+  (cash / size, rule 8.2).
 """
 
 
@@ -76,6 +93,10 @@ class Leg:
   is identified by `(liability, asset)`, so two facilities never merge. Absent,
   the leg's own compartment.
   """
+  price: Decimal | None = None
+  """On `position` legs of `pnl` compartments only: the venue's fill price, in `settles_in` per unit."""
+  settles_in: str | None = None
+  """On `position` legs of `pnl` compartments only: the settlement asset of the instrument."""
 
 
 @dataclass(frozen=True)
@@ -176,8 +197,8 @@ FeeTreatment = Literal['expense', 'capitalize']
 """
 `expense`: every fee is an expense flow at market value.
 `capitalize`: a fee on a trade is added to the basis of what the trade acquires,
-or deducted from the proceeds of what it disposes; fees on other events remain
-expenses.
+or deducted from the proceeds of what it disposes; fees on other events
+(perpetual fills included) remain expenses.
 """
 LiabilityValuation = Literal['cost', 'market']
 """
@@ -217,6 +238,8 @@ class Policy:
   """Decimal places of the functional currency's minor unit; when set, money outputs are rounded to it."""
   liability_valuation: LiabilityValuation = 'cost'
   notional_scopes: tuple[NotionalScope, ...] = ()
+  perp_cost_method: CostMethod = 'average'
+  """Which entries a reduction of a perpetual position on a `notional` compartment closes (policy 05 rule 8.2)."""
 
 
 PriceSource = Literal['market', 'official']
@@ -299,6 +322,8 @@ class Flow:
   kind: Literal['income', 'expense']
   fee: bool
   label: str | None
+  instrument: str | None = None
+  """The perpetual position whose reduction realized this flow (label `realized_pnl`, notional compartments)."""
 
 
 @dataclass(frozen=True)
@@ -315,6 +340,25 @@ class Move:
   cost: Decimal
   lots: tuple[str, ...]
   """Ids of the lots recreated in the destination."""
+
+
+@dataclass(frozen=True)
+class PerpPosition:
+  """An open perpetual position: tracked, not booked (policy 05 rule 8.1)."""
+
+  __pydantic_config__ = DOCUMENTED
+
+  compartment: str
+  instrument: str
+  settles_in: str
+  """The settlement asset its entry and P&L are in."""
+  settlement: Literal['notional', 'pnl']
+  size: Decimal
+  """Signed: negative for a short."""
+  entry: Decimal
+  """Entry basis in `settles_in`, signed like `size`: `perp_cost_method` entries on `notional`, average entry on `pnl`."""
+  opened: datetime
+  """Earliest entry still open."""
 
 
 @dataclass(frozen=True)
@@ -419,9 +463,9 @@ class RolloverRecord:
   cost_reference: str | None
 
 
-ResultVersion = Literal['0.5']
+ResultVersion = Literal['0.6']
 """The result schema this engine writes and reads (policy 05 rule 27.2)."""
-RESULT_VERSION: ResultVersion = '0.5'
+RESULT_VERSION: ResultVersion = '0.6'
 
 
 @dataclass(frozen=True)
@@ -443,6 +487,8 @@ class Result:
   complete: bool
   """False when any leg could not be booked (every such case is also an exception)."""
   rollovers: tuple[RolloverRecord, ...] = ()
+  positions: tuple[PerpPosition, ...] = ()
+  """Open perpetual positions at the end of the run (policy 05 rule 8.1)."""
   schema_version: ResultVersion = RESULT_VERSION
 
 
@@ -502,7 +548,7 @@ class Ledger:
   __pydantic_config__ = DOCUMENTED
 
   events: tuple[Event, ...]
-  schema_version: Literal['0.2', '0.3', '0.4', '0.5'] = '0.5'
+  schema_version: Literal['0.2', '0.3', '0.4', '0.5', '0.6'] = '0.6'
   links: tuple[Link, ...] = ()
   policy: Policy | None = None
   prices: tuple[PriceRecord, ...] = ()

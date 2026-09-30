@@ -118,7 +118,7 @@ def test_worked_example(document: Row, case: Row):
   expected: Row = case['expected']
   if 'complete' in expected:
     assert result.complete == expected['complete'], result.exceptions
-  for key in ('realized', 'flows', 'moves', 'liabilities', 'lots'):
+  for key in ('realized', 'flows', 'moves', 'liabilities', 'lots', 'positions'):
     if key in expected:
       assert len(data[key]) == len(expected[key]), data[key]
       assert project(data[key], expected[key]) == normalized(expected[key])

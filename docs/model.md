@@ -11,12 +11,14 @@ on the wire; timestamps are ISO 8601 and must carry a timezone.
 
 | Field | Type | Meaning |
 |---|---|---|
-| `asset` | str | Opaque asset id. Perp positions are assets too (`BTC-PERP`). |
+| `asset` | str | Opaque asset id. On `position` legs, the perpetual instrument (`BTC-PERP`). |
 | `quantity` | Decimal | Signed: positive inflow, negative outflow. Never zero. |
 | `compartment` | str | Opaque account, subaccount or wallet id. |
-| `tag` | `trade` \| `transfer` \| `income` \| `expense` \| `borrow` \| `repay` | What the engine does with the leg (below). |
+| `tag` | `trade` \| `transfer` \| `income` \| `expense` \| `borrow` \| `repay` \| `rollover` \| `position` \| `notional` | What the engine does with the leg (below). |
 | `fee` | bool = false | The leg is a fee of its event. Must be negative. |
 | `label` | str? | Free-form sub-classification for reporting (`funding`, `gas`, `realized_pnl`). On `borrow` and `repay` legs it describes the facility; `interest` on a `borrow` leg marks an accrual. |
+| `price` | Decimal? | `position` legs on `pnl` compartments only: the venue's fill price, in `settles_in` per unit. |
+| `settles_in` | str? | `position` legs on `pnl` compartments only (with `price`): the settlement asset. |
 | `liability` | str? | `borrow` and `repay` legs only: the facility's liability compartment (the unit's counter-leg compartment). The liability is `(liability, asset)`; absent, the leg's own compartment. |
 
 Tags:
@@ -27,6 +29,10 @@ Tags:
 4. `expense`: a negative outflow valued at market at event time; consumes lots at that value (realizing PnL on them) and emits a `Flow`.
 5. `borrow`: a positive quantity received against a liability. Opens a lot at market value at event time (no income, no PnL) and opens or grows the liability `(liability or compartment, asset)` by the same quantity and value (policy 05 rule 9.1). Labelled `interest` it is accrued unpaid interest: nothing is received and no lot opens; the liability grows and an `expense` flow labelled `interest` of the same market value is booked (rule 9.3.1). Portfolio sends the unit's accrual leg (negative in the liability compartment) as this positive `borrow` leg in that compartment.
 6. `repay`: a negative quantity given back against a liability. A disposal at market with its normal realized PnL on the asset's lots; the liability shrinks by the quantity and releases a proportional share of its basis, and the released basis minus the market value repaid is a second `Realized` row against the liability (`compartment` is the liability's, `lots` names the liability id), under either `liability_valuation` (rule 9.4). Repaying more than is owed is a `negative_liability` exception; the liability goes negative rather than being clipped.
+
+7. `rollover`: an input or output of the event's `rollover` operation ([operations.md](operations.md)).
+8. `position`: the size leg of a perpetual fill; books nothing and changes the open position `(compartment, asset)` (policy 05 rule 8, [policy.md](policy.md#perpetuals-on-a-settled-basis)).
+9. `notional`: the notional cash leg of a fill on a `notional` compartment; not booked, it gives the fill price and the settlement asset.
 
 A fee leg is an `expense` unless `Policy.fee_treatment` is `capitalize` and the event has trade legs, in which case its value is folded into the trade (see the policy doc).
 
@@ -61,6 +67,7 @@ See [policy.md](policy.md).
 | `balances` | Net quantity per `(compartment, asset)` over every leg of every event, as a check. Independent of pricing and validity. |
 | `prices` | Every price the engine asked for, in order, gaps as `price: null`. This is what a caller should persist. |
 | `exceptions` | The exceptions report. |
+| `positions` | Open perpetual positions at the end, by compartment then instrument (`PerpPosition`). |
 | `complete` | False when any leg was left unbooked. |
 
 ### `Lot`
@@ -71,13 +78,17 @@ See [policy.md](policy.md).
 
 `{id, asset, compartment, quantity, cost, label, opened, updated, event}`. Ids are `liability-N` in opening order. `compartment` is the liability compartment: the legs' `liability`, else their own compartment (liabilities are never pooled globally, whatever `lot_scope` says). `quantity` is what is owed; `cost` its functional-currency value at the times each part was borrowed or accrued, reduced proportionally by repayments. `label` is the opening leg's and informational only; `opened` and `event` are the opening leg's; `updated` is the last `borrow` or `repay` that touched it.
 
+### `PerpPosition`
+
+`{compartment, instrument, settles_in, settlement, size, entry, opened}`: an open perpetual position, tracked and not booked. `settlement` is `notional` or `pnl` as its fills showed; `entry` is its entry basis in `settles_in`, signed like `size` (`perp_cost_method` entries on `notional`, average entry on `pnl`); `opened` is its earliest open entry.
+
 ### `Realized`
 
 `{event, time, asset, compartment, quantity, proceeds, cost, pnl, lots, fees}`. `quantity` is negative for a disposal and positive for a cover; `proceeds` is the value received (or paid for a cover), net of `fees`; `cost` is the basis released; `pnl = proceeds - cost`. `fees` is non-zero only under `fee_treatment: capitalize`.
 
 ### `Flow`
 
-`{event, time, asset, compartment, quantity, value, kind, fee, label}`. `value` is always positive; `kind` is `income` or `expense`.
+`{event, time, asset, compartment, quantity, value, kind, fee, label, instrument}`. `value` is always positive; `kind` is `income` or `expense`. `instrument` names the perpetual position whose reduction the engine realized (`realized_pnl` on a `notional` compartment), else `null`.
 
 ### `Move`
 

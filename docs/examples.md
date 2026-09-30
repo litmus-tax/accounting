@@ -137,7 +137,7 @@ it checks, and states the figures of the page, rounded as shown there:
 | Key | Compared with |
 |---|---|
 | `complete` | `Result.complete` |
-| `realized`, `flows`, `moves`, `liabilities`, `lots` | the result's rows, in order, on the keys each expected row names |
+| `realized`, `flows`, `moves`, `liabilities`, `lots`, `positions` | the result's rows, in order, on the keys each expected row names |
 | `holdings` | open lots summed per `(compartment, asset)` |
 | `balances` | rows that must be among `Result.balances` |
 | `totals` | realized P&L, income and expenses summed from the rounded rows |
