@@ -6,6 +6,7 @@ The engine never fetches. The caller implements `Pricing`; the engine decides
 records every answer so the caller can persist it, and reports gaps.
 """
 
+import bisect
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing_extensions import Protocol, Mapping, Iterable
@@ -57,20 +58,19 @@ class TablePricing:
         self.table.setdefault((r.asset, r.quote), []).append((r.time, r.price))
     for series in self.table.values():
       series.sort(key=lambda p: p[0])
+    self.times = {pair: [t for t, _ in series] for pair, series in self.table.items()}
 
   def price(
     self, asset: str, quote: str, time: datetime, *, source: PriceSource
   ) -> Decimal | None:
     """Latest price at or before `time` and within `max_age` of it, or `None`."""
-    best: Decimal | None = None
-    for t, p in self.table.get((asset, quote), []):
-      if t > time:
-        break
-      if self.max_age is None or time - t <= self.max_age:
-        best = p
-      else:
-        best = None
-    return best
+    index = bisect.bisect_right(self.times.get((asset, quote), []), time)
+    if index == 0:
+      return None
+    at, price = self.table[(asset, quote)][index - 1]
+    if self.max_age is not None and time - at > self.max_age:
+      return None
+    return price
 
 
 class FixedPricing:

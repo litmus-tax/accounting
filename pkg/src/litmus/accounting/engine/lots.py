@@ -8,9 +8,11 @@ newest first, HIFO highest unit cost first, or proportionally out of a single
 pool for average cost.
 """
 
+import bisect
 from dataclasses import dataclass, replace
 from datetime import datetime
 from decimal import Decimal
+from typing_extensions import Iterable
 from litmus.accounting.model import CostMethod, Lot, Origin
 from litmus.accounting.engine.arithmetic import exact_sum, difference
 
@@ -93,9 +95,16 @@ def split_origins(
 class LotBook:
   """Open lots per key, under one cost method."""
 
-  def __init__(self, method: CostMethod):
+  def __init__(self, method: CostMethod, *, origins: bool = True):
     self.method = method
+    self.origins = origins
+    """Track `Lot.origins`; off for books whose lots are never output (open positions)."""
     self.lots: dict[LotKey, list[OpenLot]] = {}
+    """Open lots per key, in acquisition order (ties in insertion order)."""
+    self.totals: dict[LotKey, Decimal] = {}
+    """Net quantity per key, kept as lots open and close."""
+    self.costs: dict[LotKey, Decimal] = {}
+    """Net basis per key, kept as lots open and close (for series points)."""
     self.counter = 0
 
   def next_id(self) -> str:
@@ -105,20 +114,20 @@ class LotBook:
 
   def position(self, key: LotKey) -> Decimal:
     """Net signed quantity held under `key`."""
-    return sum((lot.quantity for lot in self.lots.get(key, [])), Decimal(0))
+    return self.totals.get(key, Decimal(0))
 
-  def order(self, lots: list[OpenLot]) -> list[OpenLot]:
+  def order(self, lots: list[OpenLot]) -> Iterable[OpenLot]:
     """
     Lots in the order the cost method consumes them. FIFO and LIFO go by
     acquisition time (ties in insertion order, LIFO reversed), so lots recreated
-    by a move keep their place; HIFO by unit cost, ties oldest first.
+    by a move keep their place; HIFO by unit cost, ties oldest first. The lists
+    are kept in acquisition order, so FIFO and LIFO need no sort.
     """
     if self.method == 'lifo':
-      return sorted(reversed(lots), key=lambda lot: lot.acquired, reverse=True)
-    by_age = sorted(lots, key=lambda lot: lot.acquired)
+      return reversed(lots)
     if self.method == 'hifo':
-      return sorted(by_age, key=lambda lot: -lot.unit_cost())
-    return by_age
+      return sorted(lots, key=lambda lot: -lot.unit_cost())
+    return lots
 
   def open(
     self,
@@ -135,15 +144,20 @@ class LotBook:
     Open a lot. Under average cost it is merged into the key's single pool, which
     keeps the pool's original `acquired` and `event`.
     """
-    origins = (Origin(event, time, cost),) if origins is None else origins
+    if not self.origins:
+      origins = ()
+    elif origins is None:
+      origins = (Origin(event, time, cost),)
     lots = self.lots.setdefault(key, [])
+    self.totals[key] = self.totals.get(key, Decimal(0)) + quantity
+    self.costs[key] = self.costs.get(key, Decimal(0)) + cost
     if self.method == 'average' and lots:
       pool = lots[0]
       pool.quantity += quantity
       pool.exact_basis = pool.exact_basis or exact_basis
       pool.cost = exact_sum((pool.cost, cost)) if pool.exact_basis else pool.cost + cost
       pool.origins += origins
-      if not pool.exact_basis:
+      if self.origins and not pool.exact_basis:
         pool.origins = split_origins(pool.origins, Decimal(1), pool.cost)
       return pool
     lot = OpenLot(
@@ -157,7 +171,10 @@ class LotBook:
       origins=origins,
       exact_basis=exact_basis,
     )
-    lots.append(lot)
+    if lots and lots[-1].acquired > time:
+      bisect.insort_right(lots, lot, key=lambda lot: lot.acquired)
+    else:
+      lots.append(lot)
     return lot
 
   def take(
@@ -175,6 +192,7 @@ class LotBook:
     """
     lots = self.lots.get(key, [])
     remaining = abs(quantity)
+    emptied = 0
     out: list[tuple[OpenLot, Decimal, Decimal]] = []
     ordered = (
       self.order(lots)
@@ -191,22 +209,35 @@ class LotBook:
         if lot.exact_basis and take == abs(lot.quantity)
         else lot.cost * take / abs(lot.quantity)
       )
-      origins = split_origins(lot.origins, take / abs(lot.quantity), share)
+      origins = (
+        split_origins(lot.origins, take / abs(lot.quantity), share)
+        if self.origins
+        else ()
+      )
       consumed = replace(
         lot, quantity=take * sign(lot.quantity), cost=share, origins=origins
       )
-      lot.origins = tuple(
-        replace(origin, cost=difference(origin.cost, used.cost))
-        for origin, used in zip(lot.origins, origins)
-      )
+      if self.origins:
+        lot.origins = tuple(
+          replace(origin, cost=difference(origin.cost, used.cost))
+          for origin, used in zip(lot.origins, origins)
+        )
       lot.cost = difference(lot.cost, share) if lot.exact_basis else lot.cost - share
-      if not lot.exact_basis:
+      if self.origins and not lot.exact_basis:
         lot.origins = split_origins(lot.origins, Decimal(1), lot.cost)
+      self.totals[key] -= take * sign(lot.quantity)
+      self.costs[key] -= share
       lot.quantity -= take * sign(lot.quantity)
       out.append((consumed, take, share))
       remaining -= take
       if lot.quantity == 0:
-        lots.remove(lot)
+        emptied += 1
+    if emptied and not selected and self.method == 'fifo':
+      del lots[:emptied]
+    elif emptied and not selected and self.method == 'lifo':
+      del lots[len(lots) - emptied :]
+    elif emptied:
+      lots[:] = [lot for lot in lots if lot.quantity != 0]
     return out
 
   def close(self, key: LotKey, quantity: Decimal) -> Consumed:
