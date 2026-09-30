@@ -209,6 +209,7 @@ def run_(
       policy=pol,
       pricing=TablePricing(doc.prices, max_age=doc.max_age),
       strict=strict,
+      grid=doc.grid,
     )
   except PriceGap as e:
     raise fail(str(e), 1) from e

@@ -29,6 +29,7 @@ from litmus.accounting.model import (
   Origin,
   RolloverSlice,
   RolloverRecord,
+  SeriesPoint,
 )
 from litmus.accounting.engine.lots import LotBook, LotKey, Applied, split_origins
 from litmus.accounting.engine.operations import rollover_problems, ordered_events
@@ -37,6 +38,7 @@ from litmus.accounting.pricing import Pricing, Valuer, PriceGap
 from litmus.accounting.engine.rounding import round_result
 from litmus.accounting.engine.perps import PositionBook, fills
 from litmus.accounting.engine.journal import Journal
+from litmus.accounting.engine import series
 
 Linked = dict[str, tuple[Link, Event, Event]]
 """Event id to the link it takes part in, with the resolved source and destination."""
@@ -1175,6 +1177,7 @@ def run(
   policy: Policy,
   pricing: Pricing,
   strict: bool = False,
+  grid: Sequence[datetime] = (),
 ) -> Result:
   """
   Run the books.
@@ -1185,6 +1188,8 @@ def run(
     policy: Cost method, lot scope, functional currency, valuation rules.
     pricing: Caller-implemented price source.
     strict: Raise `PriceGap` on the first missing price instead of reporting it.
+    grid: Instants to emit a series point at, after every event up to and
+      including each (policy 05 rule 39). Any order; duplicates are dropped.
 
   Returns:
     Lots, liabilities, realized PnL, flows, internal moves, balances, every
@@ -1217,7 +1222,39 @@ def run(
     )
     engine.complete = False
   failed: set[str] = set()
+  instants = sorted({at for at in grid if at.tzinfo is not None})
+  for at in grid:
+    if at.tzinfo is None:
+      engine.report(
+        'invalid_grid', None, f'grid instant {at.isoformat()} has no timezone'
+      )
+  points: list[SeriesPoint] = []
+  running = series.Running()
+
+  def snapshot(until: datetime | None):
+    """Emit the series points of every pending instant before `until`."""
+    while instants and (until is None or instants[0] < until):
+      at = instants.pop(0)
+      running.advance(engine.realized, engine.flows)
+      found, problem = series.point(
+        at,
+        valuer=engine.valuer,
+        book=engine.book,
+        journal=engine.journal,
+        liabilities=[
+          engine.liabilities[k].freeze() for k in sorted(engine.liabilities)
+        ],
+        perps=engine.perps,
+        running=running,
+        strict=strict,
+      )
+      points.append(found)
+      if problem is not None:
+        engine.exceptions.append(problem)
+        engine.complete = False
+
   for e in checked.events:
+    snapshot(e.time)
     if any(dependency in failed for dependency in e.depends_on):
       engine.complete = False
       engine.report('unbooked', e.id, 'required predecessor was not completely booked')
@@ -1227,6 +1264,7 @@ def run(
     engine.process(e, checked.linked)
     if any(item.code == 'unbooked' for item in engine.exceptions[before:]):
       failed.add(e.id)
+  snapshot(None)
   result = Result(
     policy=policy,
     lots=tuple(engine.book.open_lots()),
@@ -1244,6 +1282,7 @@ def run(
     complete=engine.complete,
     rollovers=tuple(engine.rollovers),
     positions=tuple(engine.perps.open_positions()),
+    series=tuple(points),
   )
   result = round_result(result, policy.minor_unit)
   journal, unbalanced = engine.journal.finish(result, policy.minor_unit)

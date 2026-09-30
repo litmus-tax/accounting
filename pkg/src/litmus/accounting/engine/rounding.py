@@ -19,6 +19,11 @@ from litmus.accounting.model import (
   Position,
   Liability,
   LiabilityPosition,
+  SeriesFlow,
+  SeriesHolding,
+  SeriesLiability,
+  SeriesPoint,
+  SeriesPosition,
 )
 
 
@@ -75,6 +80,76 @@ def round_position(p: Position, minor_unit: int) -> Position:
   )
 
 
+def optional(x: Decimal | None, minor_unit: int) -> Decimal | None:
+  """Round a money amount that may be missing."""
+  return None if x is None else money(x, minor_unit)
+
+
+def round_point(p: SeriesPoint, minor_unit: int) -> SeriesPoint:
+  """
+  Round a series point row by row; unrealized figures, total P&L and net
+  assets are recomputed from the rounded parts (policy 05 rule 20).
+  """
+  held: list[SeriesHolding] = []
+  for h in p.holdings:
+    cost, value = money(h.cost, minor_unit), optional(h.value, minor_unit)
+    held.append(
+      replace(
+        h, cost=cost, value=value, unrealized=None if value is None else value - cost
+      )
+    )
+  owed: list[SeriesLiability] = []
+  for l in p.liabilities:
+    cost, value = money(l.cost, minor_unit), optional(l.value, minor_unit)
+    owed.append(
+      replace(
+        l, cost=cost, value=value, unrealized=None if value is None else cost - value
+      )
+    )
+  positions: list[SeriesPosition] = [
+    replace(x, unrealized=optional(x.unrealized, minor_unit)) for x in p.positions
+  ]
+  flows: list[SeriesFlow] = [
+    replace(f, value=money(f.value, minor_unit)) for f in p.flows
+  ]
+  realized = money(p.realized, minor_unit)
+  contributions = money(p.contributions, minor_unit)
+  if not p.complete:
+    return replace(
+      p,
+      holdings=tuple(held),
+      liabilities=tuple(owed),
+      positions=tuple(positions),
+      flows=tuple(flows),
+      realized=realized,
+      contributions=contributions,
+    )
+  parts = [
+    *(h.unrealized for h in held),
+    *(l.unrealized for l in owed),
+    *(x.unrealized for x in positions),
+  ]
+  unrealized = sum((x for x in parts if x is not None), Decimal(0))
+  earned = sum((f.value if f.kind == 'income' else -f.value for f in flows), Decimal(0))
+  net = (
+    sum((h.value for h in held if h.value is not None), Decimal(0))
+    - sum((l.value for l in owed if l.value is not None), Decimal(0))
+    + sum((x.unrealized for x in positions if x.unrealized is not None), Decimal(0))
+  )
+  return replace(
+    p,
+    holdings=tuple(held),
+    liabilities=tuple(owed),
+    positions=tuple(positions),
+    flows=tuple(flows),
+    realized=realized,
+    contributions=contributions,
+    unrealized=unrealized,
+    total_pnl=realized + earned + unrealized,
+    net_assets=net,
+  )
+
+
 def round_result(result: Result, minor_unit: int | None) -> Result:
   """Round every money field of a result, or return it unchanged when `minor_unit` is unset."""
   if minor_unit is None:
@@ -86,6 +161,7 @@ def round_result(result: Result, minor_unit: int | None) -> Result:
     realized=tuple(round_realized(r, minor_unit) for r in result.realized),
     flows=tuple(round_flow(f, minor_unit) for f in result.flows),
     moves=tuple(round_move(m, minor_unit) for m in result.moves),
+    series=tuple(round_point(p, minor_unit) for p in result.series),
   )
 
 
