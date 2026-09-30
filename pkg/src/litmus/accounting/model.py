@@ -65,6 +65,22 @@ How the engine treats a leg:
 """
 
 
+TransferBasis = Literal['unclassified', 'market', 'carried']
+"""
+How an unlinked transfer leg is booked (policy 05 rules 11 and 13.3):
+
+- `unclassified`: at market value, and reported as `unmatched_transfer` (rule 13.4).
+- `market`: classified as not retained (a payment, sale, purchase or gift): a
+  disposal or acquisition at market value, not reported.
+- `carried`: the asset stays the owner's outside the books (`ownership_retained`),
+  or an unsolicited receipt at zero cost: out, lots leave at cost with no P&L;
+  in, a lot opens at `cost` and `acquired`, with no income.
+
+A linked transfer ignores it. Functional-currency transfers carry no lots and are
+never reported (rule 13.2).
+"""
+
+
 @dataclass(frozen=True)
 class Leg:
   """One signed quantity of one asset in one compartment."""
@@ -95,6 +111,12 @@ class Leg:
   """
   price: Decimal | None = None
   """On `position` legs of `pnl` compartments only: the venue's fill price, in `settles_in` per unit."""
+  basis: TransferBasis = 'unclassified'
+  """On unlinked `transfer` legs: how the boundary crossing is booked (policy 05 rules 11 and 13.3)."""
+  cost: Decimal | None = None
+  """On inbound `carried` transfer legs only (required there): the functional-currency cost the lot opens at."""
+  acquired: datetime | None = None
+  """On inbound `carried` transfer legs only: the lot's acquisition time; absent, the event's."""
   settles_in: str | None = None
   """On `position` legs of `pnl` compartments only: the settlement asset of the instrument."""
 

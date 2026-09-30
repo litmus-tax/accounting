@@ -1,6 +1,6 @@
 # Versions, migration and extension
 
-Distribution version is 0.8.1. `Ledger.schema_version` accepts `0.2` to `0.8`
+Distribution version is 0.8.2. `Ledger.schema_version` accepts `0.2` to `0.8`
 and defaults to `0.8`; Result explicitly emits `schema_version:"0.8"`.
 Omitting the input version preserves ordinary historical ledgers. New callers
 should pin 0.8 and validate against this repo's generated schemas. The package is
@@ -31,6 +31,15 @@ income legs of both its events, so a withdrawal's `performance` leg is
 recognised before the transfer takes the units out (policy 05 rule 14.3).
 Consumer impact: none in shape; an overdrawn opaque compartment now books
 completely once its unit serves the leg (specs#70).
+
+Distribution 0.8.2 keeps result schema 0.8. Ledger (additive): `Leg.basis`
+(`unclassified` default, `market`, `carried`), `Leg.cost` and `Leg.acquired` on
+unlinked transfers (policy 05 rules 11 and 13.3). Behaviour: functional-currency
+transfers are no longer reported as `unmatched_transfer` (rule 13.2). Consumer
+impact: book `classify_boundary` corrections as `basis: carried` with the
+correction's cost and acquisition time (`ownership_retained`) or `basis: market`
+(not retained), and the `unsolicited: zero_cost` option as `basis: carried` with
+`cost: 0`; count open unclassified transfers from `unmatched_transfer` as before.
 
 ## 0.3
 
