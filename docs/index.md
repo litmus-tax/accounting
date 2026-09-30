@@ -1,4 +1,4 @@
-# Accounting 0.6 technical reference
+# Accounting 0.7 technical reference
 
 This pure engine receives caller-selected facts, policy and prices. It does not fetch
 source records, interpret protocols, prove wallet ownership or select company tax

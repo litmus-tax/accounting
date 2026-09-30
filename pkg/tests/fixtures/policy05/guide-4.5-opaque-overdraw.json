@@ -130,7 +130,8 @@
   {
    "name": "performance-first",
    "rules": [
-    "14.3"
+    "14.3",
+    "29"
    ],
    "xfail": "gap 23: the engine books an event's transfers before its income (#10)",
    "expected": {
@@ -159,7 +160,42 @@
     ],
     "totals": {
      "income": "200.00"
-    }
+    },
+    "journal": [
+     {
+      "event": "withdraw-out",
+      "account": "income",
+      "compartment": "copytrade",
+      "asset": "USDT",
+      "label": "performance",
+      "debit": "0",
+      "credit": "120.00"
+     },
+     {
+      "event": "withdraw-out",
+      "account": "holding",
+      "compartment": "copytrade",
+      "asset": "USDT",
+      "debit": "120.00",
+      "credit": "0"
+     },
+     {
+      "event": "withdraw-out",
+      "account": "holding",
+      "compartment": "copytrade",
+      "asset": "USDT",
+      "debit": "0",
+      "credit": "1200.00"
+     },
+     {
+      "event": "withdraw-out",
+      "account": "holding",
+      "compartment": "spot",
+      "asset": "USDT",
+      "debit": "1200.00",
+      "credit": "0"
+     }
+    ]
    }
   }
  ]

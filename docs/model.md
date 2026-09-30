@@ -68,6 +68,7 @@ See [policy.md](policy.md).
 | `prices` | Every price the engine asked for, in order, gaps as `price: null`. This is what a caller should persist. |
 | `exceptions` | The exceptions report. |
 | `positions` | Open perpetual positions at the end, by compartment then instrument (`PerpPosition`). |
+| `journal` | The double entry of every booked event (`JournalLine`), balanced per event after rounding (policy 05 rule 29). |
 | `complete` | False when any leg was left unbooked. |
 
 ### `Lot`
@@ -77,6 +78,21 @@ See [policy.md](policy.md).
 ### `Liability`
 
 `{id, asset, compartment, quantity, cost, label, opened, updated, event}`. Ids are `liability-N` in opening order. `compartment` is the liability compartment: the legs' `liability`, else their own compartment (liabilities are never pooled globally, whatever `lot_scope` says). `quantity` is what is owed; `cost` its functional-currency value at the times each part was borrowed or accrued, reduced proportionally by repayments. `label` is the opening leg's and informational only; `opened` and `event` are the opening leg's; `updated` is the last `borrow` or `repay` that touched it.
+
+### `JournalLine`
+
+`{event, time, account, compartment, asset, label, debit, credit}`, in booking order, one of `debit` and `credit` zero. `account` is one of:
+
+| Account | Keyed by | Lines |
+|---|---|---|
+| `holding` | lot key `(compartment, asset)`: compartment `null` under global scope; the functional currency too | acquisitions and lots opened (debit), disposals at cost and moves out (credit) |
+| `liability` | `(liability compartment, asset)` | borrows, accruals and settlement shortfalls (credit), repayments at the basis released (debit) |
+| `realized` | `(compartment, asset)` of the realized row | gains (credit), losses (debit); equal to `Realized.pnl` |
+| `income`, `expense` | `label` | flows; equal to `Flow.value` |
+| `external` | `(compartment, asset)` | unlinked transfers across the books' boundary; capitalized costs not paid in the ledger |
+| `rounding` | — | an event's rounding residue |
+
+Lines that restate a result row carry its rounded figure (a disposal's cost and P&L, a flow's value, a move's cost), so the journal ties to the rows. A linked transfer is one entry on its source event, with both sides of the move. Before rounding each event balances within decimal-division residue, else it is an `unbalanced` exception and the result is incomplete; after rounding a remaining residue becomes a `rounding` line. Unbooked legs have no lines.
 
 ### `PerpPosition`
 
@@ -114,6 +130,7 @@ See [policy.md](policy.md).
 | `negative_position` | an asset outside `position_assets` went net short under its lot key; booked anyway | no |
 | `negative_liability` | a `repay` exceeded what was owed under its `(compartment, asset)`; booked anyway, the liability goes negative | no |
 | `unbooked` | a leg left out of the books; always paired with its cause | yes |
+| `unbalanced` | an event's journal does not balance before rounding | yes |
 
 ### `Valuation` and `Position`
 

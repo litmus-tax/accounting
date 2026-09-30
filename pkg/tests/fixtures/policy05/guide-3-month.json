@@ -161,11 +161,12 @@
   {
    "name": "expense",
    "rules": [
-    "6.1",
-    "7",
     "13.1",
     "13.2",
-    "20"
+    "20",
+    "29",
+    "6.1",
+    "7"
    ],
    "expected": {
     "complete": true,
@@ -244,7 +245,148 @@
      "realized": "250.30",
      "income": "0",
      "expenses": "6.90"
-    }
+    },
+    "journal": [
+     {
+      "event": "deposit",
+      "account": "external",
+      "compartment": "binance",
+      "asset": "USD",
+      "debit": "0",
+      "credit": "10000.00"
+     },
+     {
+      "event": "deposit",
+      "account": "holding",
+      "compartment": "binance",
+      "asset": "USD",
+      "debit": "10000.00",
+      "credit": "0"
+     },
+     {
+      "event": "trade",
+      "account": "holding",
+      "compartment": "binance",
+      "asset": "USD",
+      "debit": "0",
+      "credit": "3000.00"
+     },
+     {
+      "event": "trade",
+      "account": "holding",
+      "compartment": "binance",
+      "asset": "ETH",
+      "debit": "3000.00",
+      "credit": "0"
+     },
+     {
+      "event": "trade",
+      "account": "expense",
+      "compartment": "binance",
+      "asset": "USD",
+      "label": "fee",
+      "debit": "3.00",
+      "credit": "0"
+     },
+     {
+      "event": "trade",
+      "account": "holding",
+      "compartment": "binance",
+      "asset": "USD",
+      "debit": "0",
+      "credit": "3.00"
+     },
+     {
+      "event": "withdraw",
+      "account": "holding",
+      "compartment": "binance",
+      "asset": "ETH",
+      "debit": "0",
+      "credit": "2997.00"
+     },
+     {
+      "event": "withdraw",
+      "account": "holding",
+      "compartment": "wallet",
+      "asset": "ETH",
+      "debit": "2997.00",
+      "credit": "0"
+     },
+     {
+      "event": "withdraw",
+      "account": "expense",
+      "compartment": "binance",
+      "asset": "ETH",
+      "label": "transfer_fee",
+      "debit": "3.20",
+      "credit": "0"
+     },
+     {
+      "event": "withdraw",
+      "account": "holding",
+      "compartment": "binance",
+      "asset": "ETH",
+      "debit": "0",
+      "credit": "3.00"
+     },
+     {
+      "event": "withdraw",
+      "account": "realized",
+      "compartment": "binance",
+      "asset": "ETH",
+      "debit": "0",
+      "credit": "0.20"
+     },
+     {
+      "event": "sale",
+      "account": "holding",
+      "compartment": "wallet",
+      "asset": "USDC",
+      "debit": "1750.00",
+      "credit": "0"
+     },
+     {
+      "event": "sale",
+      "account": "holding",
+      "compartment": "wallet",
+      "asset": "ETH",
+      "debit": "0",
+      "credit": "1500.00"
+     },
+     {
+      "event": "sale",
+      "account": "realized",
+      "compartment": "wallet",
+      "asset": "ETH",
+      "debit": "0",
+      "credit": "250.00"
+     },
+     {
+      "event": "sale",
+      "account": "expense",
+      "compartment": "wallet",
+      "asset": "ETH",
+      "label": "gas",
+      "debit": "0.70",
+      "credit": "0"
+     },
+     {
+      "event": "sale",
+      "account": "holding",
+      "compartment": "wallet",
+      "asset": "ETH",
+      "debit": "0",
+      "credit": "0.60"
+     },
+     {
+      "event": "sale",
+      "account": "realized",
+      "compartment": "wallet",
+      "asset": "ETH",
+      "debit": "0",
+      "credit": "0.10"
+     }
+    ]
    }
   },
   {

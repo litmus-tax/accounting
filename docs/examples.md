@@ -141,6 +141,7 @@ it checks, and states the figures of the page, rounded as shown there:
 | `holdings` | open lots summed per `(compartment, asset)` |
 | `balances` | rows that must be among `Result.balances` |
 | `totals` | realized P&L, income and expenses summed from the rounded rows |
+| `journal` | every journal line of each event it mentions, in any order |
 
 A case the engine cannot reproduce yet carries `xfail` naming its gap; the mark is
 strict, so the test fails once the gap is closed until the mark is removed. A

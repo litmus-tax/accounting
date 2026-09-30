@@ -411,6 +411,7 @@ def test_retained_baseline_goldens(name):
   actual.pop('schema_version')
   actual.pop('rollovers')
   assert actual.pop('positions') == []
+  actual.pop('journal')
   actual['policy'].pop('notional_scopes')
   actual['policy'].pop('perp_cost_method')
   for lot in actual['lots']:

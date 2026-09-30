@@ -396,6 +396,7 @@ ExceptionCode = Literal[
   'negative_position',
   'negative_liability',
   'unbooked',
+  'unbalanced',
 ]
 """
 - `price_gap`: the pricing source had no price; the leg (or trade) is left unbooked.
@@ -408,6 +409,7 @@ ExceptionCode = Literal[
 - `negative_position`: an asset outside `Policy.position_assets` went net short.
 - `negative_liability`: a repay or noncash interest reversal exceeded what was owed under its (liability compartment, asset); booked anyway.
 - `unbooked`: a leg left out of the books (always paired with the cause). Makes the run incomplete.
+- `unbalanced`: an event whose journal lines do not balance before rounding (policy 05 rule 29.2). Makes the run incomplete.
 """
 
 
@@ -421,6 +423,40 @@ class ExceptionItem:
   event: str | None
   message: str
   detail: dict[str, str] = field(default_factory=dict[str, str])
+
+
+JournalAccount = Literal[
+  'holding', 'liability', 'realized', 'income', 'expense', 'external', 'rounding'
+]
+"""
+The kinds of account a journal line is on (policy 05 rule 29.1):
+
+- `holding`: an asset held at cost, per lot key `(compartment, asset)` (the
+  compartment is `None` under global lot scope); the functional currency too.
+- `liability`: what is owed, per `(liability compartment, asset)`.
+- `realized`: realized gains (credits) and losses (debits), per asset.
+- `income`, `expense`: flows by `label`.
+- `external`: movements across the books' boundary (unlinked transfers,
+  capitalized costs not paid in the ledger).
+- `rounding`: the rounding residue of an event, within the rounding bound.
+"""
+
+
+@dataclass(frozen=True, slots=True)
+class JournalLine:
+  """One line of an event's double entry in the functional currency."""
+
+  __pydantic_config__ = DOCUMENTED
+
+  event: str
+  time: datetime
+  account: JournalAccount
+  compartment: str | None
+  asset: str | None
+  label: str | None
+  debit: Decimal
+  credit: Decimal
+  """One of `debit` and `credit` is zero."""
 
 
 @dataclass(frozen=True)
@@ -463,9 +499,9 @@ class RolloverRecord:
   cost_reference: str | None
 
 
-ResultVersion = Literal['0.6']
+ResultVersion = Literal['0.7']
 """The result schema this engine writes and reads (policy 05 rule 27.2)."""
-RESULT_VERSION: ResultVersion = '0.6'
+RESULT_VERSION: ResultVersion = '0.7'
 
 
 @dataclass(frozen=True)
@@ -489,6 +525,8 @@ class Result:
   rollovers: tuple[RolloverRecord, ...] = ()
   positions: tuple[PerpPosition, ...] = ()
   """Open perpetual positions at the end of the run (policy 05 rule 8.1)."""
+  journal: tuple[JournalLine, ...] = ()
+  """Double entry per event, balanced after rounding (policy 05 rule 29)."""
   schema_version: ResultVersion = RESULT_VERSION
 
 
@@ -548,7 +586,7 @@ class Ledger:
   __pydantic_config__ = DOCUMENTED
 
   events: tuple[Event, ...]
-  schema_version: Literal['0.2', '0.3', '0.4', '0.5', '0.6'] = '0.6'
+  schema_version: Literal['0.2', '0.3', '0.4', '0.5', '0.6', '0.7'] = '0.7'
   links: tuple[Link, ...] = ()
   policy: Policy | None = None
   prices: tuple[PriceRecord, ...] = ()

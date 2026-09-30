@@ -133,6 +133,7 @@
    "name": "realize",
    "rules": [
     "15.2",
+    "29",
     "positions 3.2",
     "positions 4.1"
    ],
@@ -161,7 +162,81 @@
     ],
     "totals": {
      "realized": "983.31"
-    }
+    },
+    "journal": [
+     {
+      "event": "deposit",
+      "account": "holding",
+      "compartment": null,
+      "asset": "ETH",
+      "debit": "0",
+      "credit": "3000.00"
+     },
+     {
+      "event": "deposit",
+      "account": "realized",
+      "compartment": "wallet",
+      "asset": "ETH",
+      "debit": "0",
+      "credit": "500.00"
+     },
+     {
+      "event": "deposit",
+      "account": "holding",
+      "compartment": null,
+      "asset": "USDC",
+      "debit": "0",
+      "credit": "3500.00"
+     },
+     {
+      "event": "deposit",
+      "account": "holding",
+      "compartment": null,
+      "asset": "LP",
+      "debit": "7000.00",
+      "credit": "0"
+     },
+     {
+      "event": "withdraw",
+      "account": "holding",
+      "compartment": null,
+      "asset": "ETH",
+      "debit": "3741.66",
+      "credit": "0"
+     },
+     {
+      "event": "withdraw",
+      "account": "holding",
+      "compartment": null,
+      "asset": "USDC",
+      "debit": "3741.66",
+      "credit": "0"
+     },
+     {
+      "event": "withdraw",
+      "account": "holding",
+      "compartment": null,
+      "asset": "LP",
+      "debit": "0",
+      "credit": "7000.00"
+     },
+     {
+      "event": "withdraw",
+      "account": "realized",
+      "compartment": "wallet",
+      "asset": "LP",
+      "debit": "0",
+      "credit": "483.31"
+     },
+     {
+      "event": "withdraw",
+      "account": "rounding",
+      "compartment": null,
+      "asset": null,
+      "debit": "0",
+      "credit": "0.01"
+     }
+    ]
    }
   }
  ]

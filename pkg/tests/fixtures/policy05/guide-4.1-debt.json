@@ -94,6 +94,7 @@
   {
    "name": "usdc",
    "rules": [
+    "29",
     "9.2",
     "9.3",
     "9.4"
@@ -136,6 +137,73 @@
       "asset": "USDC",
       "compartment": "debt:aave-usdc",
       "pnl": "0.00"
+     }
+    ],
+    "journal": [
+     {
+      "event": "buy",
+      "account": "holding",
+      "compartment": null,
+      "asset": "USD",
+      "debit": "0",
+      "credit": "200.00"
+     },
+     {
+      "event": "buy",
+      "account": "holding",
+      "compartment": null,
+      "asset": "USDC",
+      "debit": "200.00",
+      "credit": "0"
+     },
+     {
+      "event": "borrow",
+      "account": "holding",
+      "compartment": null,
+      "asset": "USDC",
+      "debit": "1000.00",
+      "credit": "0"
+     },
+     {
+      "event": "borrow",
+      "account": "liability",
+      "compartment": "debt:aave-usdc",
+      "asset": "USDC",
+      "debit": "0",
+      "credit": "1000.00"
+     },
+     {
+      "event": "accrue",
+      "account": "liability",
+      "compartment": "debt:aave-usdc",
+      "asset": "USDC",
+      "debit": "0",
+      "credit": "5.00"
+     },
+     {
+      "event": "accrue",
+      "account": "expense",
+      "compartment": "debt:aave-usdc",
+      "asset": "USDC",
+      "label": "interest",
+      "debit": "5.00",
+      "credit": "0"
+     },
+     {
+      "event": "repay",
+      "account": "holding",
+      "compartment": null,
+      "asset": "USDC",
+      "debit": "0",
+      "credit": "1005.00"
+     },
+     {
+      "event": "repay",
+      "account": "liability",
+      "compartment": "debt:aave-usdc",
+      "asset": "USDC",
+      "debit": "1005.00",
+      "credit": "0"
      }
     ]
    }
