@@ -137,6 +137,11 @@ class RolloverOutput:
   __pydantic_config__ = DOCUMENTED
   leg: int
   allocation: Decimal | None = None
+  """
+  The output's fraction of the carried basis. With several outputs, give every
+  allocation (summing exactly to 1) or none: then the engine allocates by the
+  outputs' market value at the operation (policy 05 positions rule 5.1).
+  """
 
 
 @dataclass(frozen=True)

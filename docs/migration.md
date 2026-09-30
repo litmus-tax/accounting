@@ -1,6 +1,6 @@
 # Versions, migration and extension
 
-Distribution version is 0.8.2. `Ledger.schema_version` accepts `0.2` to `0.8`
+Distribution version is 0.8.3. `Ledger.schema_version` accepts `0.2` to `0.8`
 and defaults to `0.8`; Result explicitly emits `schema_version:"0.8"`.
 Omitting the input version preserves ordinary historical ledgers. New callers
 should pin 0.8 and validate against this repo's generated schemas. The package is
@@ -40,6 +40,16 @@ impact: book `classify_boundary` corrections as `basis: carried` with the
 correction's cost and acquisition time (`ownership_retained`) or `basis: market`
 (not retained), and the `unsolicited: zero_cost` option as `basis: carried` with
 `cost: 0`; count open unclassified transfers from `unmatched_transfer` as before.
+
+Distribution 0.8.3 keeps result schema 0.8. A rollover with several outputs may
+omit every allocation: the engine then allocates the basis by the outputs'
+market value at the operation (policy 05 positions rule 5.1), asking and
+recording their prices. Consumer impact: stop typing `position_allocations` per
+record (policy option, positions gap 3); send multi-output operations without
+allocations and supply the outputs' prices (claims priced as the asset they
+pay); keep explicit allocations only for a correction that overrides one record,
+and for an NFT ownership marker at zero (allocation 0 with the component units
+at 1).
 
 ## 0.3
 

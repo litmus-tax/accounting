@@ -238,7 +238,6 @@
     "positions 5.3",
     "positions 5.4"
    ],
-   "xfail": "positions gap 3: the engine does not allocate a rollover across several outputs by market value",
    "expected": {
     "complete": true,
     "realized": [

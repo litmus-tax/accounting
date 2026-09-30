@@ -28,6 +28,7 @@ from litmus.accounting.model import (
   ExceptionItem,
   ExceptionCode,
   Origin,
+  Rollover,
   RolloverSlice,
   RolloverRecord,
   SeriesPoint,
@@ -979,11 +980,42 @@ class Engine:
     for leg in legs:
       self.external(event, leg)
 
+  def allocations(
+    self, event: Event, operation: Rollover
+  ) -> tuple[Decimal, ...] | None:
+    """
+    Each rollover output's share of the carried basis: as given, or, when every
+    allocation of several outputs is omitted, by the outputs' market value at the
+    operation (policy 05 positions rule 5.1). `None` when a value is missing.
+    """
+    outputs = operation.outputs
+    if len(outputs) < 2 or any(item.allocation is not None for item in outputs):
+      return tuple(
+        item.allocation if item.allocation is not None else Decimal(1)
+        for item in outputs
+      )
+    try:
+      values = [abs(self.market(event, event.legs[item.leg])) for item in outputs]
+    except PriceGap as error:
+      self.gap(event, error)
+      return None
+    total = sum(values, Decimal(0))
+    if not total:
+      return None
+    return tuple(value / total for value in values)
+
   def rollover(self, event: Event):
     """Atomically carry selected basis, retaining a slice for every acquisition."""
     operation = event.rollover
     if operation is None:
       return
+    shares = self.allocations(event, operation)
+    if shares is None:
+      for leg in event.legs:
+        if leg.tag == 'rollover':
+          self.unbooked(event, leg, 'outputs cannot be valued to allocate basis')
+      return
+
     fee_values: list[tuple[Leg, Decimal]] = []
     try:
       for index in operation.capitalized_fee_legs:
@@ -1053,10 +1085,7 @@ class Engine:
           self.unbooked(event, leg, reason)
       return
     basis_in = exact_sum(piece.cost for piece in consumed)
-    allocations = tuple(
-      item.allocation if item.allocation is not None else Decimal(1)
-      for item in operation.outputs
-    )
+    allocations = shares
     inherited_remaining = [piece.cost for piece in consumed]
     origin_remaining = [piece.origins for piece in consumed]
     capital_remaining = operation.capitalized_costs

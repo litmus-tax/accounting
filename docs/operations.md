@@ -35,9 +35,13 @@ currency contributions have known basis equal to quantity and appear as
 functional-currency output requires ordinary trade/disposal treatment because cash
 cannot carry an arbitrary historical basis.
 
-One output receives all basis without a market price. Multiple outputs require
-nonnegative caller-provided fractions summing exactly to one. No market-value or
-equal-split allocation is inferred. Each output receives a slice from each consumed
+One output receives all basis without a market price. Multiple outputs take
+either nonnegative caller-provided fractions summing exactly to one (a correction
+overriding one record, policy 05 rule 17.1), or none: then the basis is allocated
+by the outputs' market value at the operation (policy 05 positions rule 5.1),
+priced through the pricing protocol and recorded in `prices`. A missing price
+leaves the whole operation unbooked with a `price_gap`; there is never an equal
+split. `RolloverRecord.allocations` states the fractions used. Each output receives a slice from each consumed
 acquisition; receipt units are weighted by contributed basis, preserving effective
 lot dates. All-zero basis uses equal unit shares between the consumed slices. A
 zero-basis contribution mixed with positive basis retains its zero-cost origin in
