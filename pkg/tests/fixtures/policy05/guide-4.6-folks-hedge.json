@@ -118,6 +118,7 @@
   {
    "name": "books",
    "rules": [
+    "29",
     "8.1",
     "8.2",
     "8.3",
@@ -161,6 +162,25 @@
       "settles_in": "USDC",
       "size": "-238",
       "entry": "-577.152142"
+     }
+    ],
+    "journal": [
+     {
+      "event": "aster-open",
+      "account": "expense",
+      "compartment": "aster:perp",
+      "asset": "USDT",
+      "label": "fee",
+      "debit": "2.74",
+      "credit": "0"
+     },
+     {
+      "event": "aster-open",
+      "account": "liability",
+      "compartment": "aster:perp",
+      "asset": "USDT",
+      "debit": "0",
+      "credit": "2.74"
      }
     ]
    }

@@ -136,8 +136,9 @@
   {
    "name": "checkpoints",
    "rules": [
-    "7",
-    "14.1"
+    "14.1",
+    "29",
+    "7"
    ],
    "expected": {
     "complete": true,
@@ -167,7 +168,91 @@
      "realized": "0.00",
      "income": "80.00",
      "expenses": "30.00"
-    }
+    },
+    "journal": [
+     {
+      "event": "deposit",
+      "account": "holding",
+      "compartment": "spot",
+      "asset": "USD",
+      "debit": "0",
+      "credit": "1000.00"
+     },
+     {
+      "event": "deposit",
+      "account": "holding",
+      "compartment": "spot",
+      "asset": "USDT",
+      "debit": "1000.00",
+      "credit": "0"
+     },
+     {
+      "event": "to-copy-out",
+      "account": "holding",
+      "compartment": "spot",
+      "asset": "USDT",
+      "debit": "0",
+      "credit": "1000.00"
+     },
+     {
+      "event": "to-copy-out",
+      "account": "holding",
+      "compartment": "copytrade",
+      "asset": "USDT",
+      "debit": "1000.00",
+      "credit": "0"
+     },
+     {
+      "event": "snapshot-1",
+      "account": "income",
+      "compartment": "copytrade",
+      "asset": "USDT",
+      "label": "performance",
+      "debit": "0",
+      "credit": "80.00"
+     },
+     {
+      "event": "snapshot-1",
+      "account": "holding",
+      "compartment": "copytrade",
+      "asset": "USDT",
+      "debit": "80.00",
+      "credit": "0"
+     },
+     {
+      "event": "snapshot-2",
+      "account": "expense",
+      "compartment": "copytrade",
+      "asset": "USDT",
+      "label": "performance",
+      "debit": "30.00",
+      "credit": "0"
+     },
+     {
+      "event": "snapshot-2",
+      "account": "holding",
+      "compartment": "copytrade",
+      "asset": "USDT",
+      "debit": "0",
+      "credit": "30.00"
+     },
+     {
+      "event": "back-out",
+      "account": "holding",
+      "compartment": "copytrade",
+      "asset": "USDT",
+      "debit": "0",
+      "credit": "1050.00"
+     },
+     {
+      "event": "back-out",
+      "account": "holding",
+      "compartment": "spot",
+      "asset": "USDT",
+      "debit": "1050.00",
+      "credit": "0"
+     }
+    ]
    }
   }
  ]

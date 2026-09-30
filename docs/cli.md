@@ -35,7 +35,7 @@ wins). `-h` and `--help` both work.
 
 ## JSON shapes
 
-- `run --json`: `Result` per `accounting schema result`: `{policy, lots[], liabilities[], realized[], flows[], moves[], balances[], prices[], exceptions[], complete}`.
+- `run --json`: `Result` per `accounting schema result`: `{policy, lots[], liabilities[], realized[], flows[], moves[], balances[], prices[], exceptions[], complete, rollovers[], positions[], journal[], schema_version}`.
 - `value --json`: `Valuation` per `accounting schema valuation`: `{at, positions[], liabilities[], prices[], exceptions[], complete}`.
 - `validate --json`: a list of `ExceptionItem` `{code, event, message, detail}`.
 - `schema --check DIR --json`: `[]` when up to date.

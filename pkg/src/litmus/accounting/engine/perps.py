@@ -82,8 +82,8 @@ class PositionBook:
 
   def __init__(self, perp_cost_method: CostMethod):
     self.books: dict[Settlement, LotBook] = {
-      'notional': LotBook(perp_cost_method),
-      'pnl': LotBook('average'),
+      'notional': LotBook(perp_cost_method, origins=False),
+      'pnl': LotBook('average', origins=False),
     }
     self.terms: dict[PositionKey, tuple[Settlement, str]] = {}
 

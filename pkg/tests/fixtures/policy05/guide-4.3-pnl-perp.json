@@ -116,6 +116,7 @@
   {
    "name": "venue-settled",
    "rules": [
+    "29",
     "7",
     "8.3",
     "8.4"
@@ -159,7 +160,43 @@
      "income": "2000.00",
      "expenses": "58.80"
     },
-    "positions": []
+    "positions": [],
+    "journal": [
+     {
+      "event": "close",
+      "account": "income",
+      "compartment": "binance:futures",
+      "asset": "USDT",
+      "label": "realized_pnl",
+      "debit": "0",
+      "credit": "2000.00"
+     },
+     {
+      "event": "close",
+      "account": "holding",
+      "compartment": null,
+      "asset": "USDT",
+      "debit": "2000.00",
+      "credit": "0"
+     },
+     {
+      "event": "close",
+      "account": "expense",
+      "compartment": "binance:futures",
+      "asset": "USDT",
+      "label": "fee",
+      "debit": "24.80",
+      "credit": "0"
+     },
+     {
+      "event": "close",
+      "account": "holding",
+      "compartment": null,
+      "asset": "USDT",
+      "debit": "0",
+      "credit": "24.80"
+     }
+    ]
    }
   }
  ]

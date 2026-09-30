@@ -36,6 +36,7 @@ from litmus.accounting.engine.arithmetic import exact_sum, difference, fixed_con
 from litmus.accounting.pricing import Pricing, Valuer, PriceGap
 from litmus.accounting.engine.rounding import round_result
 from litmus.accounting.engine.perps import PositionBook, fills
+from litmus.accounting.engine.journal import Journal
 
 Linked = dict[str, tuple[Link, Event, Event]]
 """Event id to the link it takes part in, with the resolved source and destination."""
@@ -255,6 +256,7 @@ class Engine:
     self.cash = set(policy.cash)
     self.positions = set(policy.position_assets)
     self.perps = PositionBook(policy.perp_cost_method)
+    self.journal = Journal()
     self.perp_compartments: set[str] = set()
     """Compartments holding perpetual positions: a settlement asset there never goes below zero (rule 8.6)."""
 
@@ -308,6 +310,9 @@ class Engine:
     zero: the shortfall is a liability (policy 05 rule 8.6).
     """
     if leg.asset == self.fc:
+      self.journal.add(
+        event, 'holding', value, compartment=self.key(leg)[0], asset=leg.asset
+      )
       return
     if leg.compartment in self.perp_compartments:
       self.settle(event, leg, value, fees=fees)
@@ -340,14 +345,37 @@ class Engine:
   def lots(
     self, event: Event, leg: Leg, value: Decimal, *, fees: Decimal = Decimal(0)
   ) -> Applied:
-    """Apply a leg to the lot book and record the realized row of what it closed."""
+    """
+    Apply a leg to the lot book and record the realized row of what it closed.
+    Its journal lines move the holding by `value` less what was realized.
+    """
+    compartment = self.key(leg)[0]
     applied = self.book.apply(
       self.key(leg), quantity=leg.quantity, value=value, time=event.time, event=event.id
     )
     closed = applied.closed
+    opened = value
     if closed.quantity != 0:
       share = closed.quantity / leg.quantity
       proceeds = -value * share
+      opened = value + proceeds
+      index = len(self.realized)
+      self.journal.add(
+        event,
+        'holding',
+        -closed.cost,
+        compartment=compartment,
+        asset=leg.asset,
+        ref=('realized_cost', index),
+      )
+      self.journal.add(
+        event,
+        'realized',
+        closed.cost - proceeds,
+        compartment=leg.compartment,
+        asset=leg.asset,
+        ref=('realized_pnl', index),
+      )
       self.realized.append(
         Realized(
           event=event.id,
@@ -361,6 +389,10 @@ class Engine:
           lots=closed.lots,
           fees=fees * share,
         )
+      )
+    if applied.opened is not None:
+      self.journal.add(
+        event, 'holding', opened, compartment=compartment, asset=leg.asset
       )
     return applied
 
@@ -397,6 +429,9 @@ class Engine:
     liability.quantity -= leg.quantity
     liability.cost -= value
     liability.updated = event.time
+    self.journal.add(
+      event, 'liability', value, compartment=liability.compartment, asset=leg.asset
+    )
 
   def clear(
     self, event: Event, leg: Leg, value: Decimal, *, fees: Decimal = Decimal(0)
@@ -411,16 +446,49 @@ class Engine:
     liability.quantity -= leg.quantity
     liability.cost -= released
     liability.updated = event.time
+    self.realize_liability(event, leg, liability, given=-value, released=released)
+
+  def realize_liability(
+    self,
+    event: Event,
+    leg: Leg,
+    liability: OpenLiability,
+    *,
+    given: Decimal,
+    released: Decimal,
+  ):
+    """
+    The liability side of a repayment (policy 05 rule 9.4): `given` (negative)
+    is the market value given up, `released` the basis the liability released;
+    their sum is realized.
+    """
+    index = len(self.realized)
+    self.journal.add(
+      event,
+      'liability',
+      released,
+      compartment=liability.compartment,
+      asset=leg.asset,
+      ref=('realized_cost', index),
+    )
+    self.journal.add(
+      event,
+      'realized',
+      -(given + released),
+      compartment=liability.compartment,
+      asset=leg.asset,
+      ref=('realized_pnl', index),
+    )
     self.realized.append(
       Realized(
         event=event.id,
         time=event.time,
         asset=leg.asset,
         compartment=liability.compartment,
-        quantity=leg.quantity,
-        proceeds=-value,
+        quantity=abs(leg.quantity),
+        proceeds=given,
         cost=-released,
-        pnl=released - value,
+        pnl=given + released,
         lots=(liability.id,),
       )
     )
@@ -530,6 +598,15 @@ class Engine:
       self.gap(event, e)
       self.unbooked(event, leg, 'price gap')
       return
+    self.journal.add(
+      event,
+      'income' if leg.quantity > 0 else 'expense',
+      -value,
+      compartment=leg.compartment,
+      asset=leg.asset,
+      label=leg.label,
+      ref=('flow', len(self.flows)),
+    )
     self.flows.append(
       Flow(
         event=event.id,
@@ -562,6 +639,9 @@ class Engine:
       self.gap(event, e)
       self.unbooked(event, leg, 'price gap')
       return
+    self.journal.add(
+      event, 'external', -value, compartment=leg.compartment, asset=leg.asset
+    )
     self.book_leg(event, leg, value)
 
   def liability(self, event: Event, leg: Leg) -> OpenLiability:
@@ -592,6 +672,22 @@ class Engine:
     The interest flow of a noncash accrual (`value` > 0, an expense) or reversal
     (`value` < 0, income) against `liability` (policy 05 rule 9.3.1).
     """
+    self.journal.add(
+      event,
+      'liability',
+      -value,
+      compartment=liability.compartment,
+      asset=leg.asset,
+    )
+    self.journal.add(
+      event,
+      'expense' if value > 0 else 'income',
+      value,
+      compartment=liability.compartment,
+      asset=leg.asset,
+      label=leg.label,
+      ref=('flow', len(self.flows)),
+    )
     self.flows.append(
       Flow(
         event=event.id,
@@ -626,6 +722,9 @@ class Engine:
     liability = self.liability(event, leg)
     if leg.label != 'interest':
       self.book_leg(event, leg, value)
+      self.journal.add(
+        event, 'liability', -value, compartment=liability.compartment, asset=leg.asset
+      )
     else:
       self.interest_flow(event, leg, liability, value)
     liability.quantity += leg.quantity
@@ -687,19 +786,7 @@ class Engine:
     liability.quantity -= repaid
     liability.cost -= released
     liability.updated = event.time
-    self.realized.append(
-      Realized(
-        event=event.id,
-        time=event.time,
-        asset=leg.asset,
-        compartment=liability.compartment,
-        quantity=repaid,
-        proceeds=value,
-        cost=-released,
-        pnl=value + released,
-        lots=(liability.id,),
-      )
-    )
+    self.realize_liability(event, leg, liability, given=value, released=released)
 
   def internal(self, time: datetime, link: Link, src: Event, dst: Event):
     """
@@ -737,6 +824,11 @@ class Engine:
           position=str(source_position),
         )
       if asset == self.fc:
+        if self.key(a) != self.key(b):
+          for leg in (a, b):
+            self.journal.add(
+              src, 'holding', leg.quantity, compartment=self.key(leg)[0], asset=asset
+            )
         continue
       owed = (
         self.owed((b.compartment, asset))
@@ -746,6 +838,15 @@ class Engine:
       if self.key(a) != self.key(b):
         qty = b.quantity * (1 if self.book.position(self.key(a)) >= 0 else -1)
         taken, created = self.book.move(self.key(a), self.key(b), qty)
+        for key, sign in ((self.key(a), -1), (self.key(b), 1)):
+          self.journal.add(
+            src,
+            'holding',
+            sign * taken.cost,
+            compartment=key[0],
+            asset=asset,
+            ref=('move', len(self.moves)),
+          )
         self.moves.append(
           Move(
             link=link,
@@ -937,6 +1038,23 @@ class Engine:
         leg = event.legs[item.leg]
         pieces = [piece for piece in consumed if piece.leg == item.leg]
         cost = sum((piece.cost for piece in pieces), Decimal(0))
+        index = len(self.realized)
+        self.journal.add(
+          event,
+          'holding',
+          -cost,
+          compartment=self.key(leg)[0],
+          asset=leg.asset,
+          ref=('realized_cost', index),
+        )
+        self.journal.add(
+          event,
+          'realized',
+          cost,
+          compartment=leg.compartment,
+          asset=leg.asset,
+          ref=('realized_pnl', index),
+        )
         self.realized.append(
           Realized(
             event.id,
@@ -963,8 +1081,22 @@ class Engine:
           if lot.id == first.lot:
             lot.origins += zero_origins
     self.book = book
+    for pieces, sign in (([] if operation.write_off else consumed, -1), (created, 1)):
+      for piece in pieces:
+        leg = event.legs[piece.leg]
+        self.journal.add(
+          event,
+          'holding',
+          sign * piece.cost,
+          compartment=self.key(leg)[0],
+          asset=leg.asset,
+        )
     for leg, value in fee_values:
       self.book_leg(event, leg, value)
+    unpaid = exact_sum(
+      (operation.capitalized_costs, *(value for _, value in fee_values))
+    )
+    self.journal.add(event, 'external', -unpaid)
     for leg in event.legs:
       if leg.tag == 'rollover':
         scope = (leg.compartment, leg.asset)
@@ -1113,4 +1245,11 @@ def run(
     rollovers=tuple(engine.rollovers),
     positions=tuple(engine.perps.open_positions()),
   )
-  return round_result(result, policy.minor_unit)
+  result = round_result(result, policy.minor_unit)
+  journal, unbalanced = engine.journal.finish(result, policy.minor_unit)
+  return replace(
+    result,
+    journal=journal,
+    exceptions=(*result.exceptions, *unbalanced),
+    complete=result.complete and not unbalanced,
+  )

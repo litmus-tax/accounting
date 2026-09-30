@@ -132,3 +132,22 @@ def test_worked_example(document: Row, case: Row):
     ), want
   for key, want in expected.get('totals', {}).items():
     assert totals(result)[key] == Decimal(want), key
+  if 'journal' in expected:
+    events = {line['event'] for line in expected['journal']}
+    actual = [line for line in data['journal'] if line['event'] in events]
+    assert sorted(map(journal_key, actual)) == sorted(
+      map(journal_key, expected['journal'])
+    )
+
+
+def journal_key(line: Row) -> tuple[Any, ...]:
+  """A journal line as a comparable tuple, amounts as decimals."""
+  return (
+    line['event'],
+    line['account'],
+    line['compartment'],
+    line['asset'],
+    line.get('label'),
+    Decimal(line['debit']),
+    Decimal(line['credit']),
+  )

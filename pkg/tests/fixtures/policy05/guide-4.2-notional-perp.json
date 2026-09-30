@@ -117,6 +117,7 @@
   {
    "name": "settled-basis",
    "rules": [
+    "29",
     "8.1",
     "8.2",
     "8.4",
@@ -162,7 +163,43 @@
      "income": "2000.00",
      "expenses": "71.00"
     },
-    "positions": []
+    "positions": [],
+    "journal": [
+     {
+      "event": "close",
+      "account": "income",
+      "compartment": "hl:perp",
+      "asset": "USDC",
+      "label": "realized_pnl",
+      "debit": "0",
+      "credit": "2000.00"
+     },
+     {
+      "event": "close",
+      "account": "holding",
+      "compartment": null,
+      "asset": "USDC",
+      "debit": "2000.00",
+      "credit": "0"
+     },
+     {
+      "event": "close",
+      "account": "expense",
+      "compartment": "hl:perp",
+      "asset": "USDC",
+      "label": "fee",
+      "debit": "31.00",
+      "credit": "0"
+     },
+     {
+      "event": "close",
+      "account": "holding",
+      "compartment": null,
+      "asset": "USDC",
+      "debit": "0",
+      "credit": "31.00"
+     }
+    ]
    }
   }
  ]
