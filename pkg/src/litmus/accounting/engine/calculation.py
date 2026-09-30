@@ -32,7 +32,7 @@ from litmus.accounting.model import (
 )
 from litmus.accounting.engine.lots import LotBook, LotKey, Applied, split_origins
 from litmus.accounting.engine.operations import rollover_problems, ordered_events
-from litmus.accounting.engine.arithmetic import exact_sum, difference
+from litmus.accounting.engine.arithmetic import exact_sum, difference, fixed_context
 from litmus.accounting.pricing import Pricing, Valuer, PriceGap
 from litmus.accounting.engine.rounding import round_result
 
@@ -137,9 +137,28 @@ def check(events: Sequence[Event], links: Sequence[Link] = ()) -> Checked:
         )
       )
       continue
+    taken = [e.id for e in (src, dst) if e.id in linked]
+    if taken or src.id == dst.id:
+      # policy 01 term 2: a record is a side of at most one link.
+      complete = False
+      exceptions.append(
+        ExceptionItem(
+          'link_conflict',
+          src.id,
+          f'link {src.id} -> {dst.id} not booked: '
+          + (
+            f'{", ".join(taken)} already in another link'
+            if taken
+            else 'an event cannot link to itself'
+          ),
+          {'src': src.id, 'dst': dst.id},
+        )
+      )
+      continue
     linked[src.id] = linked[dst.id] = (link, src, dst)
     for asset, a, b in pairs(src, dst):
       if a is None or b is None or a.quantity + b.quantity != 0:
+        complete = False
         exceptions.append(
           ExceptionItem(
             'link_mismatch',
@@ -164,6 +183,7 @@ def pairs(src: Event, dst: Event) -> list[tuple[str, Leg | None, Leg | None]]:
   ]
 
 
+@fixed_context
 def validate(
   events: Sequence[Event], links: Sequence[Link] = ()
 ) -> list[ExceptionItem]:
@@ -546,6 +566,9 @@ class Engine:
     """
     for asset, a, b in pairs(src, dst):
       if a is None or b is None or a.quantity + b.quantity != 0:
+        for owner, leg in ((src, a), (dst, b)):
+          if leg is not None:
+            self.unbooked(owner, leg, 'link does not conserve quantity')
         continue
       for leg in (a, b):
         scope = (leg.compartment, leg.asset)
@@ -844,6 +867,7 @@ def balances(events: Sequence[Event]) -> list[Balance]:
   ]
 
 
+@fixed_context
 def run(
   events: Sequence[Event],
   *,
@@ -865,7 +889,8 @@ def run(
   Returns:
     Lots, liabilities, realized PnL, flows, internal moves, balances, every
     price asked for, and the exceptions report. `complete` is false when anything was left unbooked.
-    Money fields are rounded to `policy.minor_unit` when it is set.
+    Money fields are rounded to `policy.minor_unit` when it is set. The run uses
+    the engine's own decimal context, never the caller's (policy 05 rule 2.2).
 
   Raises:
     PriceGap: In strict mode, on the first missing price.

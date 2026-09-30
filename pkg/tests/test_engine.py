@@ -213,7 +213,8 @@ def test_daily_close_timestamp():
 
 
 def test_link_mismatch(method, scope):
-  """A link whose quantities do not conserve is reported and not moved."""
+  """A link whose quantities do not conserve is reported, not moved, and leaves the result incomplete."""
+  # policy 05 rule 29.2 (gap 13)
   events = [
     event('buy', 1, leg('BTC', '2'), leg('EUR', '-20000')),
     event('out', 2, leg('BTC', '-1', tag='transfer')),
@@ -225,8 +226,8 @@ def test_link_mismatch(method, scope):
     policy=policy(method, scope),
     pricing=FixedPricing({('BTC', 'EUR'): '1'}),
   )
-  assert codes(r) == ['link_mismatch']
-  assert r.moves == ()
+  assert codes(r) == ['link_mismatch', 'unbooked', 'unbooked']
+  assert r.moves == () and not r.complete
 
 
 def test_crypto_to_crypto_trade_valued_by_received_side(method, scope):
@@ -279,3 +280,30 @@ def test_duplicate_ids_skip_the_later_event():
   assert codes(r) == ['duplicate_id']
   assert sum(l.quantity for l in r.lots) == D('1')
   assert not r.complete
+
+
+def test_the_caller_decimal_context_does_not_change_the_result():
+  """The same ledger gives the same result bytes under any ambient decimal context."""
+  # policy 05 rule 2.2 (gap 13)
+  from decimal import ROUND_DOWN, localcontext
+  from litmus.accounting import codec, value
+
+  events = [
+    event('buy', 1, leg('BTC', '3'), leg('EUR', '-10000')),
+    event('sell', 2, leg('BTC', '-1'), leg('EUR', '4000')),
+    event('fee', 3, leg('BTC', '-0.0001', tag='expense', fee=True)),
+  ]
+  prices = FixedPricing({('BTC', 'EUR'): '3333.333333333333333333'})
+
+  def books() -> tuple[str, str]:
+    """Run and value the ledger, as JSON."""
+    r = run(events, policy=policy('average', minor_unit=2), pricing=prices)
+    v = value(r.lots, at=t(4), policy=policy('average', minor_unit=2), pricing=prices)
+    return codec.dump_result(r), codec.dump_valuation(v)
+
+  expected = books()
+  with localcontext() as context:
+    context.prec = 5
+    context.rounding = ROUND_DOWN
+    assert books() == expected
+    assert context.prec == 5

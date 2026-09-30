@@ -53,10 +53,12 @@ Partial disposals and linked transfers scale/carry that origin basis. The
 `Result.rollovers` consumed/created slices connect immediate lot ancestry; recursively
 following records and origins reaches original acquisitions.
 
-All decimal division uses the process Decimal context (28 significant digits by
-default). For rollover-participating lots, finite sums/subtractions use enough precision
+All decimal arithmetic runs in the engine's own decimal context
+(`engine.arithmetic.CONTEXT`: 28 significant digits, half-even, the Python
+default), whatever the caller's context is, so the same ledger gives the same
+result bytes on any machine (policy 05 rule 2.2). For rollover-participating lots, finite sums/subtractions use enough precision
 to preserve their exact represented values. Ordinary lots retain the baseline
-Decimal operation order, including its ambient-context rounding; this prevents
+Decimal operation order, including that context's rounding; this prevents
 incidental changes at historical half-cent realization thresholds. The final output receives each input's monetary division
 residue. The largest weighted slice receives unit-quantity residue, avoiding loss
 of a tiny final contribution. Thus exact finite-decimal sums satisfy:

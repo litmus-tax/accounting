@@ -71,3 +71,16 @@ def test_schema_rejects_bad_shapes():
   bad['events'][0]['legs'][0] = {'asset': 'BTC', 'quantity': '1', 'tag': 'trade'}
   with pytest.raises(jsonschema.ValidationError):
     jsonschema.validate(bad, ledger_schema)
+
+
+def test_a_result_of_another_schema_version_is_refused():
+  """Only the current result schema is read; an older one is refused with a clear error."""
+  # policy 05 rule 27.2
+  text = (ROOT / 'examples' / 'spot.json').read_text()
+  ledger = codec.parse_ledger(text)
+  assert ledger.policy is not None
+  result = run(ledger.events, policy=ledger.policy, pricing=TablePricing(ledger.prices))
+  document = json.loads(codec.dump_result(result))
+  document['schema_version'] = '0.3'
+  with pytest.raises(codec.SchemaVersionError, match="'0.3'"):
+    codec.parse_result(json.dumps(document))

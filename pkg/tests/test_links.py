@@ -88,3 +88,67 @@ def test_global_scope_link_is_still_booked_once():
     pricing=FixedPricing({}),
   )
   assert codes(r) == [] and r.moves == ()
+
+
+def mismatched():
+  """Probe 3 of policy 05: 1 ETH withdrawn, linked to a 0.9 ETH deposit."""
+  return [
+    event('buy', 1, leg('ETH', '1'), leg('EUR', '-3000')),
+    event('out', 2, leg('ETH', '-1', tag='transfer')),
+    event('in', 3, leg('ETH', '0.9', 'B', tag='transfer')),
+  ]
+
+
+def test_link_mismatch_makes_the_result_incomplete(scope):
+  """A link that does not conserve quantity leaves both legs unbooked and the result incomplete."""
+  # policy 05 rule 29.2 (gap 13, probe 3)
+  r = run(
+    mismatched(),
+    links=[link('out', 'in')],
+    policy=policy('fifo', scope),
+    pricing=FixedPricing({}),
+  )
+  assert not r.complete
+  assert codes(r) == ['link_mismatch', 'unbooked', 'unbooked']
+  assert [x.event for x in r.exceptions if x.code == 'unbooked'] == ['out', 'in']
+  assert r.moves == ()
+
+
+def test_an_event_in_two_links_is_a_conflict(scope):
+  """A second link on an already linked event is reported and not booked, never a silent overwrite."""
+  # policy 05 rule 29.2 (gap 13); policy 01 term 2: a record is a side of at most one link
+  events = [
+    event('buy', 1, leg('ETH', '1'), leg('EUR', '-3000')),
+    event('out', 2, leg('ETH', '-1', tag='transfer')),
+    event('in', 3, leg('ETH', '1', 'B', tag='transfer')),
+    event('again', 4, leg('ETH', '1', 'C', tag='transfer')),
+  ]
+  r = run(
+    events,
+    links=[link('out', 'in'), link('out', 'again')],
+    policy=policy('fifo', scope),
+    pricing=FixedPricing({('ETH', 'EUR'): '3000'}),
+  )
+  assert not r.complete
+  conflict = next(x for x in r.exceptions if x.code == 'link_conflict')
+  assert conflict.detail == {'src': 'out', 'dst': 'again'}
+  # The first link stands: `in` receives the lots; `again` is an unlinked receipt.
+  assert codes(r) == ['link_conflict', 'unmatched_transfer']
+  if scope == 'compartment':
+    assert [(l.compartment, l.quantity) for l in r.lots] == [
+      ('B', D('1')),
+      ('C', D('1')),
+    ]
+
+
+def test_a_self_link_is_a_conflict():
+  """An event cannot be both sides of a link."""
+  # policy 05 rule 29.2 (gap 13)
+  r = run(
+    mismatched()[:2],
+    links=[link('out', 'out')],
+    policy=policy(),
+    pricing=FixedPricing({('ETH', 'EUR'): '3000'}),
+  )
+  assert not r.complete
+  assert codes(r) == ['link_conflict', 'unmatched_transfer']
