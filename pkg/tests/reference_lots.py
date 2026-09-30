@@ -1,18 +1,8 @@
-"""
-Lot book: holds open lots per key and applies signed quantity changes.
+"""The pre-#17 `LotBook` (543bbfc), kept verbatim as a test oracle for the linear lot book."""
 
-All cost methods share the sign-crossing logic (a change that opposes the
-current position closes it first and opens the remainder on the other side).
-They differ only in the order a close consumes lots: FIFO oldest first, LIFO
-newest first, HIFO highest unit cost first, or proportionally out of a single
-pool for average cost.
-"""
-
-import bisect
 from dataclasses import dataclass, replace
 from datetime import datetime
-from decimal import Decimal, getcontext
-from typing_extensions import Iterable
+from decimal import Decimal
 from litmus.accounting.model import CostMethod, Lot, Origin
 from litmus.accounting.engine.arithmetic import exact_sum, difference
 
@@ -97,20 +87,7 @@ class LotBook:
 
   def __init__(self, method: CostMethod, *, origins: bool = True):
     self.method = method
-    self.origins = origins
-    """Track `Lot.origins`; off for books whose lots are never output (open positions)."""
     self.lots: dict[LotKey, list[OpenLot]] = {}
-    """Open lots per key, in acquisition order (ties in insertion order)."""
-    self.totals: dict[LotKey, Decimal] = {}
-    """Net quantity per key, kept exactly (no context rounding) as lots open and close."""
-    self.opened: dict[LotKey, dict[str, OpenLot]] = {}
-    """A key's open lots by id, in the order they were opened (the old list order)."""
-    self.exponents: dict[LotKey, dict[int, int]] = {}
-    """How many of a key's lots have each quantity exponent: the old sum's exponent."""
-    self.sizes: dict[LotKey, Decimal] = {}
-    """Exact sum of the absolute quantities of a key's lots: bounds every partial sum."""
-    self.costs: dict[LotKey, Decimal] = {}
-    """Net basis per key, kept exactly as lots open and close (for series points)."""
     self.counter = 0
 
   def next_id(self) -> str:
@@ -118,56 +95,22 @@ class LotBook:
     self.counter += 1
     return f'lot-{self.counter}'
 
-  def track(self, key: LotKey, quantity: Decimal, cost: Decimal, *, size: Decimal):
-    """Add exact changes of a key's lot quantities, absolute quantities and basis to its running totals."""
-    self.totals[key] = exact_sum((self.totals.get(key, Decimal(0)), quantity))
-    self.sizes[key] = exact_sum((self.sizes.get(key, Decimal(0)), size))
-    self.costs[key] = exact_sum((self.costs.get(key, Decimal(0)), cost))
-
-  def reshape(self, key: LotKey, old: Decimal | None, new: Decimal | None):
-    """Record that a lot's quantity changed from `old` to `new` (`None`: absent or emptied)."""
-    counts = self.exponents.setdefault(key, {})
-    for quantity, step in ((old, -1), (new, 1)):
-      if quantity is not None and quantity != 0:
-        exponent = int(quantity.as_tuple().exponent)
-        counts[exponent] = counts.get(exponent, 0) + step
-        if not counts[exponent]:
-          del counts[exponent]
-
   def position(self, key: LotKey) -> Decimal:
-    """
-    Net signed quantity held under `key`: the sum of its lots' quantities in the
-    order they were opened, in the current decimal context.
+    """Net signed quantity held under `key`."""
+    return sum((lot.quantity for lot in self.lots.get(key, [])), Decimal(0))
 
-    That sum is what the engine has always used. Every partial sum is at most
-    the exact sum of the lots' absolute quantities, and no finer than it, so
-    when that sum fits the context precision no partial sum rounded and the
-    result is the exact running total: O(1). Otherwise the lots are summed, as
-    before.
-    """
-    size = self.sizes.get(key, Decimal(0))
-    if len(size.as_tuple().digits) <= getcontext().prec:
-      # The old sum started from Decimal(0): its exponent is the finest of 0 and
-      # the lots' exponents, and a zero sum is positive.
-      exponent = min((0, *self.exponents.get(key, {})))
-      total = self.totals.get(key, Decimal(0))
-      if total == 0:
-        return Decimal(0).scaleb(exponent)
-      return total.quantize(Decimal(1).scaleb(exponent))
-    return sum((lot.quantity for lot in self.opened.get(key, {}).values()), Decimal(0))
-
-  def order(self, lots: list[OpenLot]) -> Iterable[OpenLot]:
+  def order(self, lots: list[OpenLot]) -> list[OpenLot]:
     """
     Lots in the order the cost method consumes them. FIFO and LIFO go by
     acquisition time (ties in insertion order, LIFO reversed), so lots recreated
-    by a move keep their place; HIFO by unit cost, ties oldest first. The lists
-    are kept in acquisition order, so FIFO and LIFO need no sort.
+    by a move keep their place; HIFO by unit cost, ties oldest first.
     """
     if self.method == 'lifo':
-      return reversed(lots)
+      return sorted(reversed(lots), key=lambda lot: lot.acquired, reverse=True)
+    by_age = sorted(lots, key=lambda lot: lot.acquired)
     if self.method == 'hifo':
-      return sorted(lots, key=lambda lot: -lot.unit_cost())
-    return lots
+      return sorted(by_age, key=lambda lot: -lot.unit_cost())
+    return by_age
 
   def open(
     self,
@@ -184,28 +127,15 @@ class LotBook:
     Open a lot. Under average cost it is merged into the key's single pool, which
     keeps the pool's original `acquired` and `event`.
     """
-    if not self.origins:
-      origins = ()
-    elif origins is None:
-      origins = (Origin(event, time, cost),)
+    origins = (Origin(event, time, cost),) if origins is None else origins
     lots = self.lots.setdefault(key, [])
     if self.method == 'average' and lots:
       pool = lots[0]
-      held = pool.quantity
       pool.quantity += quantity
-      self.reshape(key, held, pool.quantity)
-      self.track(
-        key,
-        difference(pool.quantity, held),
-        Decimal(0),
-        size=difference(abs(pool.quantity), abs(held)),
-      )
       pool.exact_basis = pool.exact_basis or exact_basis
-      basis = pool.cost
       pool.cost = exact_sum((pool.cost, cost)) if pool.exact_basis else pool.cost + cost
-      self.track(key, Decimal(0), difference(pool.cost, basis), size=Decimal(0))
       pool.origins += origins
-      if self.origins and not pool.exact_basis:
+      if not pool.exact_basis:
         pool.origins = split_origins(pool.origins, Decimal(1), pool.cost)
       return pool
     lot = OpenLot(
@@ -219,13 +149,7 @@ class LotBook:
       origins=origins,
       exact_basis=exact_basis,
     )
-    self.opened.setdefault(key, {})[lot.id] = lot
-    self.track(key, quantity, cost, size=abs(quantity))
-    self.reshape(key, None, quantity)
-    if lots and lots[-1].acquired > time:
-      bisect.insort_right(lots, lot, key=lambda lot: lot.acquired)
-    else:
-      lots.append(lot)
+    lots.append(lot)
     return lot
 
   def take(
@@ -259,48 +183,22 @@ class LotBook:
         if lot.exact_basis and take == abs(lot.quantity)
         else lot.cost * take / abs(lot.quantity)
       )
-      origins = (
-        split_origins(lot.origins, take / abs(lot.quantity), share)
-        if self.origins
-        else ()
-      )
+      origins = split_origins(lot.origins, take / abs(lot.quantity), share)
       consumed = replace(
         lot, quantity=take * sign(lot.quantity), cost=share, origins=origins
       )
-      if self.origins:
-        lot.origins = tuple(
-          replace(origin, cost=difference(origin.cost, used.cost))
-          for origin, used in zip(lot.origins, origins)
-        )
-      held, basis = lot.quantity, lot.cost
+      lot.origins = tuple(
+        replace(origin, cost=difference(origin.cost, used.cost))
+        for origin, used in zip(lot.origins, origins)
+      )
       lot.cost = difference(lot.cost, share) if lot.exact_basis else lot.cost - share
-      if self.origins and not lot.exact_basis:
+      if not lot.exact_basis:
         lot.origins = split_origins(lot.origins, Decimal(1), lot.cost)
       lot.quantity -= take * sign(lot.quantity)
-      self.reshape(key, held, lot.quantity)
-      self.track(
-        key,
-        difference(lot.quantity, held),
-        difference(lot.cost, basis),
-        size=difference(abs(lot.quantity), abs(held)),
-      )
       out.append((consumed, take, share))
       remaining -= take
-    # Only the lots this take walked can have emptied: a prefix under FIFO, a
-    # suffix under LIFO. Rounding can leave a walked lot with a residue while a
-    # later one empties, so emptied lots are dropped by value, never by count.
-    touched = len(out)
-    index = self.opened.get(key, {})
-    for lot, _, _ in out:
-      if lot.id in index and index[lot.id].quantity == 0:
-        del index[lot.id]
-    if touched and not selected and self.method == 'fifo':
-      lots[:touched] = [lot for lot in lots[:touched] if lot.quantity != 0]
-    elif touched and not selected and self.method == 'lifo':
-      start = len(lots) - touched
-      lots[start:] = [lot for lot in lots[start:] if lot.quantity != 0]
-    elif touched:
-      lots[:] = [lot for lot in lots if lot.quantity != 0]
+      if lot.quantity == 0:
+        lots.remove(lot)
     return out
 
   def close(self, key: LotKey, quantity: Decimal) -> Consumed:
