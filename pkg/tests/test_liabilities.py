@@ -44,9 +44,13 @@ def test_borrow_opens_a_lot_and_a_liability_without_income(method, scope):
   assert r.flows == () and r.realized == ()
 
 
-def test_interest_accrual_grows_the_liability_only(method, scope):
-  """A `borrow` labelled `interest` receives nothing: no lot, the liability grows."""
+def test_interest_accrual_grows_the_liability_and_is_an_expense(method, scope):
+  """A `borrow` labelled `interest` receives nothing: no lot, the liability grows, an expense."""
+  # policy 05 rule 9.3.1 (gap 11)
   r = run(loan()[:3], policy=policy(method, scope), pricing=PRICES)
+  assert [(f.event, f.kind, f.label, f.value, f.quantity) for f in r.flows] == [
+    ('accrue', 'expense', 'interest', D('18'), D('-20'))
+  ]
   assert sum(l.quantity for l in r.lots if l.asset == 'USDC') == D('5000')
   (owed,) = r.liabilities
   assert (owed.quantity, owed.cost, owed.label, owed.updated) == (
@@ -58,13 +62,15 @@ def test_interest_accrual_grows_the_liability_only(method, scope):
 
 
 def test_repay_is_a_disposal_at_market_and_closes_the_liability(method, scope):
-  """Repaying disposes of the asset with its normal PnL; under `cost` the liability itself has none."""
+  """Repaying disposes of the asset with its normal PnL and realizes the liability side under `cost` too."""
+  # policy 05 rules 9.2 and 9.4 (gap 21)
   r = run(loan(), policy=policy(method, scope), pricing=PRICES)
   assert codes(r) == []
   assert r.liabilities == ()
   repaid = [x for x in r.realized if x.event == 'repay']
   assert [(x.asset, x.quantity, x.proceeds, x.cost, x.pnl) for x in repaid] == [
-    ('USDC', D('-5020'), D('4518'), D('4518'), D('0'))
+    ('USDC', D('-5020'), D('4518'), D('4518'), D('0')),
+    ('USDC', D('5020'), D('-4518'), D('-4518'), D('0')),
   ]
   assert [l.asset for l in r.lots] == ['ETH']
 
@@ -189,6 +195,7 @@ def test_borrow_and_repay_ordering_within_an_event():
   assert [(x.asset, x.quantity) for x in r.realized] == [
     ('USDC', D('-2000')),
     ('ETH', D('-1')),
+    ('ETH', D('1')),
   ]
   assert [(l.asset, l.quantity) for l in r.liabilities] == [
     ('ETH', D('-1')),
@@ -261,7 +268,8 @@ def test_value_liability_price_gap():
 
 @pytest.mark.parametrize('valuation', ['cost', 'market'])
 def test_signed_interest_reversal_changes_only_debt_at_carried_basis(valuation):
-  """Superseded noncash accrual releases proportional debt basis, never cash or PnL."""
+  """Superseded noncash accrual releases proportional debt basis as interest income, never cash or PnL."""
+  # policy 05 rule 9.3.1: the accrual was an expense, so its reversal is income.
   from litmus.accounting.pricing import TablePricing
   from litmus.accounting.model import PriceRecord
   from datetime import timedelta
@@ -280,7 +288,11 @@ def test_signed_interest_reversal_changes_only_debt_at_carried_basis(valuation):
     (D(115), D('103.5'))
   ]
   assert [(lot.quantity, lot.cost) for lot in result.lots] == [(D(100), D(90))]
-  assert not result.flows and not result.realized
+  assert [(f.kind, f.label, f.value) for f in result.flows] == [
+    ('expense', 'interest', D('18.0')),
+    ('income', 'interest', D('4.5')),
+  ]
+  assert not result.realized
   assert len(result.prices) == 1
 
 
@@ -311,7 +323,8 @@ def test_excess_interest_reversal_is_reported_without_cash(opened):
   result = run(events, policy=policy(), pricing=PRICES)
   assert codes(result) == ['negative_liability']
   assert result.liabilities[0].quantity == D(opened) - 150
-  assert not result.flows and not result.realized
+  assert [f.kind for f in result.flows] == ([] if opened == '0' else ['income'])
+  assert not result.realized
   assert sum(lot.quantity for lot in result.lots) == D(opened)
 
 
@@ -360,7 +373,7 @@ def test_synthetic_signed_adjustments_replay_snapshot_quantity():
     assert result.complete and not result.exceptions
     assert result.liabilities[0].quantity == D(source['balance_to_raw']) / scale
     assert result.lots[0].quantity == before_adjustment
-    assert not result.flows and not result.realized
+    assert all(f.label == 'interest' for f in result.flows) and not result.realized
 
 
 def test_cli_books_signed_interest_with_no_cash_movement(tmp_path, capsys):
@@ -385,4 +398,90 @@ def test_cli_books_signed_interest_with_no_cash_movement(tmp_path, capsys):
   output = json.loads(capsys.readouterr().out)
   assert D(output['liabilities'][0]['quantity']) == 115
   assert D(output['lots'][0]['quantity']) == 100
-  assert output['flows'] == output['realized'] == output['exceptions'] == []
+  assert [(f['kind'], f['value']) for f in output['flows']] == [
+    ('expense', '18.0'),
+    ('income', '4.5'),
+  ]
+  assert output['realized'] == output['exceptions'] == []
+
+
+def test_two_facilities_in_one_account_never_merge():
+  """Liabilities are keyed by the facility's liability compartment, not the cash leg's compartment."""
+  # policy 05 rule 9.1 (gap 12)
+  events = [
+    event(
+      'aave',
+      1,
+      leg('USDC', '100', 'wallet', tag='borrow', label='aave', liability='debt:aave'),
+    ),
+    event(
+      'comp',
+      1,
+      leg('USDC', '50', 'wallet', tag='borrow', label='comp', liability='debt:comp'),
+    ),
+    event('accrue', 2, leg('USDC', '2', 'debt:comp', tag='borrow', label='interest')),
+    event('repay', 3, leg('USDC', '-52', 'wallet', tag='repay', liability='debt:comp')),
+  ]
+  r = run(events, policy=policy('fifo', 'compartment'), pricing=PRICES)
+  assert codes(r) == []
+  assert [(l.compartment, l.quantity, l.label) for l in r.liabilities] == [
+    ('debt:aave', D('100'), 'aave')
+  ]
+  assert [(f.compartment, f.label, f.value) for f in r.flows] == [
+    ('debt:comp', 'interest', D('1.8'))
+  ]
+  debt = [x for x in r.realized if x.lots == ('liability-2',)]
+  assert [(x.compartment, x.quantity, x.pnl) for x in debt] == [
+    ('debt:comp', D('52'), D('0'))
+  ]
+  assert sum(l.quantity for l in r.lots if l.compartment == 'wallet') == D('98')
+
+
+def test_only_borrow_and_repay_legs_name_a_liability():
+  """`liability` on any other tag is an invalid event."""
+  # policy 05 rule 9.1
+  from litmus.accounting import validate
+
+  bad = event('x', 1, leg('USDC', '1', tag='transfer', liability='debt:aave'))
+  assert [x.message for x in validate([bad])] == [
+    'leg 0: only borrow and repay legs name a liability'
+  ]
+
+
+@pytest.mark.parametrize('valuation', ['cost', 'market'])
+def test_borrowing_and_repaying_the_same_units_nets_to_zero(valuation):
+  """Borrow 1 ETH at 3,000 and repay it at 3,500: +500 on the coin, -500 on the debt, under both options."""
+
+  # policy 05 rule 9.4 (gap 21, probe 5)
+  class Rising:
+    """ETH at 3,000 on day 1, 3,500 after."""
+
+    def price(self, asset, quote, time, *, source):
+      """Step price for ETH."""
+      return D('3000') if time < t(2) else D('3500')
+
+  events = [
+    event('borrow', 1, leg('ETH', '1', tag='borrow', liability='debt:aave')),
+    event('repay', 2, leg('ETH', '-1', tag='repay', liability='debt:aave')),
+  ]
+  r = run(events, policy=policy(liability_valuation=valuation), pricing=Rising())
+  assert [(x.compartment, x.pnl) for x in r.realized] == [
+    ('A', D('500')),
+    ('debt:aave', D('-500')),
+  ]
+  assert r.liabilities == ()
+
+
+def test_paid_interest_is_an_expense_and_a_disposal(method, scope):
+  """Interest paid from a wallet is an expense and disposes of the asset paid; no liability moves."""
+  # policy 05 rule 9.3.2
+  events = [
+    *loan()[:2],
+    event('pay', 3, leg('USDC', '-20', tag='expense', label='interest')),
+  ]
+  r = run(events, policy=policy(method, scope), pricing=PRICES)
+  assert [(f.kind, f.label, f.value) for f in r.flows] == [
+    ('expense', 'interest', D('18'))
+  ]
+  assert [(x.asset, x.quantity) for x in r.realized] == [('USDC', D('-20'))]
+  assert [(l.quantity, l.cost) for l in r.liabilities] == [(D('5000'), D('4500'))]

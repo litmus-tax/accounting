@@ -36,10 +36,12 @@ A trade whose fee cannot be priced is left entirely unbooked (`price_gap` plus o
 
 A `borrow` leg opens a liability worth the market value of what was received; a `repay` leg disposes of the asset given (normal PnL on its lots) and reduces the liability.
 
-1. `cost` (default): the liability carries no PnL of its own. Repaying releases its basis and nothing is realized against it; `value` reports the liability's market value with `unrealized: null`.
-2. `market`: the liability is revalued in functional currency at repayment and the difference between the basis released and the market value repaid is realized as a `Realized` row whose `lots` names the liability id (`quantity` positive like a short cover, `proceeds` negative, `pnl = proceeds - cost`). For regimes that treat crypto debt like FX debt. `value` reports `unrealized = cost - value`. When the borrowed asset is still held at repayment, the asset's gain and the liability's loss cancel.
+The option decides **when** a change in the owed asset's price is recognised, never **whether** (policy 05 rule 9.4). Under either value, repaying realizes the difference between the basis released and the market value repaid as a `Realized` row whose `lots` names the liability id (`quantity` positive like a short cover, `proceeds` negative, `pnl = proceeds - cost`), so borrowing an asset and repaying the same units nets to zero.
 
-Accrued unpaid interest is a `borrow` leg labelled `interest`: the liability grows at market value and nothing is received. Interest actually paid is an ordinary `expense` leg (labelled `interest` by convention); it does not touch the liability. Interest is never capitalized into the borrowed asset's lots.
+1. `cost` (default): the liability is held at cost; `value` reports its market value with `unrealized: null`.
+2. `market`: the liability is remeasured at market; `value` reports `unrealized = cost - value`.
+
+Accrued unpaid interest is a `borrow` leg labelled `interest`: nothing is received, the liability grows at market value, and the same value is an `interest` expense (rule 9.3.1). A negative one reverses an accrual: the liability releases a proportional share of its basis, which is `interest` income. Interest actually paid is an ordinary `expense` leg labelled `interest` (rule 9.3.2); it does not touch the liability. Interest is never capitalized into the borrowed asset's lots.
 
 ## Cash and position assets for notional venues
 

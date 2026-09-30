@@ -1,9 +1,9 @@
 # Versions, migration and extension
 
-Distribution version is 0.4.0. `Ledger.schema_version` accepts `0.2`, `0.3` or
-`0.4` and defaults to `0.4`; Result explicitly emits `schema_version:"0.4"`.
+Distribution version is 0.5.0. `Ledger.schema_version` accepts `0.2` to `0.5`
+and defaults to `0.5`; Result explicitly emits `schema_version:"0.5"`.
 Omitting the input version preserves ordinary historical ledgers. New callers
-should pin 0.4 and validate against this repo's generated schemas. The package is
+should pin 0.5 and validate against this repo's generated schemas. The package is
 currently in local development.
 
 ## Result schema versions
@@ -20,6 +20,7 @@ revision.
 |---|---|---|
 | `0.3` | Rollovers, lot origins, notional scopes. | — |
 | `0.4` | Exception code `link_conflict`. `link_mismatch` now leaves its legs `unbooked` and the result incomplete. The engine fixes its own decimal context. | Accept `link_conflict` wherever exception codes are enumerated. Books with a mismatched or doubly linked transfer are now incomplete. Results sealed under `0.3` are refused by `parse_result`. |
+| `0.5` | Ledger: `Leg.liability` names a facility's liability compartment. Liabilities are keyed by `(liability compartment, asset)`; `Liability.compartment` and the liability-side `Realized.compartment` are that compartment. Accrued interest (`borrow` labelled `interest`) is an `interest` expense flow, and its reversal `interest` income. Every repay adds a liability-side `Realized` row, under `cost` as under `market`. | Set `liability` on `borrow` and `repay` cash legs to the counter-leg's compartment, and send accrued interest as a `borrow` leg labelled `interest` in the liability compartment, instead of dropping liability legs by name; `policy.loan_interest` becomes unnecessary. Realized P&L now includes the liability side of repayments under `cost`; income and expense totals include accrued interest. |
 
 ## 0.3
 

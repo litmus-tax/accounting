@@ -148,7 +148,13 @@ def test_loan_example(capsys):
   out = json.loads(capsys.readouterr().out)
   (owed,) = out['liabilities']
   assert (owed['quantity'], owed['cost'], owed['label']) == ('20', '18.00', 'aave-v3')
-  assert sum(Decimal(r['pnl']) for r in out['realized']) == Decimal('248.00')
+  # policy 05 rule 9.4: the repay realizes the liability side too (-250 against +250).
+  assert sum(Decimal(r['pnl']) for r in out['realized']) == Decimal('-2.00')
+  # policy 05 rule 9.3: the accrual is an expense.
+  assert [(f['label'], f['value']) for f in out['flows']] == [
+    ('gas', '2.00'),
+    ('interest', '18.00'),
+  ]
   assert main(['--json', 'value', LOAN, '--at', '2026-06-01T00:00:00Z']) == 0
   out = json.loads(capsys.readouterr().out)
   (owed,) = out['liabilities']

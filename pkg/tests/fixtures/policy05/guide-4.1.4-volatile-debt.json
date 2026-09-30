@@ -51,7 +51,8 @@
       "quantity": "1",
       "compartment": "wallet",
       "tag": "borrow",
-      "label": "aave"
+      "label": "aave",
+      "liability": "debt:aave-eth"
      }
     ]
    },
@@ -64,7 +65,8 @@
       "quantity": "-1",
       "compartment": "wallet",
       "tag": "repay",
-      "label": "aave"
+      "label": "aave",
+      "liability": "debt:aave-eth"
      }
     ]
    }
@@ -76,7 +78,6 @@
    "rules": [
     "9.4"
    ],
-   "xfail": "gap 21: under cost, repaying realizes only the asset side (#8)",
    "expected": {
     "complete": true,
     "realized": [
@@ -90,7 +91,8 @@
      {
       "event": "repay",
       "asset": "ETH",
-      "pnl": "-500.00"
+      "pnl": "-500.00",
+      "compartment": "debt:aave-eth"
      }
     ],
     "totals": {
@@ -118,7 +120,8 @@
      {
       "event": "repay",
       "asset": "ETH",
-      "pnl": "-500.00"
+      "pnl": "-500.00",
+      "compartment": "debt:aave-eth"
      }
     ],
     "totals": {
