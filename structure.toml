@@ -28,7 +28,13 @@ __init__ = ["engine", "valuation", "pricing"]
 "cli.py" = { doc = "`accounting [--json] {run,validate,value,schema}` Typer app; findings in results, runtime failures exit 1, usage errors exit 2." }
 "engine/__init__.py" = { doc = "Exposes `calculation` and re-exports `run` and `validate`." }
 "engine/arithmetic.py" = { doc = "Exact finite-decimal sums and differences for conservation after bounded division." }
-"engine/calculation.py" = { doc = "The pure engine: events, links, policy and pricing to lots, realized PnL, flows, internal moves, prices used and exceptions.", split_pending = 1 }
+"engine/calculation.py" = { doc = "`run`: the engine over a ledger in time order, emitting series points, then rounding and the journal; `Engine` books one event in the contract's order." }
+"engine/checks.py" = { doc = "Structural checks that need no prices: invalid and duplicate events, dependencies, and links (unknown events, conflicts, mismatches)." }
+"engine/core.py" = { doc = "The engine's state and booking primitives: lot keys, the exceptions report, market values, legs into lots, and the liability ledger." }
+"engine/booking.py" = { doc = "Legs into lots with perpetual-compartment settlement shortfalls, income and expense flows, trades and perpetual fills." }
+"engine/debt.py" = { doc = "Liabilities: borrowing, accrued and reversed interest, repayment and its liability side." }
+"engine/transfers.py" = { doc = "Transfers: linked pairs at carried basis, unlinked ones by their boundary basis, income before transfers." }
+"engine/rollovers.py" = { doc = "Rollovers: atomic basis carries, with allocation by market value across several outputs." }
 "engine/journal.py" = { doc = "The double-entry journal recorded as the engine books: lines per event on named accounts, rounded against the result rows, balance checked." }
 "engine/lots.py" = { doc = "`LotBook`: open lots per key, sign-crossing closes and FIFO/LIFO/HIFO/average consumption order." }
 "engine/perps.py" = { doc = "Open perpetual positions on a settled basis: fill pairing, entry basis per `perp_cost_method`, realized P&L in the settlement asset." }

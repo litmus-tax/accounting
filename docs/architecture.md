@@ -25,12 +25,18 @@
 | --- | --- | --- |
 | `engine/__init__.py` | Exposes `calculation` and re-exports `run` and `validate`. | `engine`, `model`, `pricing` |
 | `engine/arithmetic.py` | Exact finite-decimal sums and differences for conservation after bounded division. | `engine`, `model`, `pricing` |
-| `engine/calculation.py` | The pure engine: events, links, policy and pricing to lots, realized PnL, flows, internal moves, prices used and exceptions. (split pending: #1) | `engine`, `model`, `pricing` |
+| `engine/booking.py` | Legs into lots with perpetual-compartment settlement shortfalls, income and expense flows, trades and perpetual fills. | `engine`, `model`, `pricing` |
+| `engine/calculation.py` | `run`: the engine over a ledger in time order, emitting series points, then rounding and the journal; `Engine` books one event in the contract's order. | `engine`, `model`, `pricing` |
+| `engine/checks.py` | Structural checks that need no prices: invalid and duplicate events, dependencies, and links (unknown events, conflicts, mismatches). | `engine`, `model`, `pricing` |
+| `engine/core.py` | The engine's state and booking primitives: lot keys, the exceptions report, market values, legs into lots, and the liability ledger. | `engine`, `model`, `pricing` |
+| `engine/debt.py` | Liabilities: borrowing, accrued and reversed interest, repayment and its liability side. | `engine`, `model`, `pricing` |
 | `engine/journal.py` | The double-entry journal recorded as the engine books: lines per event on named accounts, rounded against the result rows, balance checked. | `engine`, `model`, `pricing` |
 | `engine/lots.py` | `LotBook`: open lots per key, sign-crossing closes and FIFO/LIFO/HIFO/average consumption order. | `engine`, `model`, `pricing` |
 | `engine/operations.py` | Structural checks and stable causal ordering for generic basis operations. | `engine`, `model`, `pricing` |
 | `engine/perps.py` | Open perpetual positions on a settled basis: fill pairing, entry basis per `perp_cost_method`, realized P&L in the settlement asset. | `engine`, `model`, `pricing` |
+| `engine/rollovers.py` | Rollovers: atomic basis carries, with allocation by market value across several outputs. | `engine`, `model`, `pricing` |
 | `engine/rounding.py` | Rounds functional-currency money outputs to the minor unit, recomputing derived amounts from rounded parts. | `engine`, `model`, `pricing` |
 | `engine/series.py` | The P&L series: a point per grid instant from the engine's state, valued at market, with the total-P&L check. | `engine`, `model`, `pricing` |
 | `engine/totals.py` | Per-key running totals of a lot book: the context position sum without summing lots, and exact decisions within its rounding margin. | `engine`, `model`, `pricing` |
+| `engine/transfers.py` | Transfers: linked pairs at carried basis, unlinked ones by their boundary basis, income before transfers. | `engine`, `model`, `pricing` |
 <!-- structure:end -->
