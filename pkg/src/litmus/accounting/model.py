@@ -35,13 +35,16 @@ How the engine treats a leg:
 - `expense`: an outflow valued at market at event time (funding paid, fees).
   Consumes lots at market value. Quantity must be negative.
 - `borrow`: an asset received against a liability. Opens a lot at market value
-  and a liability of the same quantity in the leg's compartment; no income, no
-  PnL. Ordinary borrowing must be positive. Labelled `interest` it records
-  signed noncash accrual: positive increases debt at market basis, negative
-  reverses debt and releases proportional carried basis. Neither receives or
-  disposes inventory; a reversal needs no market price.
+  and a liability of the same quantity under `(Leg.liability, asset)`; no
+  income, no PnL. Ordinary borrowing must be positive. Labelled `interest` it
+  records signed noncash accrual (policy 05 rule 9.3): positive increases debt
+  at market value and is an interest expense; negative reverses debt, releases
+  proportional carried basis and is interest income of that basis. Neither
+  receives or disposes inventory; a reversal needs no market price.
 - `repay`: an asset given back against a liability. A disposal at market with
-  its normal PnL; the liability shrinks. Quantity must be negative.
+  its normal PnL; the liability shrinks, and the difference between the value
+  given and the basis released is realized against it (policy 05 rule 9.4).
+  Quantity must be negative.
 """
 
 
@@ -63,8 +66,15 @@ class Leg:
   label: str | None = None
   """
   Free-form sub-classification for reporting (`funding`, `gas`, `withdrawal`).
-  On `borrow` and `repay` legs it names the facility; `interest` on a `borrow`
-  leg marks signed noncash accrual or reversal (see `LegTag`).
+  On `borrow` and `repay` legs it describes the facility; `interest` on a
+  `borrow` leg marks signed noncash accrual or reversal (see `LegTag`).
+  """
+  liability: str | None = None
+  """
+  On `borrow` and `repay` legs only: the liability compartment of the facility,
+  the compartment of the unit's counter-leg (policy 05 rule 9.1). The liability
+  is identified by `(liability, asset)`, so two facilities never merge. Absent,
+  the leg's own compartment.
   """
 
 
@@ -171,10 +181,11 @@ expenses.
 """
 LiabilityValuation = Literal['cost', 'market']
 """
-`cost`: a liability carries no PnL of its own; repaying it only disposes of the
-asset given. `market`: the liability is revalued in functional currency at
-repayment and the difference between its basis and its market value is realized
-(for regimes that treat crypto debt like FX debt).
+When a change in the owed asset's price is recognised, never whether (policy 05
+rule 9.4). Either way repaying realizes the difference between the value given
+and the basis released. `cost`: the liability is held at cost, so a valuation
+reports no unrealized figure on it. `market`: a valuation remeasures it at
+market and reports its unrealized gain or loss.
 """
 
 
@@ -308,20 +319,20 @@ class Move:
 
 @dataclass(frozen=True)
 class Liability:
-  """What is owed per (compartment, asset), opened by `borrow` legs and reduced by `repay` legs."""
+  """What is owed per (liability compartment, asset), opened by `borrow` legs and reduced by `repay` legs."""
 
   __pydantic_config__ = DOCUMENTED
 
   id: str
   asset: str
   compartment: str
-  """Always the leg's compartment; liabilities are never pooled globally."""
+  """The liability compartment (`Leg.liability`, else the leg's own); never pooled globally."""
   quantity: Decimal
   """Amount owed. Positive; negative only after a `negative_liability` exception."""
   cost: Decimal
   """Functional-currency value of what is owed at the time each part was borrowed or accrued."""
   label: str | None
-  """Facility named by the opening `borrow` leg."""
+  """Label of the opening leg; informational, the identity is `(compartment, asset)`."""
   opened: datetime
   """Time of the opening `borrow` leg."""
   updated: datetime
@@ -351,7 +362,7 @@ ExceptionCode = Literal[
 - `invalid_event`: an event that fails validation; skipped.
 - `duplicate_id`: two events share an id; the later one is skipped.
 - `negative_position`: an asset outside `Policy.position_assets` went net short.
-- `negative_liability`: a repay or noncash interest reversal exceeded what was owed under its (compartment, asset); booked anyway.
+- `negative_liability`: a repay or noncash interest reversal exceeded what was owed under its (liability compartment, asset); booked anyway.
 - `unbooked`: a leg left out of the books (always paired with the cause). Makes the run incomplete.
 """
 
@@ -408,9 +419,9 @@ class RolloverRecord:
   cost_reference: str | None
 
 
-ResultVersion = Literal['0.4']
+ResultVersion = Literal['0.5']
 """The result schema this engine writes and reads (policy 05 rule 27.2)."""
-RESULT_VERSION: ResultVersion = '0.4'
+RESULT_VERSION: ResultVersion = '0.5'
 
 
 @dataclass(frozen=True)
@@ -467,7 +478,7 @@ class LiabilityPosition:
   value: Decimal | None
   """Market value in functional currency of what is owed; `None` on a price gap."""
   unrealized: Decimal | None
-  """`cost - value` under `liability_valuation: market`; `None` under `cost` (the liability carries no PnL) or on a price gap."""
+  """`cost - value` under `liability_valuation: market`; `None` under `cost` (held at cost until repaid) or on a price gap."""
 
 
 @dataclass(frozen=True)
@@ -491,7 +502,7 @@ class Ledger:
   __pydantic_config__ = DOCUMENTED
 
   events: tuple[Event, ...]
-  schema_version: Literal['0.2', '0.3', '0.4'] = '0.4'
+  schema_version: Literal['0.2', '0.3', '0.4', '0.5'] = '0.5'
   links: tuple[Link, ...] = ()
   policy: Policy | None = None
   prices: tuple[PriceRecord, ...] = ()

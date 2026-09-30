@@ -91,6 +91,20 @@
         "lot-2"
       ],
       "fees": "0.00"
+    },
+    {
+      "event": "repay",
+      "time": "2026-05-01T12:00:00Z",
+      "asset": "USDC",
+      "compartment": "evm:0xabc",
+      "quantity": "5000",
+      "proceeds": "-4750.00",
+      "cost": "-4500.00",
+      "pnl": "-250.00",
+      "lots": [
+        "liability-1"
+      ],
+      "fees": "0.00"
     }
   ],
   "flows": [
@@ -104,6 +118,17 @@
       "kind": "expense",
       "fee": true,
       "label": "gas"
+    },
+    {
+      "event": "accrue",
+      "time": "2026-04-01T00:00:00Z",
+      "asset": "USDC",
+      "compartment": "evm:0xabc",
+      "quantity": "-20",
+      "value": "18.00",
+      "kind": "expense",
+      "fee": false,
+      "label": "interest"
     }
   ],
   "moves": [],

@@ -31,10 +31,17 @@ def leg(
   *,
   fee: bool = False,
   label: str | None = None,
+  liability: str | None = None,
 ) -> Leg:
   """Build a leg."""
   return Leg(
-    asset=asset, quantity=Decimal(qty), compartment=comp, tag=tag, fee=fee, label=label
+    asset=asset,
+    quantity=Decimal(qty),
+    compartment=comp,
+    tag=tag,
+    fee=fee,
+    label=label,
+    liability=liability,
   )
 
 

@@ -55,7 +55,8 @@
       "quantity": "1000",
       "compartment": "wallet",
       "tag": "borrow",
-      "label": "aave"
+      "label": "aave",
+      "liability": "debt:aave-usdc"
      }
     ]
    },
@@ -66,12 +67,12 @@
      {
       "asset": "USDC",
       "quantity": "5",
-      "compartment": "wallet",
+      "compartment": "debt:aave-usdc",
       "tag": "borrow",
       "label": "interest"
      }
     ],
-    "description": "month-end accrual in debt:aave-usdc"
+    "description": "month-end accrual: -5 USDC interest in debt:aave-usdc, the debt grows"
    },
    {
     "id": "repay",
@@ -82,7 +83,8 @@
       "quantity": "-1005",
       "compartment": "wallet",
       "tag": "repay",
-      "label": "aave"
+      "label": "aave",
+      "liability": "debt:aave-usdc"
      }
     ]
    }
@@ -96,12 +98,12 @@
     "9.3",
     "9.4"
    ],
-   "xfail": "gap 11: accrued interest never becomes an expense (#3)",
    "expected": {
     "complete": true,
     "flows": [
      {
       "event": "accrue",
+      "compartment": "debt:aave-usdc",
       "kind": "expense",
       "label": "interest",
       "value": "5.00"
@@ -119,7 +121,23 @@
      "realized": "0.00",
      "income": "0",
      "expenses": "5.00"
-    }
+    },
+    "realized": [
+     {
+      "event": "repay",
+      "asset": "USDC",
+      "compartment": "wallet",
+      "proceeds": "1005.00",
+      "cost": "1005.00",
+      "pnl": "0.00"
+     },
+     {
+      "event": "repay",
+      "asset": "USDC",
+      "compartment": "debt:aave-usdc",
+      "pnl": "0.00"
+     }
+    ]
    }
   }
  ]

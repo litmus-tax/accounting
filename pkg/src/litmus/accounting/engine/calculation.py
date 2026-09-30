@@ -75,6 +75,8 @@ def problems(event: Event) -> list[str]:
       out.append(f'leg {i}: borrow must be positive')
     elif leg.tag == 'repay' and leg.quantity > 0:
       out.append(f'leg {i}: repay must be negative')
+    elif leg.liability is not None and leg.tag not in ('borrow', 'repay'):
+      out.append(f'leg {i}: only borrow and repay legs name a liability')
   return out
 
 
@@ -450,13 +452,17 @@ class Engine:
     self.book_leg(event, leg, value)
 
   def liability(self, event: Event, leg: Leg) -> OpenLiability:
-    """The liability under the leg's (compartment, asset), opened now if there is none."""
-    key = (leg.compartment, leg.asset)
+    """
+    The liability of the leg's facility, opened now if there is none: keyed by
+    `(liability compartment, asset)` (policy 05 rule 9.1).
+    """
+    compartment = leg.liability or leg.compartment
+    key = (compartment, leg.asset)
     if key not in self.liabilities:
       self.liabilities[key] = OpenLiability(
         id=f'liability-{len(self.liabilities) + 1}',
         asset=leg.asset,
-        compartment=leg.compartment,
+        compartment=compartment,
         quantity=Decimal(0),
         cost=Decimal(0),
         label=leg.label,
@@ -466,12 +472,34 @@ class Engine:
       )
     return self.liabilities[key]
 
+  def interest_flow(
+    self, event: Event, leg: Leg, liability: OpenLiability, value: Decimal
+  ):
+    """
+    The interest flow of a noncash accrual (`value` > 0, an expense) or reversal
+    (`value` < 0, income) against `liability` (policy 05 rule 9.3.1).
+    """
+    self.flows.append(
+      Flow(
+        event=event.id,
+        time=event.time,
+        asset=leg.asset,
+        compartment=liability.compartment,
+        quantity=-leg.quantity,
+        value=abs(value),
+        kind='expense' if value > 0 else 'income',
+        fee=False,
+        label=leg.label,
+      )
+    )
+
   def borrow(self, event: Event, leg: Leg):
     """
     Book a borrow leg: the asset received opens a lot at market value and the
     liability grows by the same quantity and value. Labelled `interest` nothing
-    is received: a positive accrual grows debt, a negative correction releases
-    proportional debt basis without cash movement or market realization.
+    is received: a positive accrual grows debt and is an expense at market value;
+    a negative correction releases proportional debt basis as income, without
+    cash movement or market realization (policy 05 rule 9.3).
     """
     if leg.label == 'interest' and leg.quantity < 0:
       self.reverse_interest(event, leg)
@@ -482,9 +510,11 @@ class Engine:
       self.gap(event, e)
       self.unbooked(event, leg, 'price gap')
       return
+    liability = self.liability(event, leg)
     if leg.label != 'interest':
       self.book_leg(event, leg, value)
-    liability = self.liability(event, leg)
+    else:
+      self.interest_flow(event, leg, liability, value)
     liability.quantity += leg.quantity
     liability.cost += value
     liability.updated = event.time
@@ -499,24 +529,26 @@ class Engine:
       self.report(
         'negative_liability',
         event.id,
-        f'interest reversal {reduction} {leg.asset} in {leg.compartment} exceeds {owed} owed',
+        f'interest reversal {reduction} {leg.asset} in {liability.compartment} exceeds {owed} owed',
         asset=leg.asset,
-        compartment=leg.compartment,
+        compartment=liability.compartment,
         owed=str(owed),
         reversed=str(reduction),
       )
     liability.quantity -= reduction
     liability.cost -= released
     liability.updated = event.time
+    if released:
+      self.interest_flow(event, leg, liability, -released)
 
   def repay(self, event: Event, leg: Leg):
     """
     Book a repay leg: the asset given is a disposal at market with its normal
     PnL, and the liability shrinks by the quantity repaid, releasing a
-    proportional share of its basis. Under `liability_valuation: market` the
-    difference between the basis released and the market value repaid is
-    realized against the liability. Repaying more than is owed is reported as
-    `negative_liability` and booked anyway.
+    proportional share of its basis. The difference between the basis released
+    and the market value repaid is realized against the liability, under either
+    `liability_valuation` (policy 05 rule 9.4). Repaying more than is owed is
+    reported as `negative_liability` and booked anyway.
     """
     try:
       value = self.market(event, leg)
@@ -533,29 +565,28 @@ class Engine:
       self.report(
         'negative_liability',
         event.id,
-        f'repaid {repaid} {leg.asset} in {leg.compartment} against {owed} owed',
+        f'repaid {repaid} {leg.asset} in {liability.compartment} against {owed} owed',
         asset=leg.asset,
-        compartment=leg.compartment,
+        compartment=liability.compartment,
         owed=str(owed),
         repaid=str(repaid),
       )
     liability.quantity -= repaid
     liability.cost -= released
     liability.updated = event.time
-    if self.policy.liability_valuation == 'market':
-      self.realized.append(
-        Realized(
-          event=event.id,
-          time=event.time,
-          asset=leg.asset,
-          compartment=leg.compartment,
-          quantity=repaid,
-          proceeds=value,
-          cost=-released,
-          pnl=value + released,
-          lots=(liability.id,),
-        )
+    self.realized.append(
+      Realized(
+        event=event.id,
+        time=event.time,
+        asset=leg.asset,
+        compartment=liability.compartment,
+        quantity=repaid,
+        proceeds=value,
+        cost=-released,
+        pnl=value + released,
+        lots=(liability.id,),
       )
+    )
 
   def internal(self, time: datetime, link: Link, src: Event, dst: Event):
     """

@@ -16,7 +16,8 @@ on the wire; timestamps are ISO 8601 and must carry a timezone.
 | `compartment` | str | Opaque account, subaccount or wallet id. |
 | `tag` | `trade` \| `transfer` \| `income` \| `expense` \| `borrow` \| `repay` | What the engine does with the leg (below). |
 | `fee` | bool = false | The leg is a fee of its event. Must be negative. |
-| `label` | str? | Free-form sub-classification for reporting (`funding`, `gas`, `realized_pnl`). On `borrow` and `repay` legs it names the facility; `interest` on a `borrow` leg marks an accrual. |
+| `label` | str? | Free-form sub-classification for reporting (`funding`, `gas`, `realized_pnl`). On `borrow` and `repay` legs it describes the facility; `interest` on a `borrow` leg marks an accrual. |
+| `liability` | str? | `borrow` and `repay` legs only: the facility's liability compartment (the unit's counter-leg compartment). The liability is `(liability, asset)`; absent, the leg's own compartment. |
 
 Tags:
 
@@ -24,8 +25,8 @@ Tags:
 2. `transfer`: a movement in or out of a compartment. With a `Link` it is internal: basis carries (under `compartment` scope lots move; under `global` scope nothing moves). Without one it is external: booked at market value plus an `unmatched_transfer` exception.
 3. `income`: a positive inflow valued at market at event time; opens a lot at that value and emits a `Flow`.
 4. `expense`: a negative outflow valued at market at event time; consumes lots at that value (realizing PnL on them) and emits a `Flow`.
-5. `borrow`: a positive quantity received against a liability. Opens a lot at market value at event time (no income, no PnL) and opens or grows the liability under the leg's `(compartment, asset)` by the same quantity and value. Labelled `interest` it is accrued unpaid interest: nothing is received, no lot opens, only the liability grows.
-6. `repay`: a negative quantity given back against a liability. A disposal at market with its normal realized PnL on the asset's lots; the liability under `(compartment, asset)` shrinks by the quantity and releases a proportional share of its basis. Under `Policy.liability_valuation: market` the released basis minus the market value repaid is a second `Realized` row against the liability (`lots` names the liability id). Repaying more than is owed is a `negative_liability` exception; the liability goes negative rather than being clipped.
+5. `borrow`: a positive quantity received against a liability. Opens a lot at market value at event time (no income, no PnL) and opens or grows the liability `(liability or compartment, asset)` by the same quantity and value (policy 05 rule 9.1). Labelled `interest` it is accrued unpaid interest: nothing is received and no lot opens; the liability grows and an `expense` flow labelled `interest` of the same market value is booked (rule 9.3.1). Portfolio sends the unit's accrual leg (negative in the liability compartment) as this positive `borrow` leg in that compartment.
+6. `repay`: a negative quantity given back against a liability. A disposal at market with its normal realized PnL on the asset's lots; the liability shrinks by the quantity and releases a proportional share of its basis, and the released basis minus the market value repaid is a second `Realized` row against the liability (`compartment` is the liability's, `lots` names the liability id), under either `liability_valuation` (rule 9.4). Repaying more than is owed is a `negative_liability` exception; the liability goes negative rather than being clipped.
 
 A fee leg is an `expense` unless `Policy.fee_treatment` is `capitalize` and the event has trade legs, in which case its value is folded into the trade (see the policy doc).
 
@@ -68,7 +69,7 @@ See [policy.md](policy.md).
 
 ### `Liability`
 
-`{id, asset, compartment, quantity, cost, label, opened, updated, event}`. Ids are `liability-N` in opening order. `compartment` is always the leg's own (liabilities are never pooled globally, whatever `lot_scope` says). `quantity` is what is owed; `cost` its functional-currency value at the times each part was borrowed or accrued, reduced proportionally by repayments. `label` is the facility named by the opening `borrow` leg; `opened` and `event` are the opening leg's; `updated` is the last `borrow` or `repay` that touched it.
+`{id, asset, compartment, quantity, cost, label, opened, updated, event}`. Ids are `liability-N` in opening order. `compartment` is the liability compartment: the legs' `liability`, else their own compartment (liabilities are never pooled globally, whatever `lot_scope` says). `quantity` is what is owed; `cost` its functional-currency value at the times each part was borrowed or accrued, reduced proportionally by repayments. `label` is the opening leg's and informational only; `opened` and `event` are the opening leg's; `updated` is the last `borrow` or `repay` that touched it.
 
 ### `Realized`
 
@@ -120,4 +121,4 @@ See [policy.md](policy.md).
 3. Average cost is one pooled lot per key; a move takes a proportional share of the pool.
 4. A move takes lots in cost-method order and recreates them in the destination with their original `acquired` and `event`, so a later FIFO, LIFO or HIFO disposal in the destination still sees the right lots.
 5. Every price asked is recorded once per `(asset, quote, effective time)`.
-6. Liabilities are keyed by `(compartment, asset)` only. Two facilities lending the same asset to the same compartment share one liability (the label of the first is reported); a caller that needs them apart uses distinct compartments or assets.
+6. Liabilities are keyed by `(liability compartment, asset)` (policy 05 rule 9.1). Two facilities lending the same asset into one wallet stay apart as long as the caller names each facility's liability compartment in `Leg.liability`; labels never identify a liability.
