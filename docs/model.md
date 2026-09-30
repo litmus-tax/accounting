@@ -35,7 +35,7 @@ A fee leg is an `expense` unless `Policy.fee_treatment` is `capitalize` and the 
 
 ### `Link`
 
-`{src, dst}`: the transfer legs of `src` with negative quantity and the transfer legs of `dst` with positive quantity are one internal movement, matched by asset. Quantities must conserve per asset, else `link_mismatch` and nothing moves. Fee legs are not part of the match.
+`{src, dst}`: the transfer legs of `src` with negative quantity and the transfer legs of `dst` with positive quantity are one internal movement, matched by asset. Quantities must conserve per asset, else `link_mismatch`: nothing moves, the legs are unbooked and the result is incomplete. Fee legs are not part of the match. An event is a side of at most one link (policy 01 term 2): a later link naming an already linked event, or linking an event to itself, is a `link_conflict`, is not booked, and makes the result incomplete.
 
 ### `Policy`
 
@@ -94,7 +94,8 @@ See [policy.md](policy.md).
 |---|---|---|
 | `price_gap` | no price along the quote path; the leg (or whole trade) is left unbooked | with `unbooked` |
 | `unmatched_transfer` | a transfer without a link, booked at market | no |
-| `link_mismatch` | a link that does not conserve quantity per asset; not moved | no |
+| `link_mismatch` | a link that does not conserve quantity per asset; not moved, its legs `unbooked` | yes |
+| `link_conflict` | a link naming an event already in another link, or an event linked to itself; not booked | yes |
 | `unknown_event` | a link names an event id that does not exist | no |
 | `invalid_event` | validation failed (naive time, zero quantity, wrong sign, no legs); skipped | yes |
 | `duplicate_id` | a later event repeats an id; skipped | yes |

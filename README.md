@@ -122,7 +122,9 @@ accounting validate examples/rollover.json --json
 
 The synthetic rollover example carries €1000 into a receipt and pending claim,
 then realizes €300 on €1300 settlement, without a receipt price. New callers pin
-`schema_version: "0.3"`; generated schemas reject unknown JSON fields.
+`schema_version: "0.4"`; generated schemas reject unknown JSON fields. Result
+schema versions and their consumer impact are listed in
+[docs/migration.md](docs/migration.md).
 
 ## Python checks
 

@@ -334,6 +334,7 @@ ExceptionCode = Literal[
   'price_gap',
   'unmatched_transfer',
   'link_mismatch',
+  'link_conflict',
   'unknown_event',
   'invalid_event',
   'duplicate_id',
@@ -344,7 +345,8 @@ ExceptionCode = Literal[
 """
 - `price_gap`: the pricing source had no price; the leg (or trade) is left unbooked.
 - `unmatched_transfer`: a transfer with no link, booked at market value.
-- `link_mismatch`: a link whose quantities do not conserve per asset; not moved.
+- `link_mismatch`: a link whose quantities do not conserve per asset; not moved, its legs unbooked.
+- `link_conflict`: a link naming an event that is already in another link (or linking an event to itself); not booked.
 - `unknown_event`: a link references an event id that does not exist.
 - `invalid_event`: an event that fails validation; skipped.
 - `duplicate_id`: two events share an id; the later one is skipped.
@@ -406,6 +408,11 @@ class RolloverRecord:
   cost_reference: str | None
 
 
+ResultVersion = Literal['0.4']
+"""The result schema this engine writes and reads (policy 05 rule 27.2)."""
+RESULT_VERSION: ResultVersion = '0.4'
+
+
 @dataclass(frozen=True)
 class Result:
   """Everything `run` returns."""
@@ -425,7 +432,7 @@ class Result:
   complete: bool
   """False when any leg could not be booked (every such case is also an exception)."""
   rollovers: tuple[RolloverRecord, ...] = ()
-  schema_version: Literal['0.3'] = '0.3'
+  schema_version: ResultVersion = RESULT_VERSION
 
 
 @dataclass(frozen=True)
@@ -484,7 +491,7 @@ class Ledger:
   __pydantic_config__ = DOCUMENTED
 
   events: tuple[Event, ...]
-  schema_version: Literal['0.2', '0.3'] = '0.3'
+  schema_version: Literal['0.2', '0.3', '0.4'] = '0.4'
   links: tuple[Link, ...] = ()
   policy: Policy | None = None
   prices: tuple[PriceRecord, ...] = ()

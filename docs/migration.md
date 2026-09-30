@@ -1,9 +1,27 @@
-# Version 0.3 migration and extension
+# Versions, migration and extension
 
-Distribution version is 0.3.0. `Ledger.schema_version` accepts `0.2` or `0.3` and
-defaults to `0.3`; Result explicitly emits `schema_version:"0.3"`. Omitting the
-input version preserves ordinary historical ledgers. New callers should pin 0.3
-and validate against this repo's generated schemas. The package is currently in local development.
+Distribution version is 0.4.0. `Ledger.schema_version` accepts `0.2`, `0.3` or
+`0.4` and defaults to `0.4`; Result explicitly emits `schema_version:"0.4"`.
+Omitting the input version preserves ordinary historical ledgers. New callers
+should pin 0.4 and validate against this repo's generated schemas. The package is
+currently in local development.
+
+## Result schema versions
+
+The result schema versions sealed revisions (policy 05 rule 27.2). It changes
+whenever the result's shape or the meaning of one of its fields changes, and the
+distribution's minor version follows it. `codec.parse_result` reads only the
+current version and raises `SchemaVersionError` for any other; a result is never
+read best-effort. A revision keeps the version it was sealed with: to read or
+replay it, use the engine version it pins; to apply a newer engine, build a new
+revision.
+
+| Result schema | Change | Consumer impact |
+|---|---|---|
+| `0.3` | Rollovers, lot origins, notional scopes. | — |
+| `0.4` | Exception code `link_conflict`. `link_mismatch` now leaves its legs `unbooked` and the result incomplete. The engine fixes its own decimal context. | Accept `link_conflict` wherever exception codes are enumerated. Books with a mismatched or doubly linked transfer are now incomplete. Results sealed under `0.3` are refused by `parse_result`. |
+
+## 0.3
 
 1. `Event` adds `depends_on` and optional `rollover`; `Leg.tag` adds `rollover`.
 2. `Policy` adds exact `notional_scopes`; the legacy global position list remains.

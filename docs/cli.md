@@ -16,7 +16,7 @@ wins). `-h` and `--help` both work.
 ## Verbs
 
 1. `run`: books the ledger. Prints a human summary or, with `--json`, the full `Result` (see `accounting schema result`). `--strict` stops at the first price gap.
-2. `validate`: parses the ledger against the model and runs the structural checks that need no prices (duplicate ids, invalid legs, naive timestamps, links to unknown events, links that do not conserve quantity). Prints `valid` or the problems; `--json` prints the exceptions list.
+2. `validate`: parses the ledger against the model and runs the structural checks that need no prices (duplicate ids, invalid legs, naive timestamps, links to unknown events, links that do not conserve quantity, events in more than one link). Prints `valid` or the problems; `--json` prints the exceptions list.
 3. `value`: books the ledger, then values every open lot and liability at `--at` through the ledger's price table. Prints a summary or, with `--json`, the `Valuation` (see `accounting schema valuation`).
 4. `schema`: prints one schema (default `ledger`), or writes all three into `--out DIR`, or with `--check DIR` fails when the files there differ from what the code generates.
 

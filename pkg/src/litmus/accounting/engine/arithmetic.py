@@ -1,7 +1,49 @@
-"""Exact finite-decimal sums for conservation after bounded decimal division."""
+"""
+Exact finite-decimal sums for conservation after bounded decimal division, and
+the engine's own decimal context.
+"""
 
-from decimal import Decimal, localcontext
-from typing_extensions import Iterable
+from decimal import (
+  Context,
+  Decimal,
+  DivisionByZero,
+  InvalidOperation,
+  Overflow,
+  ROUND_HALF_EVEN,
+  localcontext,
+)
+from typing_extensions import Iterable, Callable, ParamSpec, TypeVar
+import functools
+
+CONTEXT = Context(
+  prec=28,
+  rounding=ROUND_HALF_EVEN,
+  Emin=-999999,
+  Emax=999999,
+  capitals=1,
+  clamp=0,
+  flags=[],
+  traps=[InvalidOperation, DivisionByZero, Overflow],
+)
+"""
+The decimal context every engine computation runs in, whatever the caller's
+(policy 05 rule 2.2). It equals Python's default context, so results computed
+under the default context are unchanged.
+"""
+
+Params = ParamSpec('Params')
+Returned = TypeVar('Returned')
+
+
+def fixed_context(function: Callable[Params, Returned]) -> Callable[Params, Returned]:
+  """Run `function` under `CONTEXT`, restoring the caller's context afterwards."""
+
+  @functools.wraps(function)
+  def wrapper(*args: Params.args, **kwargs: Params.kwargs) -> Returned:
+    with localcontext(CONTEXT):
+      return function(*args, **kwargs)
+
+  return wrapper
 
 
 def exact_sum(values: Iterable[Decimal]) -> Decimal:

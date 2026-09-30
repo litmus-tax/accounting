@@ -13,6 +13,7 @@ from litmus.accounting.model import (
 )
 from litmus.accounting.pricing import Pricing, Valuer, PriceGap
 from litmus.accounting.engine.rounding import round_valuation
+from litmus.accounting.engine.arithmetic import fixed_context
 
 
 def gap_item(e: PriceGap, event: str, **detail: str) -> ExceptionItem:
@@ -25,6 +26,7 @@ def gap_item(e: PriceGap, event: str, **detail: str) -> ExceptionItem:
   )
 
 
+@fixed_context
 def value(
   lots: Sequence[Lot],
   *,
