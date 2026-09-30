@@ -120,7 +120,6 @@
     "8.3",
     "8.4"
    ],
-   "xfail": "gap 6: the engine has no `position` legs for pnl fills (#2)",
    "expected": {
     "complete": true,
     "flows": [
@@ -159,7 +158,8 @@
     "totals": {
      "income": "2000.00",
      "expenses": "58.80"
-    }
+    },
+    "positions": []
    }
   }
  ]

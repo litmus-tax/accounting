@@ -28,5 +28,6 @@
 | `engine/calculation.py` | The pure engine: events, links, policy and pricing to lots, realized PnL, flows, internal moves, prices used and exceptions. (split pending: #1) | `engine`, `model`, `pricing` |
 | `engine/lots.py` | `LotBook`: open lots per key, sign-crossing closes and FIFO/LIFO/HIFO/average consumption order. | `engine`, `model`, `pricing` |
 | `engine/operations.py` | Structural checks and stable causal ordering for generic basis operations. | `engine`, `model`, `pricing` |
+| `engine/perps.py` | Open perpetual positions on a settled basis: fill pairing, entry basis per `perp_cost_method`, realized P&L in the settlement asset. | `engine`, `model`, `pricing` |
 | `engine/rounding.py` | Rounds functional-currency money outputs to the minor unit, recomputing derived amounts from rounded parts. | `engine`, `model`, `pricing` |
 <!-- structure:end -->

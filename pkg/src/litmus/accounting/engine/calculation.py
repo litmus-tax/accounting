@@ -35,6 +35,7 @@ from litmus.accounting.engine.operations import rollover_problems, ordered_event
 from litmus.accounting.engine.arithmetic import exact_sum, difference, fixed_context
 from litmus.accounting.pricing import Pricing, Valuer, PriceGap
 from litmus.accounting.engine.rounding import round_result
+from litmus.accounting.engine.perps import PositionBook, fills
 
 Linked = dict[str, tuple[Link, Event, Event]]
 """Event id to the link it takes part in, with the resolved source and destination."""
@@ -77,6 +78,14 @@ def problems(event: Event) -> list[str]:
       out.append(f'leg {i}: repay must be negative')
     elif leg.liability is not None and leg.tag not in ('borrow', 'repay'):
       out.append(f'leg {i}: only borrow and repay legs name a liability')
+    elif leg.fee and leg.tag in ('position', 'notional'):
+      out.append(f'leg {i}: a {leg.tag} leg is never a fee')
+    elif (leg.price is not None or leg.settles_in is not None) and (
+      leg.tag != 'position' or leg.price is None or leg.settles_in is None
+    ):
+      out.append(f'leg {i}: price and settles_in go together, on position legs only')
+    elif leg.price is not None and leg.price <= 0:
+      out.append(f'leg {i}: price must be positive')
   return out
 
 
@@ -245,6 +254,9 @@ class Engine:
     self.complete = True
     self.cash = set(policy.cash)
     self.positions = set(policy.position_assets)
+    self.perps = PositionBook(policy.perp_cost_method)
+    self.perp_compartments: set[str] = set()
+    """Compartments holding perpetual positions: a settlement asset there never goes below zero (rule 8.6)."""
 
   def key(self, leg: Leg) -> LotKey:
     """Lot key for a leg under the policy's lot scope."""
@@ -287,36 +299,20 @@ class Engine:
 
   def book_leg(
     self, event: Event, leg: Leg, value: Decimal, *, fees: Decimal = Decimal(0)
-  ) -> Applied | None:
+  ):
     """
     Book a leg worth `value` (signed like its quantity) into lots, recording the
     realized part. `fees` is the fee value already netted out of `value` under
     `fee_treatment: capitalize`, reported on the realized row. Functional-currency
-    legs carry no lots.
+    legs carry no lots. In a perpetual compartment an asset never goes below
+    zero: the shortfall is a liability (policy 05 rule 8.6).
     """
     if leg.asset == self.fc:
-      return None
-    applied = self.book.apply(
-      self.key(leg), quantity=leg.quantity, value=value, time=event.time, event=event.id
-    )
-    closed = applied.closed
-    if closed.quantity != 0:
-      share = closed.quantity / leg.quantity
-      proceeds = -value * share
-      self.realized.append(
-        Realized(
-          event=event.id,
-          time=event.time,
-          asset=leg.asset,
-          compartment=leg.compartment,
-          quantity=closed.quantity,
-          proceeds=proceeds,
-          cost=closed.cost,
-          pnl=proceeds - closed.cost,
-          lots=closed.lots,
-          fees=fees * share,
-        )
-      )
+      return
+    if leg.compartment in self.perp_compartments:
+      self.settle(event, leg, value, fees=fees)
+      return
+    applied = self.lots(event, leg, value, fees=fees)
     scope = (leg.compartment, leg.asset)
     self.scope_positions[scope] = (
       self.scope_positions.get(scope, Decimal(0)) + leg.quantity
@@ -340,7 +336,123 @@ class Engine:
         compartment=leg.compartment,
         position=str(position),
       )
+
+  def lots(
+    self, event: Event, leg: Leg, value: Decimal, *, fees: Decimal = Decimal(0)
+  ) -> Applied:
+    """Apply a leg to the lot book and record the realized row of what it closed."""
+    applied = self.book.apply(
+      self.key(leg), quantity=leg.quantity, value=value, time=event.time, event=event.id
+    )
+    closed = applied.closed
+    if closed.quantity != 0:
+      share = closed.quantity / leg.quantity
+      proceeds = -value * share
+      self.realized.append(
+        Realized(
+          event=event.id,
+          time=event.time,
+          asset=leg.asset,
+          compartment=leg.compartment,
+          quantity=closed.quantity,
+          proceeds=proceeds,
+          cost=closed.cost,
+          pnl=proceeds - closed.cost,
+          lots=closed.lots,
+          fees=fees * share,
+        )
+      )
     return applied
+
+  def settle(
+    self, event: Event, leg: Leg, value: Decimal, *, fees: Decimal = Decimal(0)
+  ):
+    """
+    Book a leg in a perpetual compartment (policy 05 rule 8.6). An outflow beyond
+    what the compartment holds is owed in that asset, a liability identified by
+    `(compartment, asset)`; an inflow first clears what is owed.
+    """
+    scope = (leg.compartment, leg.asset)
+    held = self.scope_positions.get(scope, Decimal(0))
+    if leg.quantity < 0:
+      covered = min(-leg.quantity, max(held, Decimal(0)))
+      parts = ((-covered, self.lots), (leg.quantity + covered, self.owe))
+    else:
+      cleared = min(leg.quantity, self.owed(scope))
+      parts = ((cleared, self.clear), (leg.quantity - cleared, self.lots))
+    for quantity, book in parts:
+      if quantity:
+        share = quantity / leg.quantity
+        book(event, replace(leg, quantity=quantity), value * share, fees=fees * share)
+    self.scope_positions[scope] = held + leg.quantity
+
+  def owed(self, scope: tuple[str, str]) -> Decimal:
+    """What is owed under a `(compartment, asset)` liability, zero when nothing is."""
+    liability = self.liabilities.get(scope)
+    return max(liability.quantity, Decimal(0)) if liability else Decimal(0)
+
+  def owe(self, event: Event, leg: Leg, value: Decimal, *, fees: Decimal = Decimal(0)):
+    """A settlement shortfall: the liability grows by the outflow's quantity at its market value."""
+    liability = self.liability(event, replace(leg, label='settlement', liability=None))
+    liability.quantity -= leg.quantity
+    liability.cost -= value
+    liability.updated = event.time
+
+  def clear(
+    self, event: Event, leg: Leg, value: Decimal, *, fees: Decimal = Decimal(0)
+  ):
+    """
+    An inflow that clears a settlement shortfall: the liability releases its
+    basis pro rata and the difference with the inflow's market value is realized
+    against it (rule 9.4).
+    """
+    liability = self.liability(event, leg)
+    released = liability.cost * leg.quantity / liability.quantity
+    liability.quantity -= leg.quantity
+    liability.cost -= released
+    liability.updated = event.time
+    self.realized.append(
+      Realized(
+        event=event.id,
+        time=event.time,
+        asset=leg.asset,
+        compartment=liability.compartment,
+        quantity=leg.quantity,
+        proceeds=-value,
+        cost=-released,
+        pnl=released - value,
+        lots=(liability.id,),
+      )
+    )
+
+  def fill(self, event: Event):
+    """
+    Apply the event's perpetual fills to their open positions (policy 05 rule 8).
+    Nothing is booked, except the P&L a reduction realizes on a `notional`
+    compartment: `income` or `expense` in the settlement asset, label
+    `realized_pnl` (rule 8.2).
+    """
+    found, bad = fills(event)
+    for leg, reason in bad:
+      self.unbooked(event, leg, reason)
+    for fill in found:
+      if self.perps.conflict(fill):
+        self.unbooked(
+          event,
+          fill.leg,
+          'fill convention or settlement asset differs from its position',
+        )
+        continue
+      pnl = self.perps.apply(fill, time=event.time, event=event.id)
+      if fill.settlement == 'notional' and pnl:
+        result = Leg(
+          fill.settles_in,
+          pnl,
+          fill.leg.compartment,
+          'income' if pnl > 0 else 'expense',
+          label='realized_pnl',
+        )
+        self.flow(event, result, instrument=fill.leg.asset)
 
   def market(self, event: Event, leg: Leg) -> Decimal:
     """Market value of a leg, signed like its quantity."""
@@ -410,7 +522,7 @@ class Engine:
     for leg, v in zip(fees, fee_values):
       self.book_leg(event, leg, -v)
 
-  def flow(self, event: Event, leg: Leg):
+  def flow(self, event: Event, leg: Leg, *, instrument: str | None = None):
     """Book an income or expense leg at market value."""
     try:
       value = self.market(event, leg)
@@ -429,6 +541,7 @@ class Engine:
         kind='income' if leg.quantity > 0 else 'expense',
         fee=leg.fee,
         label=leg.label,
+        instrument=instrument,
       )
     )
     self.book_leg(event, leg, value)
@@ -623,25 +736,48 @@ class Engine:
           compartment=a.compartment,
           position=str(source_position),
         )
-      if self.key(a) == self.key(b) or asset == self.fc:
+      if asset == self.fc:
         continue
-      qty = b.quantity * (1 if self.book.position(self.key(a)) >= 0 else -1)
-      taken, created = self.book.move(self.key(a), self.key(b), qty)
-      self.moves.append(
-        Move(
-          link=link,
-          time=time,
-          asset=asset,
-          quantity=taken.quantity,
-          cost=taken.cost,
-          lots=tuple(dict.fromkeys(l.id for l in created)),
-        )
+      owed = (
+        self.owed((b.compartment, asset))
+        if b.compartment in self.perp_compartments
+        else Decimal(0)
       )
-      short = abs(qty) - abs(taken.quantity)
-      if short > 0:
-        self.unbooked(
-          src, a, f'only {abs(taken.quantity)} {asset} held in {a.compartment}'
+      if self.key(a) != self.key(b):
+        qty = b.quantity * (1 if self.book.position(self.key(a)) >= 0 else -1)
+        taken, created = self.book.move(self.key(a), self.key(b), qty)
+        self.moves.append(
+          Move(
+            link=link,
+            time=time,
+            asset=asset,
+            quantity=taken.quantity,
+            cost=taken.cost,
+            lots=tuple(dict.fromkeys(l.id for l in created)),
+          )
         )
+        short = abs(qty) - abs(taken.quantity)
+        if short > 0:
+          self.unbooked(
+            src, a, f'only {abs(taken.quantity)} {asset} held in {a.compartment}'
+          )
+      if owed:
+        self.clear_moved(dst, replace(b, quantity=min(b.quantity, owed)))
+
+  def clear_moved(self, event: Event, leg: Leg):
+    """
+    Clear a settlement shortfall with units moved in by a link (policy 05 rule
+    8.6): they are disposed of at market value, and the liability releases its
+    basis against that value.
+    """
+    try:
+      value = self.market(event, leg)
+    except PriceGap as e:
+      self.gap(event, e)
+      self.unbooked(event, leg, 'price gap')
+      return
+    self.lots(event, replace(leg, quantity=-leg.quantity), -value)
+    self.clear(event, leg, value)
 
   def transfer(self, event: Event, legs: list[Leg], linked: Linked):
     """
@@ -875,6 +1011,7 @@ class Engine:
       self.borrow(event, leg)
     if trades:
       self.trade(event, trades, fees if capitalized else [])
+    self.fill(event)
     if transfers:
       self.transfer(event, transfers, linked)
     for leg in repays:
@@ -928,6 +1065,12 @@ def run(
   """
   engine = Engine(policy, pricing, strict=strict)
   checked = check(events, links)
+  engine.perp_compartments = {
+    leg.compartment
+    for event in checked.events
+    for leg in event.legs
+    if leg.tag == 'position'
+  }
   engine.exceptions.extend(checked.exceptions)
   engine.complete = checked.complete
   identities = {(leg.compartment, leg.asset) for event in events for leg in event.legs}
@@ -968,5 +1111,6 @@ def run(
     exceptions=tuple(engine.exceptions),
     complete=engine.complete,
     rollovers=tuple(engine.rollovers),
+    positions=tuple(engine.perps.open_positions()),
   )
   return round_result(result, policy.minor_unit)

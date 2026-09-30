@@ -17,6 +17,7 @@ default.
 | `fee_treatment` | `expense` \| `capitalize` | `expense` | Below. |
 | `position_assets` | list of str | `[]` | Assets that may go net short (perp position assets). Any other asset going negative under its lot key is a `negative_position` exception (the short lot is still opened). |
 | `liability_valuation` | `cost` \| `market` | `cost` | Below. |
+| `perp_cost_method` | `average` \| `fifo` \| `lifo` \| `hifo` | `average` | Which entries a reduction of a perpetual position on a `notional` compartment closes (below). |
 | `minor_unit` | int \| null | `null` | Decimal places of the functional currency's minor unit. When set, every money field of the result and the valuation is rounded half-up to it at output; quantities and prices are never rounded, and `pnl` / `unrealized` are recomputed from the rounded parts so the identities hold. |
 
 Strict mode is a run option, not a policy field: `run(..., strict=True)` and
@@ -43,10 +44,16 @@ The option decides **when** a change in the owed asset's price is recognised, ne
 
 Accrued unpaid interest is a `borrow` leg labelled `interest`: nothing is received, the liability grows at market value, and the same value is an `interest` expense (rule 9.3.1). A negative one reverses an accrual: the liability releases a proportional share of its basis, which is `interest` income. Interest actually paid is an ordinary `expense` leg labelled `interest` (rule 9.3.2); it does not touch the liability. Interest is never capitalized into the borrowed asset's lots.
 
-## Cash and position assets for notional venues
+## Perpetuals on a settled basis
 
-On a notional venue (dYdX, Hyperliquid) a fill is a trade of the position asset against the settlement asset: `+1 BTC-PERP`, `-50000 USDC`, fee `-10 USDC`. The caller lists `USDC` in `cash` (so the fill is valued from the cash side) and `BTC-PERP` in `position_assets` (so a short is not an exception). Realized PnL on the position is then an accounting output; the venue's own PnL figure is a diagnostic.
+Policy 05 rule 8: a perpetual's result is booked only when the position is reduced or closed, in the settlement asset; while it is open only its funding and fees are booked. A fill's size leg has tag `position`; it books nothing and changes the **open position** per `(compartment, instrument)`, so positions never net across compartments (`Result.positions`).
 
-## PnL-settled venues
+1. **`notional` compartments** (Hyperliquid, dYdX, Lighter): the fill's cash leg has tag `notional` and is not booked; it gives the fill price (`-notional / size`) and the settlement asset. `+1 BTC-PERP position`, `-60000 USDC notional`, fee `-30 USDC`. When a fill reduces the position the engine computes realized P&L in the settlement asset under `perp_cost_method` (`average` by default, the venues' method) and books it as `income` or `expense` labelled `realized_pnl`, with `Flow.instrument` naming the position.
+2. **`pnl` compartments** (CEX futures, Aster): the size leg carries the venue's fill `price` and `settles_in` (the settlement asset); the position is kept at average entry. The venue's own `realized_pnl` legs are `income` / `expense` legs and are the booked result; the engine realizes nothing itself.
+3. **Collateral is untouched by fills**: the settlement asset's lots move only by the realized P&L, funding and fees booked above, so their gains against the reporting currency stay unrealized until spent.
+4. **A settlement asset never goes below zero in a perpetual compartment** (a compartment with any `position` leg): an outflow beyond what the compartment holds is owed, a liability `(compartment, asset)` labelled `settlement` at the outflow's market value; a later inflow of that asset into the compartment (income, a trade, a transfer, linked or not) clears it first, realizing the difference between its value and the basis released (rule 8.6). Collateral in other assets is never converted.
+5. A fill whose size or cash cannot be read (no notional leg and no price, a notional leg without one size leg of the opposite sign, several size legs against one notional leg) is `unbooked` and the result incomplete, never priced at zero (rule 8.7). So is a fill whose convention or settlement asset differs from its open position's.
 
-On a PnL-settled venue (most CEX futures exports) the ledger never sees the position: the venue moves cash by realized PnL, funding and commission. Book those as `income` / `expense` legs in the settlement asset with a label (`realized_pnl`, `funding`, `commission`). The position has no lot, no basis and no unrealized figure in the engine; a year-end position on such a venue is a question for the caller, not the engine. There is deliberately no venue concept to switch on.
+Fees on a fill are expenses under either `fee_treatment`: a fill has no `trade` legs to capitalize into.
+
+The legacy booking of fills as served, a `trade` of the position asset against the full notional with the position asset in `position_assets`, still works for callers that send it; policy 05 replaces it (probe 7 shows why: it books FX on the whole notional and disposes of collateral at every fill).

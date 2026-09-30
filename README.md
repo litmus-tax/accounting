@@ -95,8 +95,8 @@ documentation site can generate these schemas during its build.
 
 ## Contract in one paragraph
 
-A `Leg` is `{asset, quantity, compartment, tag, fee?, label?, liability?}` with
-`tag ∈ {trade, transfer, income, expense, borrow, repay, rollover}`. An `Event` is
+A `Leg` is `{asset, quantity, compartment, tag, fee?, label?, liability?, price?, settles_in?}` with
+`tag ∈ {trade, transfer, income, expense, borrow, repay, rollover, position, notional}`. An `Event` is
 `{id, time, legs}`. A `Link` is `{src, dst}` over event ids and marks one
 internal movement, booked when the earlier of the two events is processed.
 Within an event borrows are booked first, then trades, then transfers, then
@@ -107,8 +107,11 @@ is a disposal at market that reduces the liability and realizes its value change
 `Policy.liability_valuation` (`cost` or `market`) says whether a valuation shows
 that change before repayment. Accrued interest is an expense. The
 caller supplies the cash list, the fiat list, income vs expense by sign, the
-`fee` flag, globally unique event ids, the `-size × price` cash-leg
-decomposition of fills, and the compartment granularity.
+`fee` flag, globally unique event ids, perpetual fills as `position` size legs
+(with their `notional` cash leg, or the venue's price on `pnl` venues), and the
+compartment granularity. Within an event, perpetual fills are applied after
+trades; a fill books nothing but the P&L its reduction realizes on a `notional`
+compartment (policy 05 rule 8).
 
 ## Basis rollover and pending claims
 
@@ -123,7 +126,7 @@ accounting validate examples/rollover.json --json
 
 The synthetic rollover example carries €1000 into a receipt and pending claim,
 then realizes €300 on €1300 settlement, without a receipt price. New callers pin
-`schema_version: "0.5"`; generated schemas reject unknown JSON fields. Result
+`schema_version: "0.6"`; generated schemas reject unknown JSON fields. Result
 schema versions and their consumer impact are listed in
 [docs/migration.md](docs/migration.md).
 

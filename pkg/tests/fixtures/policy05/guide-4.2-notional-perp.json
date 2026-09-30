@@ -122,7 +122,6 @@
     "8.4",
     "8.5"
    ],
-   "xfail": "gap 6: the engine tracks no open perp positions (#2)",
    "expected": {
     "complete": true,
     "flows": [
@@ -142,7 +141,8 @@
       "event": "close",
       "kind": "income",
       "label": "realized_pnl",
-      "value": "2000.00"
+      "value": "2000.00",
+      "instrument": "BTC-PERP"
      },
      {
       "event": "close",
@@ -161,7 +161,8 @@
     "totals": {
      "income": "2000.00",
      "expenses": "71.00"
-    }
+    },
+    "positions": []
    }
   }
  ]

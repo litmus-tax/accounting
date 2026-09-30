@@ -125,7 +125,6 @@
     "8.5",
     "8.6"
    ],
-   "xfail": "gap 6: no open positions and no settlement-shortfall liability (#2)",
    "expected": {
     "complete": true,
     "holdings": [
@@ -145,7 +144,25 @@
     ],
     "totals": {
      "expenses": "2.74"
-    }
+    },
+    "positions": [
+     {
+      "compartment": "aster:perp",
+      "instrument": "FOLKS-PERP",
+      "settlement": "pnl",
+      "settles_in": "USDT",
+      "size": "241.3",
+      "entry": "584.0417961"
+     },
+     {
+      "compartment": "lighter:perp",
+      "instrument": "FOLKS-PERP",
+      "settlement": "notional",
+      "settles_in": "USDC",
+      "size": "-238",
+      "entry": "-577.152142"
+     }
+    ]
    }
   }
  ]
