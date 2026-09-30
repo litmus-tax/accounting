@@ -123,3 +123,26 @@ cancelling the asset's gain; the valuation then shows `unrealized: -1.00`.
 
 `accounting run examples/loan.json --max-age P1D` turns every price into a
 gap (the table is monthly), which is what `max_age` is for.
+
+## Policy 05's worked examples
+
+Every worked example of Litmus policy 05 (its
+[guide](https://github.com/litmus-tax/specs/blob/main/docs/policies/05-accounting/guide.md)
+and [positions](https://github.com/litmus-tax/specs/blob/main/docs/policies/05-accounting/positions.md)
+pages) is an engine fixture in `pkg/tests/fixtures/policy05/` (policy 05 rule 42),
+run by `pkg/tests/test_policy05_examples.py`. One file per example holds the
+ledger and one or more cases; a case may override policy fields, lists the rules
+it checks, and states the figures of the page, rounded as shown there:
+
+| Key | Compared with |
+|---|---|
+| `complete` | `Result.complete` |
+| `realized`, `flows`, `moves`, `liabilities`, `lots` | the result's rows, in order, on the keys each expected row names |
+| `holdings` | open lots summed per `(compartment, asset)` |
+| `balances` | rows that must be among `Result.balances` |
+| `totals` | realized P&L, income and expenses summed from the rounded rows |
+
+A case the engine cannot reproduce yet carries `xfail` naming its gap; the mark is
+strict, so the test fails once the gap is closed until the mark is removed. A
+change to an example on the policy page and a change to its fixture go together
+(rule 42.4).

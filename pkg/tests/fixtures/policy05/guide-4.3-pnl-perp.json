@@ -1,0 +1,166 @@
+{
+ "example": "guide \u00a74.3: perpetuals on a P&L-settled venue",
+ "ledger": {
+  "policy": {
+   "cost_method": "fifo",
+   "lot_scope": "global",
+   "functional_currency": "USD",
+   "cash": [
+    "USDC",
+    "USDT"
+   ],
+   "minor_unit": 2
+  },
+  "prices": [
+   {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDT",
+    "quote": "USD",
+    "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   }
+  ],
+  "events": [
+   {
+    "id": "deposit",
+    "time": "2026-01-01T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDT",
+      "quantity": "10000",
+      "compartment": "binance:futures",
+      "tag": "trade"
+     },
+     {
+      "asset": "USD",
+      "quantity": "-10000",
+      "compartment": "binance:futures",
+      "tag": "trade"
+     }
+    ]
+   },
+   {
+    "id": "open",
+    "time": "2026-01-02T12:00:00Z",
+    "legs": [
+     {
+      "asset": "BTC-PERP",
+      "quantity": "1",
+      "compartment": "binance:futures",
+      "tag": "position",
+      "price": "60000",
+      "settles_in": "USDT"
+     },
+     {
+      "asset": "USDT",
+      "quantity": "-24",
+      "compartment": "binance:futures",
+      "tag": "expense",
+      "fee": true,
+      "label": "fee"
+     }
+    ]
+   },
+   {
+    "id": "funding",
+    "time": "2026-01-03T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDT",
+      "quantity": "-10",
+      "compartment": "binance:futures",
+      "tag": "expense",
+      "label": "funding"
+     }
+    ]
+   },
+   {
+    "id": "close",
+    "time": "2026-01-05T12:00:00Z",
+    "legs": [
+     {
+      "asset": "BTC-PERP",
+      "quantity": "-1",
+      "compartment": "binance:futures",
+      "tag": "position",
+      "price": "62000",
+      "settles_in": "USDT"
+     },
+     {
+      "asset": "USDT",
+      "quantity": "2000",
+      "compartment": "binance:futures",
+      "tag": "income",
+      "label": "realized_pnl"
+     },
+     {
+      "asset": "USDT",
+      "quantity": "-24.80",
+      "compartment": "binance:futures",
+      "tag": "expense",
+      "fee": true,
+      "label": "fee"
+     }
+    ]
+   }
+  ]
+ },
+ "cases": [
+  {
+   "name": "venue-settled",
+   "rules": [
+    "7",
+    "8.3",
+    "8.4"
+   ],
+   "xfail": "gap 6: the engine has no `position` legs for pnl fills (#2)",
+   "expected": {
+    "complete": true,
+    "flows": [
+     {
+      "event": "open",
+      "kind": "expense",
+      "label": "fee",
+      "value": "24.00"
+     },
+     {
+      "event": "funding",
+      "kind": "expense",
+      "label": "funding",
+      "value": "10.00"
+     },
+     {
+      "event": "close",
+      "kind": "income",
+      "label": "realized_pnl",
+      "value": "2000.00"
+     },
+     {
+      "event": "close",
+      "kind": "expense",
+      "label": "fee",
+      "value": "24.80"
+     }
+    ],
+    "holdings": [
+     {
+      "asset": "USDT",
+      "quantity": "11941.20",
+      "cost": "11941.20"
+     }
+    ],
+    "totals": {
+     "income": "2000.00",
+     "expenses": "58.80"
+    }
+   }
+  }
+ ]
+}

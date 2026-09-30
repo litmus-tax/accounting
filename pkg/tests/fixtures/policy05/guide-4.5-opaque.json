@@ -1,0 +1,174 @@
+{
+ "example": "guide \u00a74.5: an opaque account",
+ "ledger": {
+  "policy": {
+   "cost_method": "fifo",
+   "lot_scope": "compartment",
+   "functional_currency": "USD",
+   "cash": [
+    "USDC",
+    "USDT"
+   ],
+   "minor_unit": 2
+  },
+  "prices": [
+   {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDT",
+    "quote": "USD",
+    "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   }
+  ],
+  "events": [
+   {
+    "id": "deposit",
+    "time": "2026-01-01T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDT",
+      "quantity": "1000",
+      "compartment": "spot",
+      "tag": "trade"
+     },
+     {
+      "asset": "USD",
+      "quantity": "-1000",
+      "compartment": "spot",
+      "tag": "trade"
+     }
+    ]
+   },
+   {
+    "id": "to-copy-out",
+    "time": "2026-01-02T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDT",
+      "quantity": "-1000",
+      "compartment": "spot",
+      "tag": "transfer"
+     }
+    ]
+   },
+   {
+    "id": "to-copy-in",
+    "time": "2026-01-02T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDT",
+      "quantity": "1000",
+      "compartment": "copytrade",
+      "tag": "transfer"
+     }
+    ]
+   },
+   {
+    "id": "snapshot-1",
+    "time": "2026-01-03T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDT",
+      "quantity": "80",
+      "compartment": "copytrade",
+      "tag": "income",
+      "label": "performance"
+     }
+    ]
+   },
+   {
+    "id": "snapshot-2",
+    "time": "2026-01-04T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDT",
+      "quantity": "-30",
+      "compartment": "copytrade",
+      "tag": "expense",
+      "label": "performance"
+     }
+    ]
+   },
+   {
+    "id": "back-out",
+    "time": "2026-01-05T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDT",
+      "quantity": "-1050",
+      "compartment": "copytrade",
+      "tag": "transfer"
+     }
+    ]
+   },
+   {
+    "id": "back-in",
+    "time": "2026-01-05T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDT",
+      "quantity": "1050",
+      "compartment": "spot",
+      "tag": "transfer"
+     }
+    ]
+   }
+  ],
+  "links": [
+   {
+    "src": "to-copy-out",
+    "dst": "to-copy-in"
+   },
+   {
+    "src": "back-out",
+    "dst": "back-in"
+   }
+  ]
+ },
+ "cases": [
+  {
+   "name": "checkpoints",
+   "rules": [
+    "7",
+    "14.1"
+   ],
+   "expected": {
+    "complete": true,
+    "flows": [
+     {
+      "event": "snapshot-1",
+      "kind": "income",
+      "label": "performance",
+      "value": "80.00"
+     },
+     {
+      "event": "snapshot-2",
+      "kind": "expense",
+      "label": "performance",
+      "value": "30.00"
+     }
+    ],
+    "holdings": [
+     {
+      "compartment": "spot",
+      "asset": "USDT",
+      "quantity": "1050",
+      "cost": "1050.00"
+     }
+    ],
+    "totals": {
+     "realized": "0.00",
+     "income": "80.00",
+     "expenses": "30.00"
+    }
+   }
+  }
+ ]
+}

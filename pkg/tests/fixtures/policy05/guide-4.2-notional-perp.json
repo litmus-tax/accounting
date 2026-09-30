@@ -1,0 +1,168 @@
+{
+ "example": "guide \u00a74.2: perpetuals on a notional venue",
+ "ledger": {
+  "policy": {
+   "cost_method": "fifo",
+   "lot_scope": "global",
+   "functional_currency": "USD",
+   "cash": [
+    "USDC",
+    "USDT"
+   ],
+   "minor_unit": 2
+  },
+  "prices": [
+   {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDT",
+    "quote": "USD",
+    "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   }
+  ],
+  "events": [
+   {
+    "id": "deposit",
+    "time": "2026-01-01T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDC",
+      "quantity": "10000",
+      "compartment": "hl:perp",
+      "tag": "trade"
+     },
+     {
+      "asset": "USD",
+      "quantity": "-10000",
+      "compartment": "hl:perp",
+      "tag": "trade"
+     }
+    ]
+   },
+   {
+    "id": "open",
+    "time": "2026-01-02T12:00:00Z",
+    "legs": [
+     {
+      "asset": "BTC-PERP",
+      "quantity": "1",
+      "compartment": "hl:perp",
+      "tag": "position"
+     },
+     {
+      "asset": "USDC",
+      "quantity": "-60000",
+      "compartment": "hl:perp",
+      "tag": "notional"
+     },
+     {
+      "asset": "USDC",
+      "quantity": "-30",
+      "compartment": "hl:perp",
+      "tag": "expense",
+      "fee": true,
+      "label": "fee"
+     }
+    ]
+   },
+   {
+    "id": "funding",
+    "time": "2026-01-03T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDC",
+      "quantity": "-10",
+      "compartment": "hl:perp",
+      "tag": "expense",
+      "label": "funding"
+     }
+    ]
+   },
+   {
+    "id": "close",
+    "time": "2026-01-05T12:00:00Z",
+    "legs": [
+     {
+      "asset": "BTC-PERP",
+      "quantity": "-1",
+      "compartment": "hl:perp",
+      "tag": "position"
+     },
+     {
+      "asset": "USDC",
+      "quantity": "62000",
+      "compartment": "hl:perp",
+      "tag": "notional"
+     },
+     {
+      "asset": "USDC",
+      "quantity": "-31",
+      "compartment": "hl:perp",
+      "tag": "expense",
+      "fee": true,
+      "label": "fee"
+     }
+    ]
+   }
+  ]
+ },
+ "cases": [
+  {
+   "name": "settled-basis",
+   "rules": [
+    "8.1",
+    "8.2",
+    "8.4",
+    "8.5"
+   ],
+   "xfail": "gap 6: the engine tracks no open perp positions (#2)",
+   "expected": {
+    "complete": true,
+    "flows": [
+     {
+      "event": "open",
+      "kind": "expense",
+      "label": "fee",
+      "value": "30.00"
+     },
+     {
+      "event": "funding",
+      "kind": "expense",
+      "label": "funding",
+      "value": "10.00"
+     },
+     {
+      "event": "close",
+      "kind": "income",
+      "label": "realized_pnl",
+      "value": "2000.00"
+     },
+     {
+      "event": "close",
+      "kind": "expense",
+      "label": "fee",
+      "value": "31.00"
+     }
+    ],
+    "holdings": [
+     {
+      "asset": "USDC",
+      "quantity": "11929",
+      "cost": "11929.00"
+     }
+    ],
+    "totals": {
+     "income": "2000.00",
+     "expenses": "71.00"
+    }
+   }
+  }
+ ]
+}

@@ -1,0 +1,289 @@
+{
+ "example": "positions example 2 item 6: position_exit carry",
+ "ledger": {
+  "policy": {
+   "cost_method": "fifo",
+   "lot_scope": "global",
+   "functional_currency": "USD",
+   "cash": [
+    "USDC",
+    "USDT"
+   ],
+   "minor_unit": 2
+  },
+  "prices": [
+   {
+    "asset": "ETH",
+    "quote": "USD",
+    "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "3000"
+   },
+   {
+    "asset": "ETH",
+    "quote": "USD",
+    "time": "2026-01-10T00:00:00Z",
+    "source": "market",
+    "price": "3500"
+   },
+   {
+    "asset": "claim:x-eth",
+    "quote": "USD",
+    "time": "2026-01-10T00:00:00Z",
+    "source": "market",
+    "price": "3500"
+   },
+   {
+    "asset": "claim:x-usdc",
+    "quote": "USD",
+    "time": "2026-01-10T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDT",
+    "quote": "USD",
+    "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   }
+  ],
+  "events": [
+   {
+    "id": "buy-eth",
+    "time": "2026-01-01T01:00:00Z",
+    "legs": [
+     {
+      "asset": "ETH",
+      "quantity": "1",
+      "compartment": "wallet",
+      "tag": "trade"
+     },
+     {
+      "asset": "USD",
+      "quantity": "-3000",
+      "compartment": "wallet",
+      "tag": "trade"
+     }
+    ]
+   },
+   {
+    "id": "buy-usdc",
+    "time": "2026-01-01T02:00:00Z",
+    "legs": [
+     {
+      "asset": "USDC",
+      "quantity": "3000",
+      "compartment": "wallet",
+      "tag": "trade"
+     },
+     {
+      "asset": "USD",
+      "quantity": "-3000",
+      "compartment": "wallet",
+      "tag": "trade"
+     }
+    ]
+   },
+   {
+    "id": "mint",
+    "time": "2026-01-01T12:00:00Z",
+    "legs": [
+     {
+      "asset": "ETH",
+      "quantity": "-1",
+      "compartment": "wallet",
+      "tag": "rollover"
+     },
+     {
+      "asset": "USDC",
+      "quantity": "-3000",
+      "compartment": "wallet",
+      "tag": "rollover"
+     },
+     {
+      "asset": "NFT:x",
+      "quantity": "1",
+      "compartment": "wallet",
+      "tag": "rollover"
+     },
+     {
+      "asset": "position:x",
+      "quantity": "1000",
+      "compartment": "wallet",
+      "tag": "rollover"
+     }
+    ],
+    "rollover": {
+     "inputs": [
+      {
+       "leg": 0
+      },
+      {
+       "leg": 1
+      }
+     ],
+     "outputs": [
+      {
+       "leg": 2,
+       "allocation": "0"
+      },
+      {
+       "leg": 3,
+       "allocation": "1"
+      }
+     ]
+    },
+    "description": "the NFT is an ownership marker at zero cost (positions rule 3.3)"
+   },
+   {
+    "id": "decrease",
+    "time": "2026-01-10T12:00:00Z",
+    "legs": [
+     {
+      "asset": "position:x",
+      "quantity": "-400",
+      "compartment": "wallet",
+      "tag": "rollover"
+     },
+     {
+      "asset": "claim:x-eth",
+      "quantity": "0.370328",
+      "compartment": "wallet",
+      "tag": "rollover"
+     },
+     {
+      "asset": "claim:x-usdc",
+      "quantity": "1296.148",
+      "compartment": "wallet",
+      "tag": "rollover"
+     }
+    ],
+    "rollover": {
+     "inputs": [
+      {
+       "leg": 0
+      }
+     ],
+     "outputs": [
+      {
+       "leg": 1
+      },
+      {
+       "leg": 2
+      }
+     ]
+    },
+    "description": "basis allocated by market value (positions rule 5.1)"
+   },
+   {
+    "id": "collect",
+    "time": "2026-01-10T13:00:00Z",
+    "legs": [
+     {
+      "asset": "claim:x-eth",
+      "quantity": "-0.370328",
+      "compartment": "wallet",
+      "tag": "rollover"
+     },
+     {
+      "asset": "claim:x-usdc",
+      "quantity": "-1296.148",
+      "compartment": "wallet",
+      "tag": "rollover"
+     },
+     {
+      "asset": "ETH",
+      "quantity": "0.370328",
+      "compartment": "wallet",
+      "tag": "rollover"
+     },
+     {
+      "asset": "USDC",
+      "quantity": "1296.148",
+      "compartment": "wallet",
+      "tag": "rollover"
+     },
+     {
+      "asset": "ETH",
+      "quantity": "0.01",
+      "compartment": "wallet",
+      "tag": "income",
+      "label": "yield"
+     },
+     {
+      "asset": "USDC",
+      "quantity": "20",
+      "compartment": "wallet",
+      "tag": "income",
+      "label": "yield"
+     }
+    ],
+    "rollover": {
+     "inputs": [
+      {
+       "leg": 0
+      },
+      {
+       "leg": 1
+      }
+     ],
+     "outputs": [
+      {
+       "leg": 2
+      },
+      {
+       "leg": 3
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "cases": [
+  {
+   "name": "carry",
+   "rules": [
+    "positions 4.2",
+    "positions 5.3"
+   ],
+   "xfail": "positions gap 3: the engine does not allocate a rollover across several outputs by market value",
+   "expected": {
+    "complete": true,
+    "realized": [],
+    "holdings": [
+     {
+      "asset": "ETH",
+      "quantity": "0.380328",
+      "cost": "1235.00"
+     },
+     {
+      "asset": "NFT:x",
+      "quantity": "1",
+      "cost": "0.00"
+     },
+     {
+      "asset": "USDC",
+      "quantity": "1316.148",
+      "cost": "1220.00"
+     },
+     {
+      "asset": "position:x",
+      "quantity": "600",
+      "cost": "3600.00"
+     }
+    ],
+    "totals": {
+     "income": "55.00"
+    }
+   }
+  }
+ ]
+}

@@ -1,0 +1,120 @@
+{
+ "example": "positions example 4: MegaVault",
+ "ledger": {
+  "policy": {
+   "cost_method": "fifo",
+   "lot_scope": "global",
+   "functional_currency": "USD",
+   "cash": [
+    "USDC",
+    "USDT"
+   ],
+   "minor_unit": 2
+  },
+  "prices": [
+   {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDT",
+    "quote": "USD",
+    "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   }
+  ],
+  "events": [
+   {
+    "id": "buy",
+    "time": "2026-01-01T01:00:00Z",
+    "legs": [
+     {
+      "asset": "USDC",
+      "quantity": "10000",
+      "compartment": "dydx",
+      "tag": "trade"
+     },
+     {
+      "asset": "USD",
+      "quantity": "-10000",
+      "compartment": "dydx",
+      "tag": "trade"
+     }
+    ]
+   },
+   {
+    "id": "deposit",
+    "time": "2026-01-01T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDC",
+      "quantity": "-10000",
+      "compartment": "dydx",
+      "tag": "rollover"
+     },
+     {
+      "asset": "megavault",
+      "quantity": "9500",
+      "compartment": "dydx",
+      "tag": "rollover"
+     }
+    ],
+    "rollover": {
+     "inputs": [
+      {
+       "leg": 0
+      }
+     ],
+     "outputs": [
+      {
+       "leg": 1
+      }
+     ]
+    }
+   },
+   {
+    "id": "withdraw",
+    "time": "2026-01-20T12:00:00Z",
+    "legs": [
+     {
+      "asset": "megavault",
+      "quantity": "-9500",
+      "compartment": "dydx",
+      "tag": "trade"
+     },
+     {
+      "asset": "USDC",
+      "quantity": "10400",
+      "compartment": "dydx",
+      "tag": "trade"
+     }
+    ]
+   }
+  ]
+ },
+ "cases": [
+  {
+   "name": "realize",
+   "rules": [
+    "positions 3.1",
+    "positions 4.1"
+   ],
+   "expected": {
+    "complete": true,
+    "realized": [
+     {
+      "event": "withdraw",
+      "asset": "megavault",
+      "proceeds": "10400.00",
+      "cost": "10000.00",
+      "pnl": "400.00"
+     }
+    ]
+   }
+  }
+ ]
+}

@@ -1,0 +1,152 @@
+{
+ "example": "guide \u00a74.6: a real hedge across two venues (the owner's FOLKS positions)",
+ "ledger": {
+  "policy": {
+   "cost_method": "fifo",
+   "lot_scope": "global",
+   "functional_currency": "USD",
+   "cash": [
+    "USDC",
+    "USDT"
+   ],
+   "minor_unit": 2
+  },
+  "prices": [
+   {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2026-09-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDT",
+    "quote": "USD",
+    "time": "2026-09-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "FOLKS-PERP",
+    "quote": "USDT",
+    "time": "2026-09-30T10:07:00Z",
+    "source": "market",
+    "price": "2.606326"
+   }
+  ],
+  "events": [
+   {
+    "id": "aster-deposit",
+    "time": "2026-09-01T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDC",
+      "quantity": "399.90",
+      "compartment": "aster:perp",
+      "tag": "trade"
+     },
+     {
+      "asset": "USD",
+      "quantity": "-399.90",
+      "compartment": "aster:perp",
+      "tag": "trade"
+     }
+    ]
+   },
+   {
+    "id": "lighter-deposit",
+    "time": "2026-09-01T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDC",
+      "quantity": "496.44",
+      "compartment": "lighter:perp",
+      "tag": "trade"
+     },
+     {
+      "asset": "USD",
+      "quantity": "-496.44",
+      "compartment": "lighter:perp",
+      "tag": "trade"
+     }
+    ]
+   },
+   {
+    "id": "aster-open",
+    "time": "2026-09-02T12:00:00Z",
+    "legs": [
+     {
+      "asset": "FOLKS-PERP",
+      "quantity": "241.3",
+      "compartment": "aster:perp",
+      "tag": "position",
+      "price": "2.420397",
+      "settles_in": "USDT"
+     },
+     {
+      "asset": "USDT",
+      "quantity": "-2.735981",
+      "compartment": "aster:perp",
+      "tag": "expense",
+      "fee": true,
+      "label": "fee"
+     }
+    ],
+    "description": "fees, funding and partial-close losses summed into one USDT fee"
+   },
+   {
+    "id": "lighter-open",
+    "time": "2026-09-02T12:00:00Z",
+    "legs": [
+     {
+      "asset": "FOLKS-PERP",
+      "quantity": "-238",
+      "compartment": "lighter:perp",
+      "tag": "position"
+     },
+     {
+      "asset": "USDC",
+      "quantity": "577.152142",
+      "compartment": "lighter:perp",
+      "tag": "notional"
+     }
+    ]
+   }
+  ]
+ },
+ "cases": [
+  {
+   "name": "books",
+   "rules": [
+    "8.1",
+    "8.2",
+    "8.3",
+    "8.4",
+    "8.5",
+    "8.6"
+   ],
+   "xfail": "gap 6: no open positions and no settlement-shortfall liability (#2)",
+   "expected": {
+    "complete": true,
+    "holdings": [
+     {
+      "asset": "USDC",
+      "quantity": "896.34",
+      "cost": "896.34"
+     }
+    ],
+    "liabilities": [
+     {
+      "compartment": "aster:perp",
+      "asset": "USDT",
+      "quantity": "2.735981",
+      "cost": "2.74"
+     }
+    ],
+    "totals": {
+     "expenses": "2.74"
+    }
+   }
+  }
+ ]
+}

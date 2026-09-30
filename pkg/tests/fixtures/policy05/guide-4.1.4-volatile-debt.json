@@ -1,0 +1,131 @@
+{
+ "example": "guide \u00a74.1 item 4: borrowing a volatile asset",
+ "ledger": {
+  "policy": {
+   "cost_method": "fifo",
+   "lot_scope": "global",
+   "functional_currency": "USD",
+   "cash": [
+    "USDC",
+    "USDT"
+   ],
+   "minor_unit": 2
+  },
+  "prices": [
+   {
+    "asset": "ETH",
+    "quote": "USD",
+    "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "3000"
+   },
+   {
+    "asset": "ETH",
+    "quote": "USD",
+    "time": "2026-01-10T00:00:00Z",
+    "source": "market",
+    "price": "3500"
+   },
+   {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDT",
+    "quote": "USD",
+    "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   }
+  ],
+  "events": [
+   {
+    "id": "borrow",
+    "time": "2026-01-01T12:00:00Z",
+    "legs": [
+     {
+      "asset": "ETH",
+      "quantity": "1",
+      "compartment": "wallet",
+      "tag": "borrow",
+      "label": "aave"
+     }
+    ]
+   },
+   {
+    "id": "repay",
+    "time": "2026-01-10T12:00:00Z",
+    "legs": [
+     {
+      "asset": "ETH",
+      "quantity": "-1",
+      "compartment": "wallet",
+      "tag": "repay",
+      "label": "aave"
+     }
+    ]
+   }
+  ]
+ },
+ "cases": [
+  {
+   "name": "cost",
+   "rules": [
+    "9.4"
+   ],
+   "xfail": "gap 21: under cost, repaying realizes only the asset side (#8)",
+   "expected": {
+    "complete": true,
+    "realized": [
+     {
+      "event": "repay",
+      "asset": "ETH",
+      "proceeds": "3500.00",
+      "cost": "3000.00",
+      "pnl": "500.00"
+     },
+     {
+      "event": "repay",
+      "asset": "ETH",
+      "pnl": "-500.00"
+     }
+    ],
+    "totals": {
+     "realized": "0.00"
+    },
+    "liabilities": []
+   }
+  },
+  {
+   "name": "market",
+   "rules": [
+    "9.4"
+   ],
+   "policy": {
+    "liability_valuation": "market"
+   },
+   "expected": {
+    "complete": true,
+    "realized": [
+     {
+      "event": "repay",
+      "asset": "ETH",
+      "pnl": "500.00"
+     },
+     {
+      "event": "repay",
+      "asset": "ETH",
+      "pnl": "-500.00"
+     }
+    ],
+    "totals": {
+     "realized": "0.00"
+    },
+    "liabilities": []
+   }
+  }
+ ]
+}

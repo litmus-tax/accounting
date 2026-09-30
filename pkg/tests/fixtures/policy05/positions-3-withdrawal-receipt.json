@@ -1,0 +1,162 @@
+{
+ "example": "positions example 3: a withdrawal request, receipt",
+ "ledger": {
+  "policy": {
+   "cost_method": "fifo",
+   "lot_scope": "global",
+   "functional_currency": "USD",
+   "cash": [
+    "USDC",
+    "USDT"
+   ],
+   "minor_unit": 2
+  },
+  "prices": [
+   {
+    "asset": "stETH",
+    "quote": "USD",
+    "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "3000"
+   },
+   {
+    "asset": "ETH",
+    "quote": "USD",
+    "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "3000"
+   },
+   {
+    "asset": "ETH",
+    "quote": "USD",
+    "time": "2026-01-02T00:00:00Z",
+    "source": "market",
+    "price": "3400"
+   },
+   {
+    "asset": "claim:w-eth",
+    "quote": "USD",
+    "time": "2026-01-02T00:00:00Z",
+    "source": "market",
+    "price": "3400"
+   },
+   {
+    "asset": "ETH",
+    "quote": "USD",
+    "time": "2026-01-09T00:00:00Z",
+    "source": "market",
+    "price": "3500"
+   },
+   {
+    "asset": "claim:w-eth",
+    "quote": "USD",
+    "time": "2026-01-09T00:00:00Z",
+    "source": "market",
+    "price": "3500"
+   },
+   {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDT",
+    "quote": "USD",
+    "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   }
+  ],
+  "events": [
+   {
+    "id": "buy",
+    "time": "2026-01-01T12:00:00Z",
+    "legs": [
+     {
+      "asset": "stETH",
+      "quantity": "10",
+      "compartment": "wallet",
+      "tag": "trade"
+     },
+     {
+      "asset": "USD",
+      "quantity": "-30000",
+      "compartment": "wallet",
+      "tag": "trade"
+     }
+    ]
+   },
+   {
+    "id": "request",
+    "time": "2026-01-02T12:00:00Z",
+    "legs": [
+     {
+      "asset": "stETH",
+      "quantity": "-10",
+      "compartment": "wallet",
+      "tag": "rollover"
+     },
+     {
+      "asset": "claim:w-eth",
+      "quantity": "10",
+      "compartment": "wallet",
+      "tag": "rollover"
+     }
+    ],
+    "rollover": {
+     "inputs": [
+      {
+       "leg": 0
+      }
+     ],
+     "outputs": [
+      {
+       "leg": 1
+      }
+     ]
+    }
+   },
+   {
+    "id": "claim",
+    "time": "2026-01-09T12:00:00Z",
+    "legs": [
+     {
+      "asset": "claim:w-eth",
+      "quantity": "-10",
+      "compartment": "wallet",
+      "tag": "trade"
+     },
+     {
+      "asset": "ETH",
+      "quantity": "10",
+      "compartment": "wallet",
+      "tag": "trade"
+     }
+    ]
+   }
+  ]
+ },
+ "cases": [
+  {
+   "name": "receipt",
+   "rules": [
+    "positions 5.1",
+    "positions 5.3"
+   ],
+   "expected": {
+    "complete": true,
+    "realized": [
+     {
+      "event": "claim",
+      "asset": "claim:w-eth",
+      "proceeds": "35000.00",
+      "cost": "30000.00",
+      "pnl": "5000.00"
+     }
+    ]
+   }
+  }
+ ]
+}
