@@ -133,7 +133,6 @@
     "14.3",
     "29"
    ],
-   "xfail": "gap 23: the engine books an event's transfers before its income (#10)",
    "expected": {
     "complete": true,
     "flows": [
