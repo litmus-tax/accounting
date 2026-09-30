@@ -4,7 +4,7 @@ Pure accounting engine for crypto and trading books. Input: dated legs grouped
 into events, links between events, a policy, and a caller-implemented price
 source. Output: open lots, open liabilities, open perpetual positions, realized
 PnL, income and expense flows, internal moves, a balanced double-entry journal,
-every price used, and an exceptions report. No venue
+a P&L series over a grid of instants, every price used, and an exceptions report. No venue
 concepts, no database, no fetching.
 
 Distribution `litmus-accounting`, import `litmus.accounting`. Python 3.11+.
@@ -127,7 +127,7 @@ accounting validate examples/rollover.json --json
 
 The synthetic rollover example carries €1000 into a receipt and pending claim,
 then realizes €300 on €1300 settlement, without a receipt price. New callers pin
-`schema_version: "0.7"`; generated schemas reject unknown JSON fields. Result
+`schema_version: "0.8"`; generated schemas reject unknown JSON fields. Result
 schema versions and their consumer impact are listed in
 [docs/migration.md](docs/migration.md).
 

@@ -105,6 +105,7 @@ def book(document: Row, case: Row) -> Result:
     links=ledger.links,
     policy=policy,
     pricing=TablePricing(ledger.prices, max_age=ledger.max_age),
+    grid=ledger.grid,
   )
 
 
@@ -132,12 +133,30 @@ def test_worked_example(document: Row, case: Row):
     ), want
   for key, want in expected.get('totals', {}).items():
     assert totals(result)[key] == Decimal(want), key
+  if 'series' in expected:
+    points = data['series']
+    assert len(points) == len(expected['series'])
+    for point, want in zip(points, expected['series']):
+      assert_point(point, want)
   if 'journal' in expected:
     events = {line['event'] for line in expected['journal']}
     actual = [line for line in data['journal'] if line['event'] in events]
     assert sorted(map(journal_key, actual)) == sorted(
       map(journal_key, expected['journal'])
     )
+
+
+def assert_point(point: Row, want: Row):
+  """A series point matches the expected keys; nested rows in order on their named keys."""
+  for key, value in want.items():
+    if isinstance(value, list):
+      rows: list[Row] = point[key]
+      assert len(rows) == len(value), (key, rows)
+      assert project(rows, value) == normalized(value), key
+    elif key == 'at':
+      assert point['at'].replace('Z', '+00:00') == value.replace('Z', '+00:00')
+    else:
+      assert number(point[key]) == number(value), (key, point[key])
 
 
 def journal_key(line: Row) -> tuple[Any, ...]:

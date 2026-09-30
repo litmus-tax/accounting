@@ -397,6 +397,8 @@ ExceptionCode = Literal[
   'negative_liability',
   'unbooked',
   'unbalanced',
+  'series_mismatch',
+  'invalid_grid',
 ]
 """
 - `price_gap`: the pricing source had no price; the leg (or trade) is left unbooked.
@@ -410,6 +412,8 @@ ExceptionCode = Literal[
 - `negative_liability`: a repay or noncash interest reversal exceeded what was owed under its (liability compartment, asset); booked anyway.
 - `unbooked`: a leg left out of the books (always paired with the cause). Makes the run incomplete.
 - `unbalanced`: an event whose journal lines do not balance before rounding (policy 05 rule 29.2). Makes the run incomplete.
+- `series_mismatch`: a series point whose total P&L differs from net assets at market minus net contributions (policy 05 rule 39.5). Makes the run incomplete.
+- `invalid_grid`: a series grid instant without a timezone; skipped.
 """
 
 
@@ -460,6 +464,96 @@ class JournalLine:
 
 
 @dataclass(frozen=True)
+class SeriesHolding:
+  """A holding at a series instant, per lot key (policy 05 rule 39.2.1)."""
+
+  __pydantic_config__ = DOCUMENTED
+
+  compartment: str | None
+  """`None` under global lot scope."""
+  asset: str
+  quantity: Decimal
+  cost: Decimal
+  value: Decimal | None
+  """Market value; `None` when the asset has no price at the instant (rule 39.6)."""
+  unrealized: Decimal | None
+
+
+@dataclass(frozen=True)
+class SeriesLiability:
+  """A liability at a series instant, always at market (policy 05 rules 39.2.2 and 39.4)."""
+
+  __pydantic_config__ = DOCUMENTED
+
+  liability: str
+  compartment: str
+  asset: str
+  quantity: Decimal
+  cost: Decimal
+  """Carrying value."""
+  value: Decimal | None
+  unrealized: Decimal | None
+  """`cost - value`, whatever `liability_valuation` is."""
+
+
+@dataclass(frozen=True)
+class SeriesPosition:
+  """An open perpetual position at a series instant, at the mark (policy 05 rules 39.2.3 and 39.3)."""
+
+  __pydantic_config__ = DOCUMENTED
+
+  compartment: str
+  instrument: str
+  settles_in: str
+  size: Decimal
+  entry: Decimal
+  """Entry basis in `settles_in`, signed like `size`."""
+  mark: Decimal | None
+  """Price of the instrument in `settles_in` at the instant."""
+  unrealized: Decimal | None
+  """`size × mark − entry`, in the functional currency."""
+
+
+@dataclass(frozen=True)
+class SeriesFlow:
+  """Cumulative income or expense of one label up to a series instant."""
+
+  __pydantic_config__ = DOCUMENTED
+
+  kind: Literal['income', 'expense']
+  label: str | None
+  value: Decimal
+
+
+@dataclass(frozen=True)
+class SeriesPoint:
+  """What the books hold and have earned at one grid instant (policy 05 rule 39)."""
+
+  __pydantic_config__ = DOCUMENTED
+
+  at: datetime
+  holdings: tuple[SeriesHolding, ...]
+  liabilities: tuple[SeriesLiability, ...]
+  positions: tuple[SeriesPosition, ...]
+  realized: Decimal
+  """Cumulative realized P&L."""
+  flows: tuple[SeriesFlow, ...]
+  """Cumulative income and expenses by label."""
+  unrealized: Decimal | None
+  """Holdings' plus liabilities' plus open positions' unrealized P&L; `None` when a value is missing."""
+  total_pnl: Decimal | None
+  """Realized + income − expenses + unrealized (rule 39.2.5); `None` when a value is missing."""
+  net_assets: Decimal | None
+  """Holdings at market − liabilities at market + open positions' unrealized P&L."""
+  contributions: Decimal
+  """Net external transfers in, minus out, at their booked value."""
+  complete: bool
+  """False when an asset or mark has no price at the instant."""
+  missing: tuple[str, ...] = ()
+  """Assets (or instruments) without a price at the instant."""
+
+
+@dataclass(frozen=True)
 class Balance:
   """Net quantity per (compartment, asset) from the legs alone, as a check."""
 
@@ -499,9 +593,9 @@ class RolloverRecord:
   cost_reference: str | None
 
 
-ResultVersion = Literal['0.7']
+ResultVersion = Literal['0.8']
 """The result schema this engine writes and reads (policy 05 rule 27.2)."""
-RESULT_VERSION: ResultVersion = '0.7'
+RESULT_VERSION: ResultVersion = '0.8'
 
 
 @dataclass(frozen=True)
@@ -527,6 +621,8 @@ class Result:
   """Open perpetual positions at the end of the run (policy 05 rule 8.1)."""
   journal: tuple[JournalLine, ...] = ()
   """Double entry per event, balanced after rounding (policy 05 rule 29)."""
+  series: tuple[SeriesPoint, ...] = ()
+  """One point per grid instant (policy 05 rule 39)."""
   schema_version: ResultVersion = RESULT_VERSION
 
 
@@ -586,7 +682,7 @@ class Ledger:
   __pydantic_config__ = DOCUMENTED
 
   events: tuple[Event, ...]
-  schema_version: Literal['0.2', '0.3', '0.4', '0.5', '0.6', '0.7'] = '0.7'
+  schema_version: Literal['0.2', '0.3', '0.4', '0.5', '0.6', '0.7', '0.8'] = '0.8'
   links: tuple[Link, ...] = ()
   policy: Policy | None = None
   prices: tuple[PriceRecord, ...] = ()
@@ -596,3 +692,5 @@ class Ledger:
   counts as a gap (ISO 8601 duration, e.g. `P1D`; seconds as a number). `None`
   carries the latest price forward without bound.
   """
+  grid: tuple[datetime, ...] = ()
+  """Instants the run emits a series point at (policy 05 rule 39.1), timezone-aware."""

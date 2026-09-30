@@ -39,6 +39,13 @@
     "time": "2026-01-01T00:00:00Z",
     "source": "market",
     "price": "1"
+   },
+   {
+    "asset": "ETH",
+    "quote": "USD",
+    "time": "2026-01-05T00:00:00Z",
+    "source": "market",
+    "price": "3500"
    }
   ],
   "events": [
@@ -70,12 +77,16 @@
      }
     ]
    }
+  ],
+  "grid": [
+   "2026-01-05T12:00:00Z"
   ]
  },
  "cases": [
   {
    "name": "cost",
    "rules": [
+    "39.4",
     "9.4"
    ],
    "expected": {
@@ -98,12 +109,37 @@
     "totals": {
      "realized": "0.00"
     },
-    "liabilities": []
+    "liabilities": [],
+    "series": [
+     {
+      "at": "2026-01-05T12:00:00Z",
+      "complete": true,
+      "holdings": [
+       {
+        "asset": "ETH",
+        "cost": "3000.00",
+        "value": "3500.00",
+        "unrealized": "500.00"
+       }
+      ],
+      "liabilities": [
+       {
+        "asset": "ETH",
+        "cost": "3000.00",
+        "value": "3500.00",
+        "unrealized": "-500.00"
+       }
+      ],
+      "total_pnl": "0.00",
+      "realized": "0.00"
+     }
+    ]
    }
   },
   {
    "name": "market",
    "rules": [
+    "39.4",
     "9.4"
    ],
    "policy": {
@@ -127,7 +163,31 @@
     "totals": {
      "realized": "0.00"
     },
-    "liabilities": []
+    "liabilities": [],
+    "series": [
+     {
+      "at": "2026-01-05T12:00:00Z",
+      "complete": true,
+      "holdings": [
+       {
+        "asset": "ETH",
+        "cost": "3000.00",
+        "value": "3500.00",
+        "unrealized": "500.00"
+       }
+      ],
+      "liabilities": [
+       {
+        "asset": "ETH",
+        "cost": "3000.00",
+        "value": "3500.00",
+        "unrealized": "-500.00"
+       }
+      ],
+      "total_pnl": "0.00",
+      "realized": "0.00"
+     }
+    ]
    }
   }
  ]

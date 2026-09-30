@@ -35,7 +35,7 @@ wins). `-h` and `--help` both work.
 
 ## JSON shapes
 
-- `run --json`: `Result` per `accounting schema result`: `{policy, lots[], liabilities[], realized[], flows[], moves[], balances[], prices[], exceptions[], complete, rollovers[], positions[], journal[], schema_version}`.
+- `run --json`: `Result` per `accounting schema result`: `{policy, lots[], liabilities[], realized[], flows[], moves[], balances[], prices[], exceptions[], complete, rollovers[], positions[], journal[], series[], schema_version}`. The ledger's optional `grid` (ISO 8601 instants with a timezone) sets the series instants.
 - `value --json`: `Valuation` per `accounting schema valuation`: `{at, positions[], liabilities[], prices[], exceptions[], complete}`.
 - `validate --json`: a list of `ExceptionItem` `{code, event, message, detail}`.
 - `schema --check DIR --json`: `[]` when up to date.

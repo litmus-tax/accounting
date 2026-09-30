@@ -1,6 +1,6 @@
 [project]
 name = "litmus-accounting"
-version = "0.7.0"
+version = "0.8.0"
 description = "Pure accounting engine: ledger-input model to lots, cost basis, realized PnL and an exceptions report."
 readme = "README.md"
 license = "MIT"

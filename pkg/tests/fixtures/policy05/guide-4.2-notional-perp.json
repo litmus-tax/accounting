@@ -25,6 +25,13 @@
     "time": "2026-01-01T00:00:00Z",
     "source": "market",
     "price": "1"
+   },
+   {
+    "asset": "BTC-PERP",
+    "quote": "USDC",
+    "time": "2026-01-04T00:00:00Z",
+    "source": "market",
+    "price": "61000"
    }
   ],
   "events": [
@@ -36,15 +43,10 @@
       "asset": "USDC",
       "quantity": "10000",
       "compartment": "hl:perp",
-      "tag": "trade"
-     },
-     {
-      "asset": "USD",
-      "quantity": "-10000",
-      "compartment": "hl:perp",
-      "tag": "trade"
+      "tag": "transfer"
      }
-    ]
+    ],
+    "description": "10,000 USDC deposited from outside the books"
    },
    {
     "id": "open",
@@ -111,6 +113,9 @@
      }
     ]
    }
+  ],
+  "grid": [
+   "2026-01-04T12:00:00Z"
   ]
  },
  "cases": [
@@ -118,6 +123,9 @@
    "name": "settled-basis",
    "rules": [
     "29",
+    "39.2",
+    "39.3",
+    "39.5",
     "8.1",
     "8.2",
     "8.4",
@@ -198,6 +206,24 @@
       "asset": "USDC",
       "debit": "0",
       "credit": "31.00"
+     }
+    ],
+    "series": [
+     {
+      "at": "2026-01-04T12:00:00Z",
+      "complete": true,
+      "positions": [
+       {
+        "instrument": "BTC-PERP",
+        "size": "1",
+        "entry": "60000",
+        "mark": "61000",
+        "unrealized": "1000.00"
+       }
+      ],
+      "net_assets": "10960.00",
+      "contributions": "10000.00",
+      "total_pnl": "960.00"
      }
     ]
    }

@@ -50,7 +50,7 @@ See [policy.md](policy.md).
 
 ### `Ledger`
 
-`{events, links?, policy?, prices?, max_age?}`: the CLI document. `prices` is a list of `PriceRecord` used through `TablePricing` (latest at or before the requested time). `max_age` is an ISO 8601 duration (`P1D`, `PT36H`; a number is seconds): a record older than that relative to the requested time is a gap rather than a carry-forward; absent, the latest price carries forward without bound.
+`{events, links?, policy?, prices?, max_age?, grid?}`: the CLI document. `grid` lists the instants of the P&L series (`run(..., grid=...)`, policy 05 rule 39.1). `prices` is a list of `PriceRecord` used through `TablePricing` (latest at or before the requested time). `max_age` is an ISO 8601 duration (`P1D`, `PT36H`; a number is seconds): a record older than that relative to the requested time is a gap rather than a carry-forward; absent, the latest price carries forward without bound.
 
 ## Output
 
@@ -69,6 +69,7 @@ See [policy.md](policy.md).
 | `exceptions` | The exceptions report. |
 | `positions` | Open perpetual positions at the end, by compartment then instrument (`PerpPosition`). |
 | `journal` | The double entry of every booked event (`JournalLine`), balanced per event after rounding (policy 05 rule 29). |
+| `series` | One `SeriesPoint` per grid instant (policy 05 rule 39). |
 | `complete` | False when any leg was left unbooked. |
 
 ### `Lot`
@@ -93,6 +94,23 @@ See [policy.md](policy.md).
 | `rounding` | — | an event's rounding residue |
 
 Lines that restate a result row carry its rounded figure (a disposal's cost and P&L, a flow's value, a move's cost), so the journal ties to the rows. A linked transfer is one entry on its source event, with both sides of the move. Before rounding each event balances within decimal-division residue, else it is an `unbalanced` exception and the result is incomplete; after rounding a remaining residue becomes a `rounding` line. Unbooked legs have no lines.
+
+### `SeriesPoint`
+
+`run(..., grid=[...])` emits one point per instant (sorted, duplicates dropped), from the engine's state after every event up to and including the instant:
+
+| Field | Meaning |
+|---|---|
+| `at` | The instant. |
+| `holdings` | Per lot key `(compartment, asset)`, the functional currency included: `quantity`, `cost`, `value` at market and `unrealized`. |
+| `liabilities` | Per liability: `quantity`, `cost` (carrying value), `value` at market and `unrealized = cost - value`, whatever `liability_valuation` is (rule 39.4). |
+| `positions` | Per open perpetual position: `size`, `entry` (in `settles_in`), `mark` (the instrument's price in `settles_in`) and `unrealized = (size × mark − entry)` in the functional currency. |
+| `realized`, `flows` | Cumulative realized P&L, and income and expenses by label. |
+| `unrealized`, `total_pnl`, `net_assets` | Their sums: `total_pnl = realized + income − expenses + unrealized`; `net_assets` = holdings at market − liabilities at market + positions' unrealized. |
+| `contributions` | Net external transfers in, minus out, at their booked value. |
+| `complete`, `missing` | A price missing at the instant leaves that row's `value` and `unrealized` `null` (never zero), names the asset in `missing`, and leaves the totals `null`. |
+
+Prices are asked through the same pricing protocol and recorded in `Result.prices`. Before rounding, every complete point must satisfy `total_pnl = net_assets − contributions` (rule 39.5); a point that does not is a `series_mismatch` exception and the result is incomplete. Money is rounded row by row and the derived figures recomputed from the rounded parts.
 
 ### `PerpPosition`
 
@@ -131,6 +149,8 @@ Lines that restate a result row carry its rounded figure (a disposal's cost and 
 | `negative_liability` | a `repay` exceeded what was owed under its `(compartment, asset)`; booked anyway, the liability goes negative | no |
 | `unbooked` | a leg left out of the books; always paired with its cause | yes |
 | `unbalanced` | an event's journal does not balance before rounding | yes |
+| `series_mismatch` | a series point whose total P&L differs from net assets minus contributions | yes |
+| `invalid_grid` | a grid instant without a timezone; skipped | no |
 
 ### `Valuation` and `Position`
 
