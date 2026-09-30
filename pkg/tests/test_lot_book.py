@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal as D
 import pytest
 from litmus.accounting import codec, run, FixedPricing
-from litmus.accounting.engine import calculation, lots, perps
+from litmus.accounting.engine import core, lots, perps
 from litmus.accounting.model import (
   CostMethod,
   Event,
@@ -224,7 +224,7 @@ def test_engine_results_match_the_reference_book(
     {('ETH', 'EUR'): '3000.123456789', ('aave-ethereum', 'EUR'): '0.999876543'}
   )
   expected = codec.dump_result(run(events, links=links, policy=policy, pricing=pricing))
-  monkeypatch.setattr(calculation, 'LotBook', reference_lots.LotBook)
+  monkeypatch.setattr(core, 'LotBook', reference_lots.LotBook)
   monkeypatch.setattr(perps, 'LotBook', reference_lots.LotBook)
   assert (
     codec.dump_result(run(events, links=links, policy=policy, pricing=pricing))
