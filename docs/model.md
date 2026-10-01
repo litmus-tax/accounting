@@ -82,7 +82,7 @@ See [policy.md](policy.md).
 
 ### `Lot`
 
-`{id, asset, compartment, quantity, cost, acquired, event}`. `compartment` is `null` under global scope. `quantity` and `cost` are signed alike; short lots are negative. `acquired` and `event` are the opening event's, kept through moves. Under `average` they are the pool's opening: the earliest acquisition since the pool last stood at zero (a pool emptied by a disposal or a sign crossing and refilled starts over). Decided in round 3: the field is informational under `average`, holding-period rules do not apply to pooled cost, and a regime that needs them should run FIFO.
+`{id, asset, compartment, quantity, cost, acquired, event}`. `compartment` is `null` under global scope. `quantity` and `cost` are signed alike; short lots are negative. `acquired` and `event` are the opening event's, kept through moves. Under `average` they are the pool's opening: the earliest acquisition since the pool last stood at zero (a pool emptied by a disposal or a sign crossing and refilled starts over). Decided in round 3: the field is informational under `average`, holding-period rules do not apply to pooled cost, and a regime that needs them should run FIFO. `origins` is the exact basis ancestry under `fifo`, `lifo` and `hifo`; under `average` it is always empty: a pool is its quantity and total cost (owner, 2026-10-01; policy 05 rule 18.2).
 
 ### `Liability`
 

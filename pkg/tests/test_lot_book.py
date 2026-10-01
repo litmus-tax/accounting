@@ -226,10 +226,27 @@ def test_engine_results_match_the_reference_book(
   expected = codec.dump_result(run(events, links=links, policy=policy, pricing=pricing))
   monkeypatch.setattr(core, 'LotBook', reference_lots.LotBook)
   monkeypatch.setattr(perps, 'LotBook', reference_lots.LotBook)
-  assert (
-    codec.dump_result(run(events, links=links, policy=policy, pricing=pricing))
-    == expected
-  )
+  actual = codec.dump_result(run(events, links=links, policy=policy, pricing=pricing))
+  if method == 'average':
+    # The reference tracks origins; under `average` the engine no longer does
+    # (policy 05 rule 18.2). Everything else must still match.
+    actual, expected = without_origins(actual), without_origins(expected)
+  assert actual == expected
+
+
+def without_origins(result: str) -> object:
+  """A result's JSON with every `origins` list dropped."""
+  import json
+
+  def strip(node: object) -> object:
+    """Drop `origins` keys recursively."""
+    if isinstance(node, dict):
+      return {k: strip(v) for k, v in node.items() if k != 'origins'}  # type: ignore[union-attr]
+    if isinstance(node, list):
+      return [strip(v) for v in node]  # type: ignore[union-attr]
+    return node
+
+  return strip(json.loads(result))
 
 
 def test_position_keeps_the_context_sum_where_the_lots_need_more_digits():
@@ -246,3 +263,27 @@ def test_position_keeps_the_context_sum_where_the_lots_need_more_digits():
   new, old = books
   assert new.position(KEY) == old.position(KEY) == D('12.49325969333867107519139887')
   assert new.totals[KEY] == D('12.4932596933386710751913988690')
+
+
+def test_an_average_pool_is_quantity_and_cost_only():
+  """Under `average` lots carry no origins, so every operation is O(1) per pool."""
+  # policy 05 rule 18.2
+  events = [
+    Event(
+      f'b{i}',
+      T0 + timedelta(hours=i),
+      (Leg('ETH', D('0.1'), 'w', 'trade'), Leg('EUR', D(-300 - i), 'w', 'trade')),
+    )
+    for i in range(50)
+  ] + [
+    Event(
+      'sell',
+      T0 + timedelta(days=5),
+      (Leg('ETH', D('-1'), 'w', 'trade'), Leg('EUR', D(4000), 'w', 'trade')),
+    )
+  ]
+  policy = Policy(cost_method='average', lot_scope='global', functional_currency='EUR')
+  r = run(events, policy=policy, pricing=FixedPricing({}))
+  (pool,) = r.lots
+  assert pool.origins == () and pool.quantity == D('4')
+  assert pool.cost == sum((D(300 + i) for i in range(50)), D(0)) * D('0.8')

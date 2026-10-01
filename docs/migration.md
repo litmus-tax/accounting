@@ -1,6 +1,6 @@
 # Versions, migration and extension
 
-Distribution version is 0.8.3. `Ledger.schema_version` accepts `0.2` to `0.8`
+Distribution version is 0.8.4. `Ledger.schema_version` accepts `0.2` to `0.8`
 and defaults to `0.8`; Result explicitly emits `schema_version:"0.8"`.
 Omitting the input version preserves ordinary historical ledgers. New callers
 should pin 0.8 and validate against this repo's generated schemas. The package is
@@ -50,6 +50,15 @@ allocations and supply the outputs' prices (claims priced as the asset they
 pay); keep explicit allocations only for a correction that overrides one record,
 and for an NFT ownership marker at zero (allocation 0 with the component units
 at 1).
+
+Distribution 0.8.4 keeps result schema 0.8: the shape is unchanged. Under
+`cost_method: average` a pool is its quantity and total cost only (owner,
+2026-10-01; policy 05 rule 18.2): `Lot.origins` and the rollover slices'
+`origins` are always empty there, and every pool operation is O(1) (52k
+synthetic events: over 580 s before, 7.7 s after). Every other field is
+unchanged under `average`, and results under `fifo`, `lifo` and `hifo` are
+byte-identical. Consumer impact: none in shape; a reader that shows lot
+ancestry shows none under `average`.
 
 ## 0.3
 

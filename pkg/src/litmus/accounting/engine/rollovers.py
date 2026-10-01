@@ -97,7 +97,7 @@ class Rollovers(Transfers):
             cost,
             cost,
             event.time,
-            (Origin(event.id, event.time, cost),),
+            (Origin(event.id, event.time, cost),) if book.origins else (),
           )
         )
         continue
@@ -175,6 +175,8 @@ class Rollovers(Transfers):
         cost = exact_sum((inherited, addition))
         if addition:
           origins += (Origin(event.id, event.time, addition),)
+        if not book.origins:
+          origins = ()
         acquired = (
           piece.acquired if operation.acquisition_date == 'carry' else event.time
         )

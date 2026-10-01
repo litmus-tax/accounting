@@ -98,9 +98,15 @@ def test_multiple_lots_outputs_partial_and_lineage(method):
   record = result.rollovers[0]
   assert record.basis_in == record.basis_out
   assert exact_sum(lot.cost for lot in result.lots) == D('3000')
-  assert all(
-    exact_sum(origin.cost for origin in lot.origins) == lot.cost for lot in result.lots
-  )
+  if method == 'average':
+    # policy 05 rule 18.2: an average pool is quantity and total cost, no origins.
+    assert all(lot.origins == () for lot in result.lots)
+    assert all(piece.origins == () for piece in (*record.consumed, *record.created))
+  else:
+    assert all(
+      exact_sum(origin.cost for origin in lot.origins) == lot.cost
+      for lot in result.lots
+    )
   for piece in record.consumed:
     for origin in piece.origins:
       assert (
