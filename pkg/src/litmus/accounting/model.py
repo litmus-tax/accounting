@@ -307,7 +307,7 @@ class Lot:
   event: str
   """Event that opened the lot (the original one after internal moves)."""
   origins: tuple[Origin, ...] = ()
-  """Exact unrounded basis ancestry, retained across transformations and partial disposal."""
+  """Exact unrounded basis ancestry, retained across transformations and partial disposal; empty under `average` (policy 05 rule 18.2)."""
 
 
 @dataclass(frozen=True)

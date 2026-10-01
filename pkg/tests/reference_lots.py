@@ -87,6 +87,8 @@ class LotBook:
 
   def __init__(self, method: CostMethod, *, origins: bool = True):
     self.method = method
+    self.origins = True
+    """Shim: this book always tracks origins, as the engine did before #26."""
     self.lots: dict[LotKey, list[OpenLot]] = {}
     self.counter = 0
 

@@ -63,7 +63,8 @@ class Core:
     self.strict = strict
     self.fc = policy.functional_currency
     self.valuer = Valuer(pricing, policy)
-    self.book = LotBook(policy.cost_method)
+    self.book = LotBook(policy.cost_method, origins=policy.cost_method != 'average')
+    """Under `average` a pool is quantity and total cost only: no origins (policy 05 rule 18.2)."""
     self.book.report_position = not policy.notional_scopes
     """`Applied.position` is read only without notional scopes (`book_leg`)."""
     self.liabilities: dict[tuple[str, str], OpenLiability] = {}

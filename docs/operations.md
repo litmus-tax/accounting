@@ -52,7 +52,9 @@ explicit operations.
 
 `acquisition_date:"carry"` preserves consumed lots' effective dates; `"operation"`
 uses the conversion time. Both retain original acquisition dates and event IDs in
-`Lot.origins`. Average pools retain every origin despite pooling quantities.
+`Lot.origins`, except under `cost_method: average`: a pool is its quantity and
+total cost only, so lots and rollover slices carry no origins there (policy 05
+rule 18.2), and every operation on a pool is O(1).
 Partial disposals and linked transfers scale/carry that origin basis. The
 `Result.rollovers` consumed/created slices connect immediate lot ancestry; recursively
 following records and origins reaches original acquisitions.
