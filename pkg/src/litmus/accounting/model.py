@@ -629,9 +629,9 @@ class RolloverRecord:
   cost_reference: str | None
 
 
-ResultVersion = Literal['0.8']
+ResultVersion = Literal['0.9']
 """The result schema this engine writes and reads (policy 05 rule 27.2)."""
-RESULT_VERSION: ResultVersion = '0.8'
+RESULT_VERSION: ResultVersion = '0.9'
 
 
 @dataclass(frozen=True)
@@ -718,7 +718,7 @@ class Ledger:
   __pydantic_config__ = DOCUMENTED
 
   events: tuple[Event, ...]
-  schema_version: Literal['0.2', '0.3', '0.4', '0.5', '0.6', '0.7', '0.8'] = '0.8'
+  schema_version: Literal['0.2', '0.3', '0.4', '0.5', '0.6', '0.7', '0.8', '0.9'] = '0.9'
   links: tuple[Link, ...] = ()
   policy: Policy | None = None
   prices: tuple[PriceRecord, ...] = ()
