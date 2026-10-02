@@ -718,7 +718,9 @@ class Ledger:
   __pydantic_config__ = DOCUMENTED
 
   events: tuple[Event, ...]
-  schema_version: Literal['0.2', '0.3', '0.4', '0.5', '0.6', '0.7', '0.8', '0.9'] = '0.9'
+  schema_version: Literal['0.2', '0.3', '0.4', '0.5', '0.6', '0.7', '0.8', '0.9'] = (
+    '0.9'
+  )
   links: tuple[Link, ...] = ()
   policy: Policy | None = None
   prices: tuple[PriceRecord, ...] = ()
