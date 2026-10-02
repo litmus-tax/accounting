@@ -157,6 +157,19 @@ def check(events: Sequence[Event], links: Sequence[Link] = ()) -> Checked:
       )
       continue
     linked[src.id] = linked[dst.id] = (link, src, dst)
+    if link.kind == 'swap':
+      given, received = sides(src, dst)
+      if not given or not received:
+        complete = False
+        exceptions.append(
+          ExceptionItem(
+            'link_mismatch',
+            src.id,
+            f'swap link {src.id} -> {dst.id} needs an outflow and an inflow',
+            {'src': src.id, 'dst': dst.id},
+          )
+        )
+      continue
     for asset, a, b in pairs(src, dst):
       if a is None or b is None or a.quantity + b.quantity != 0:
         complete = False
@@ -169,6 +182,15 @@ def check(events: Sequence[Event], links: Sequence[Link] = ()) -> Checked:
           )
         )
   return Checked(tuple(valid), linked, tuple(exceptions), complete)
+
+
+def sides(src: Event, dst: Event) -> tuple[list[Leg], list[Leg]]:
+  """A linked pair's transfer legs: the outflow from `src` and the inflow into `dst`, fees excluded."""
+  given = [l for l in src.legs if l.tag == 'transfer' and not l.fee and l.quantity < 0]
+  received = [
+    l for l in dst.legs if l.tag == 'transfer' and not l.fee and l.quantity > 0
+  ]
+  return given, received
 
 
 def pairs(src: Event, dst: Event) -> list[tuple[str, Leg | None, Leg | None]]:

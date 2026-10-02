@@ -425,6 +425,8 @@ def test_retained_baseline_goldens(name):
     lot.pop('origins')
   for row in actual['flows']:
     assert row.pop('instrument') is None
+  for move in actual['moves']:
+    assert move['link'].pop('kind') == 'transfer'
   assert actual == expected
 
 

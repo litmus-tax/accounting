@@ -3,7 +3,7 @@
 from decimal import Decimal as D
 import pytest
 from litmus.accounting import run, FixedPricing
-from litmus.accounting.model import Result
+from litmus.accounting.model import Link, Result
 from tests.conftest import leg, event, link, policy, t
 
 
@@ -192,3 +192,78 @@ def test_a_withdrawals_performance_is_booked_before_its_transfer(out_hour, in_ho
   assert sum(f.value for f in r.flows) == D('200')
   (performance,) = [f for f in r.flows if f.event == 'wd-out']
   assert performance.time == t(5, out_hour)
+
+
+def swapped():
+  """A swap bridge: 1 ETH bought at 2,000, then 0.5 ETH out and 1,205.109884 USDC in on another account (policy 01 rule 3.1)."""
+  return [
+    event('buy', 1, leg('ETH', '1'), leg('EUR', '-2000')),
+    event('out', 2, leg('ETH', '-0.5', tag='transfer')),
+    event('in', 2, leg('USDC', '1205.109884', 'B', tag='transfer'), hour=13),
+  ]
+
+
+def test_a_swap_link_is_booked_as_a_swap(method, scope):
+  """
+  The given asset is disposed of at market at the source's time, and the received one is acquired at that value.
+
+  # policy 05 rule 13.5; policy 01 portfolio rule 3.2
+  """
+  r = run(
+    swapped(),
+    links=[Link(src='out', dst='in', kind='swap')],
+    policy=policy(method, scope),
+    pricing=FixedPricing({('ETH', 'EUR'): '2500', ('USDC', 'EUR'): '0.9'}),
+  )
+  assert r.complete and codes(r) == []
+  (sale,) = r.realized
+  assert (sale.event, sale.asset, sale.quantity) == ('out', 'ETH', D('-0.5'))
+  assert (sale.proceeds, sale.cost, sale.pnl) == (D('1250'), D('1000'), D('250'))
+  usdc = next(l for l in r.lots if l.asset == 'USDC')
+  assert (usdc.quantity, usdc.cost, usdc.acquired) == (
+    D('1205.109884'),
+    D('1250'),
+    t(2, 13),
+  )
+  assert r.moves == ()
+  assert {line.event for line in r.journal} == {'buy', 'out'}
+
+
+def test_a_transfer_link_in_two_assets_is_still_a_mismatch():
+  """Without the swap kind, a pair in two assets does not conserve either and stays unbooked."""
+  # policy 05 rule 29.2
+  r = run(
+    swapped(),
+    links=[link('out', 'in')],
+    policy=policy(),
+    pricing=FixedPricing({('ETH', 'EUR'): '2500'}),
+  )
+  assert not r.complete
+  assert codes(r)[:2] == ['link_mismatch', 'link_mismatch']
+
+
+def test_a_swap_link_without_an_inflow_is_a_mismatch():
+  """A swap link needs an outflow and an inflow; otherwise it is reported and its legs left unbooked."""
+  # policy 05 rule 29.2
+  events = [*swapped()[:2], event('in', 3, leg('USDC', '-5', 'B', tag='transfer'))]
+  r = run(
+    events,
+    links=[Link(src='out', dst='in', kind='swap')],
+    policy=policy(),
+    pricing=FixedPricing({('ETH', 'EUR'): '2500'}),
+  )
+  assert not r.complete
+  assert codes(r) == ['link_mismatch', 'unbooked']
+  assert r.realized == ()
+
+
+def test_a_swap_link_without_a_price_is_unbooked():
+  """The given asset's price fixes the swap's value; without it, both sides are unbooked."""
+  r = run(
+    swapped(),
+    links=[Link(src='out', dst='in', kind='swap')],
+    policy=policy(),
+    pricing=FixedPricing({}),
+  )
+  assert not r.complete
+  assert codes(r) == ['price_gap', 'unbooked', 'unbooked']

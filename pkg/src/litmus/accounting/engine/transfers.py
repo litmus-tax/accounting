@@ -1,7 +1,7 @@
 """
-Transfers: linked pairs at carried basis, unlinked ones across the books' boundary
-by their basis (policy 05 rule 13), and income booked before transfers
-(rule 14.3).
+Transfers: linked pairs at carried basis, swap links as a swap (policy 05 rule
+13.5), unlinked ones across the books' boundary by their basis (rule 13), and
+income booked before transfers (rule 14.3).
 """
 
 from dataclasses import replace
@@ -9,7 +9,7 @@ from datetime import datetime
 from decimal import Decimal
 
 from litmus.accounting.engine.arithmetic import exact_sum
-from litmus.accounting.engine.checks import Linked, pairs
+from litmus.accounting.engine.checks import Linked, pairs, sides
 from litmus.accounting.engine.debt import Debt
 from litmus.accounting.model import (
   Event,
@@ -48,7 +48,10 @@ class Transfers(Debt):
         self.booked_links.add((link.src, link.dst))
         self.income(src)
         self.income(dst)
-        self.internal(event.time, link, src, dst)
+        if link.kind == 'swap':
+          self.swap(src, dst)
+        else:
+          self.internal(event.time, link, src, dst)
       return
     for leg in legs:
       self.external(event, leg)
@@ -107,6 +110,40 @@ class Transfers(Debt):
     self.scope_positions[scope] = self.scope_positions.get(scope, Decimal(0)) - moved
     if moved < -leg.quantity:
       self.unbooked(event, leg, f'only {moved} {leg.asset} held to carry out at cost')
+
+  def swap(self, src: Event, dst: Event):
+    """
+    Book a swap link (policy 05 rule 13.5): the outflow is disposed of at market
+    value at the source's time, and the inflow is acquired at that value, shared
+    by market value when it has several legs. It is one entry on the source
+    event, like a move; the inflow's lots are dated at the destination's time.
+    A malformed swap was already reported by `check` and is skipped.
+    """
+    given, received = sides(src, dst)
+    if not given or not received:
+      for owner, legs in ((src, given), (dst, received)):
+        for leg in legs:
+          self.unbooked(owner, leg, 'swap link needs an outflow and an inflow')
+      return
+    try:
+      values = [self.market(src, l) for l in given]
+      weights = (
+        [Decimal(1)]
+        if len(received) == 1
+        else [abs(self.market(dst, l)) for l in received]
+      )
+    except PriceGap as e:
+      self.gap(src, e)
+      for owner, legs in ((src, given), (dst, received)):
+        for leg in legs:
+          self.unbooked(owner, leg, 'price gap')
+      return
+    total = -exact_sum(values)
+    wsum = exact_sum(weights)
+    for leg, v in zip(given, values):
+      self.book_leg(src, leg, v)
+    for leg, w in zip(received, weights):
+      self.book_leg(src, leg, total * w / wsum, acquired=dst.time)
 
   def internal(self, time: datetime, link: Link, src: Event, dst: Event):
     """

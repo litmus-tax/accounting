@@ -197,6 +197,14 @@ class Event:
   rollover: Rollover | None = None
 
 
+LinkKind = Literal['transfer', 'swap']
+"""
+`transfer`: the same units move, at carried basis, conserving each asset.
+`swap`: a movement that changed asset on the way (a swap bridge, policy 05 rule
+13.5): the outflow is disposed of at market and the inflow acquired at that value.
+"""
+
+
 @dataclass(frozen=True)
 class Link:
   """Two events that are one internal movement (source out, destination in)."""
@@ -207,6 +215,7 @@ class Link:
   """Event id whose transfer legs are the outflow."""
   dst: str
   """Event id whose transfer legs are the inflow."""
+  kind: LinkKind = 'transfer'
 
 
 CostMethod = Literal['fifo', 'lifo', 'hifo', 'average']
@@ -620,9 +629,9 @@ class RolloverRecord:
   cost_reference: str | None
 
 
-ResultVersion = Literal['0.8']
+ResultVersion = Literal['0.9']
 """The result schema this engine writes and reads (policy 05 rule 27.2)."""
-RESULT_VERSION: ResultVersion = '0.8'
+RESULT_VERSION: ResultVersion = '0.9'
 
 
 @dataclass(frozen=True)
@@ -709,7 +718,9 @@ class Ledger:
   __pydantic_config__ = DOCUMENTED
 
   events: tuple[Event, ...]
-  schema_version: Literal['0.2', '0.3', '0.4', '0.5', '0.6', '0.7', '0.8'] = '0.8'
+  schema_version: Literal['0.2', '0.3', '0.4', '0.5', '0.6', '0.7', '0.8', '0.9'] = (
+    '0.9'
+  )
   links: tuple[Link, ...] = ()
   policy: Policy | None = None
   prices: tuple[PriceRecord, ...] = ()
