@@ -2,6 +2,7 @@
 
 import json
 from dataclasses import replace
+from datetime import datetime
 from decimal import Decimal as D
 from pathlib import Path
 import pytest
@@ -11,6 +12,8 @@ from litmus.accounting.pricing import TablePricing
 from litmus.accounting.engine.journal import Journal
 from tests.conftest import leg, event, policy, t
 
+Key = tuple[str | None, str | None]
+"""A journal or liability key: `(compartment, asset)`."""
 ROOT = Path(__file__).resolve().parents[2]
 LEDGERS = sorted((ROOT / 'examples').glob('*.json')) + sorted(
   (Path(__file__).parent / 'fixtures' / 'policy05').glob('*.json')
@@ -157,3 +160,112 @@ def test_a_linked_transfer_is_one_entry_on_the_withdrawal():
   )
   assert {x.event for x in r.journal} == {'buy', 'out'}
   assert per_event(r) == {'buy': D(0), 'out': D(0)}
+
+
+def liability_balances(result: Result, until: datetime | None = None) -> dict[Key, D]:
+  """Debits minus credits on the `liability` account per `(compartment, asset)`, up to `until`."""
+  out: dict[Key, D] = {}
+  for line in result.journal:
+    if line.account == 'liability' and (until is None or line.time <= until):
+      key = (line.compartment, line.asset)
+      out[key] = out.get(key, D(0)) + line.debit - line.credit
+  return out
+
+
+def assert_liability_matches_rows_at_every_point(result: Result):
+  """At every series point the journal's liability account is minus the liabilities' carrying value, per key."""
+  assert result.series
+  for point in result.series:
+    owed: dict[Key, D] = {}
+    for row in point.liabilities:
+      key = (row.compartment, row.asset)
+      owed[key] = owed.get(key, D(0)) - row.cost
+    journal = liability_balances(result, point.at)
+    for key in owed.keys() | journal.keys():
+      assert abs(journal.get(key, D(0)) - owed.get(key, D(0))) < D('1e-18'), (
+        point.at,
+        key,
+        journal.get(key),
+        owed.get(key),
+      )
+
+
+def loan(*, accrue_first: bool) -> list[Event]:
+  """Borrow 100 USDC, accrue 5 of interest, repay 105; the accrual before or after the repayment at one instant."""
+  accrue = event('accrue', 3, leg('USDC', '5', 'debt', tag='borrow', label='interest'))
+  repay = event('repay', 3, leg('USDC', '-105', tag='repay', liability='debt'))
+  return [
+    event('hold', 1, leg('USDC', '50'), leg('EUR', '-50')),
+    event('borrow', 2, leg('USDC', '100', tag='borrow', liability='debt')),
+    *((accrue, repay) if accrue_first else (repay, accrue)),
+  ]
+
+
+def test_rule_9_3_1_accrued_interest_is_credited_to_the_liability():
+  """Borrow 100, accrue 5, repay 105: the journal's liability goes 0 → −100 → −105 → 0 and the expense is 5, never a credit to a holding."""
+  # policy 05 rule 7 row 10, rules 9.3.1 and 29.1
+  r = run(
+    loan(accrue_first=True),
+    policy=policy(minor_unit=2),
+    pricing=FixedPricing({('USDC', 'EUR'): '1'}),
+  )
+  running = D(0)
+  path = [running]
+  for name in ('borrow', 'accrue', 'repay'):
+    lines = [x for x in r.journal if x.event == name]
+    running += sum(
+      (x.debit - x.credit for x in lines if x.account == 'liability'), D(0)
+    )
+    path.append(running)
+  assert path == [D(0), D(-100), D(-105), D(0)]
+  accrual = {
+    (x.account, x.label, x.debit, x.credit) for x in r.journal if x.event == 'accrue'
+  }
+  assert accrual == {
+    ('liability', None, D(0), D('5.00')),
+    ('expense', 'interest', D('5.00'), D(0)),
+  }
+  assert [(f.kind, f.label, f.value) for f in r.flows] == [
+    ('expense', 'interest', D('5.00'))
+  ]
+  assert r.liabilities == () and 'negative_liability' not in {
+    x.code for x in r.exceptions
+  }
+
+
+@pytest.mark.parametrize(
+  'accrue_first', [True, False], ids=['accrued', 'accrued_after']
+)
+def test_rule_29_journal_liability_equals_liability_rows_at_every_point(
+  accrue_first: bool,
+):
+  """The journal's liability balance equals the liabilities rows at every point, including an accrual booked after the repayment it preceded (evm closes it after its block)."""
+  # policy 05 rules 9.3.1, 29.1 and 39
+  events = loan(accrue_first=accrue_first)
+  r = run(
+    events,
+    policy=policy(),
+    pricing=FixedPricing({('USDC', 'EUR'): '1'}),
+    grid=sorted({e.time for e in events}),
+  )
+  assert_liability_matches_rows_at_every_point(r)
+  assert liability_balances(r) == {('debt', 'USDC'): D(0)}
+  assert sum(f.value for f in r.flows if f.label == 'interest') == D(5)
+
+
+@pytest.mark.parametrize('path', LEDGERS, ids=lambda p: p.stem)
+def test_rule_29_every_example_journal_liability_equals_liability_rows_at_every_point(
+  path: Path,
+):
+  """In every example and fixture, at every event instant, the journal's liability account matches the liabilities rows."""
+  # policy 05 rules 29.1 and 39
+  ledger = ledger_of(path)
+  assert ledger.policy is not None
+  r = run(
+    ledger.events,
+    links=ledger.links,
+    policy=replace(ledger.policy, minor_unit=None),
+    pricing=TablePricing(ledger.prices),
+    grid=sorted({e.time for e in ledger.events}),
+  )
+  assert_liability_matches_rows_at_every_point(r)
