@@ -197,6 +197,14 @@ class Event:
   rollover: Rollover | None = None
 
 
+LinkKind = Literal['transfer', 'swap']
+"""
+`transfer`: the same units move, at carried basis, conserving each asset.
+`swap`: a movement that changed asset on the way (a swap bridge, policy 05 rule
+13.5): the outflow is disposed of at market and the inflow acquired at that value.
+"""
+
+
 @dataclass(frozen=True)
 class Link:
   """Two events that are one internal movement (source out, destination in)."""
@@ -207,6 +215,7 @@ class Link:
   """Event id whose transfer legs are the outflow."""
   dst: str
   """Event id whose transfer legs are the inflow."""
+  kind: LinkKind = 'transfer'
 
 
 CostMethod = Literal['fifo', 'lifo', 'hifo', 'average']

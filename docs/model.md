@@ -50,7 +50,13 @@ A fee leg is an `expense` unless `Policy.fee_treatment` is `capitalize` and the 
 
 ### `Link`
 
-`{src, dst}`: the transfer legs of `src` with negative quantity and the transfer legs of `dst` with positive quantity are one internal movement, matched by asset. Quantities must conserve per asset, else `link_mismatch`: nothing moves, the legs are unbooked and the result is incomplete. Fee legs are not part of the match. An event is a side of at most one link (policy 01 term 2): a later link naming an already linked event, or linking an event to itself, is a `link_conflict`, is not booked, and makes the result incomplete.
+`{src, dst, kind?}`: the transfer legs of `src` with negative quantity and the transfer legs of `dst` with positive quantity are one internal movement. `kind` is `transfer` (the default) or `swap`.
+
+A `transfer` link is matched by asset. Quantities must conserve per asset, else `link_mismatch`: nothing moves, the legs are unbooked and the result is incomplete.
+
+A `swap` link is a movement that changed asset on the way (a swap bridge, policy 05 rule 13.5). It is booked as a swap: the outflow is disposed of at market value at the source's time, and the inflow is acquired at that value (split by market value when it has several legs), with its lots dated at the destination's time. Both sides are one journal entry on the source event, and there is no `Move`. A swap link needs at least one outflow and one inflow, else `link_mismatch`; a missing price leaves both sides unbooked.
+
+For either kind, fee legs are not part of the link. An event is a side of at most one link (policy 01 term 2): a later link naming an already linked event, or linking an event to itself, is a `link_conflict`, is not booked, and makes the result incomplete.
 
 ### `Policy`
 
