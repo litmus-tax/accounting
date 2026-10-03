@@ -1,6 +1,6 @@
 # Versions, migration and extension
 
-Distribution version is 0.10.0. `Ledger.schema_version` accepts `0.2` to `0.10`
+Distribution version is 0.10.1. `Ledger.schema_version` accepts `0.2` to `0.10`
 and defaults to `0.10`; Result explicitly emits `schema_version:"0.10"`.
 Omitting the input version preserves ordinary historical ledgers. New callers
 should pin 0.10 and validate against this repo's generated schemas. The package is
@@ -26,6 +26,21 @@ revision.
 | `0.8` | `run(grid=...)` and `Ledger.grid`; Result: `series` (`SeriesPoint` with holdings, liabilities at market, open positions at the mark, cumulative realized and flows, total P&L, net assets, contributions); exception codes `series_mismatch` and `invalid_grid`. | Pass the grid of rule 39.1 (every UTC day end from the first record to `as_of`, plus `as_of`) and prices for every held asset and perp mark (instrument in its settlement asset) at each instant; store the series with the revision and serve it as `{P}/books/{rev}/series` (rule 36). A `series_mismatch` makes the result incomplete. |
 | `0.9` | Ledger: `Link.kind`, `transfer` (default) or `swap`. A `swap` link (a swap bridge, policy 05 rule 13.5) is booked as a swap: the source's outflow is disposed of at market at the source's time (a `Realized` row on the source event) and the destination's inflow acquired at that value; it needs an outflow and an inflow, else `link_mismatch`. Result: `Move.link` carries `kind`. | Send `kind: swap` for every `swap_bridge` link (policy 01 rule 3.1) instead of a transfer link, which still raises `link_mismatch` across two assets. Results sealed under `0.8` are refused by `parse_result`. |
 | `0.10` | Quantities are exact (policy 05 rule 20.3): the lot book adds, subtracts and compares quantities without rounding, and a position is the exact sum of its lots, so a take or a close no longer leaves a residue lot (about 1e-28) of the opposite sign. A take or a change that would leave a holding nonzero but smaller than 1e-18 treats it as zero: the shortfall is discarded, or the crumb's lots go with the take and release their basis with it; new exception code `quantity_residue` (informational, the run stays complete) names the asset, compartment and residue. The ledger is unchanged. | Accept `quantity_residue` wherever exception codes are enumerated, as information, never as an open issue. Lots, realized rows and positions can differ from `0.9` in the last digits where `0.9` rounded, and records `0.9` left unbooked behind a residue ("output requires a non-short holding") are booked. Results sealed under `0.9` are refused by `parse_result`. |
+
+Distribution 0.10.1 keeps result schema 0.10. Ledger (additive): `events`
+takes atomic groups (policy 05 rule 6.3, owner, 2026-10-03): each item is an
+array of events (a group) or a bare event (a group of one), so existing flat
+ledgers read unchanged as one event per group. A group's events are applied in
+order and journalled in that order; shortness is checked only after the whole
+group: `negative_position` and `negative_liability` are reported once per
+holding or liability whose position is negative after the group, on the last
+event of the group that touched it, and a rollover output into a holding the
+group itself made short is booked (the short delivered from it) instead of
+refused. Under one event per group, an event that goes short and back between
+its own legs no longer reports it, and an event short through several legs
+reports once instead of once per leg. Consumer impact: send the groups your
+policy chooses (portfolio's `atomic_groups`); results of flat ledgers differ
+only in those duplicate or transient items.
 
 Distribution 0.8.1 keeps result schema 0.8 and changes only the order within an
 event: income legs are booked before transfers, and a linked pair after the

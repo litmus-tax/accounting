@@ -1,15 +1,19 @@
 """
 Structural checks of a ledger that need no prices: invalid and duplicate
-events, dependencies, and links (unknown events, conflicts, mismatches).
+events, dependencies, and links (unknown events, conflicts, mismatches); and
+the atomic groups the valid events are booked in.
 """
 
 from dataclasses import dataclass
+from datetime import datetime
 
 from litmus.accounting.engine.arithmetic import fixed_context
 from litmus.accounting.engine.operations import ordered_events, rollover_problems
 from litmus.accounting.model import (
   Event,
+  Events,
   ExceptionItem,
+  Group,
   Leg,
   Link,
 )
@@ -24,7 +28,9 @@ class Checked:
   """Outcome of the structural checks that need no prices."""
 
   events: tuple[Event, ...]
-  """Valid events, in input order."""
+  """Valid events, in booking order."""
+  groups: tuple[Group, ...]
+  """The valid events in booking order, as the atomic groups they are booked in."""
   linked: Linked
   exceptions: tuple[ExceptionItem, ...]
   complete: bool
@@ -79,16 +85,46 @@ def problems(event: Event) -> list[str]:
   return out
 
 
-def check(events: Sequence[Event], links: Sequence[Link] = ()) -> Checked:
+def members(events: Events) -> list[tuple[int, Event]]:
+  """Each event with the index of the atomic group it came in, in input order."""
+  out: list[tuple[int, Event]] = []
+  for index, item in enumerate(events):
+    if isinstance(item, Event):
+      out.append((index, item))
+    else:
+      out.extend((index, event) for event in item)
+  return out
+
+
+def regroup(ordered: Sequence[Event], group_of: dict[str, int]) -> tuple[Group, ...]:
+  """
+  The atomic groups of events in booking order (policy 05 rule 6.3): consecutive
+  events of one input group and one time. A group that time order or a
+  dependency splits is booked as several, each atomic.
+  """
+  groups: list[list[Event]] = []
+  last: tuple[int, datetime] | None = None
+  for event in ordered:
+    key = (group_of[event.id], event.time)
+    if key != last:
+      groups.append([])
+      last = key
+    groups[-1].append(event)
+  return tuple(tuple(group) for group in groups)
+
+
+def check(events: Events, links: Sequence[Link] = ()) -> Checked:
   """
   Structural validation: duplicate ids, invalid events, links to unknown events
   and links that do not conserve quantity per asset. No prices are needed.
+  `events` are atomic groups (`model.Events`); a bare event is a group of one.
   """
   exceptions: list[ExceptionItem] = []
   complete = True
   by_id: dict[str, Event] = {}
   valid: list[Event] = []
-  for e in events:
+  group_of: dict[str, int] = {}
+  for group, e in members(events):
     if e.id in by_id:
       complete = False
       exceptions.append(
@@ -98,6 +134,7 @@ def check(events: Sequence[Event], links: Sequence[Link] = ()) -> Checked:
       )
       continue
     by_id[e.id] = e
+    group_of[e.id] = group
     found = problems(e)
     if found:
       complete = False
@@ -181,7 +218,9 @@ def check(events: Sequence[Event], links: Sequence[Link] = ()) -> Checked:
             {'src': src.id, 'dst': dst.id, 'asset': asset},
           )
         )
-  return Checked(tuple(valid), linked, tuple(exceptions), complete)
+  return Checked(
+    tuple(valid), regroup(valid, group_of), linked, tuple(exceptions), complete
+  )
 
 
 def sides(src: Event, dst: Event) -> tuple[list[Leg], list[Leg]]:
@@ -207,8 +246,6 @@ def pairs(src: Event, dst: Event) -> list[tuple[str, Leg | None, Leg | None]]:
 
 
 @fixed_context
-def validate(
-  events: Sequence[Event], links: Sequence[Link] = ()
-) -> list[ExceptionItem]:
+def validate(events: Events, links: Sequence[Link] = ()) -> list[ExceptionItem]:
   """Structural problems of a ledger, without prices. Empty when the ledger is well formed."""
   return list(check(events, links).exceptions)

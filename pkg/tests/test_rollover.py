@@ -10,6 +10,7 @@ import pytest
 from pydantic import ValidationError
 from litmus.accounting import run, FixedPricing
 from litmus.accounting.codec import parse_ledger
+from tests.conftest import flat
 from litmus.accounting.engine.arithmetic import exact_sum
 from litmus.accounting.model import (
   Event,
@@ -257,14 +258,14 @@ def test_notional_scopes_isolate_spot_and_margin_inventory(scope):
 def test_claim_lifecycle_fixture_and_exchange_entry():
   """Carry and exchange recognize €300 total with distinct €200/€100 timing."""
   ledger = parse_ledger((ROOT / 'examples/rollover.json').read_text())
-  carried = execute(ledger.events)
+  carried = execute(flat(ledger))
   assert sum(row.pnl for row in carried.realized) == 300
-  entry = ledger.events[1]
+  entry = flat(ledger)[1]
   exchanged = replace(
     entry, rollover=None, legs=tuple(replace(leg, tag='trade') for leg in entry.legs)
   )
   result = run(
-    (ledger.events[0], exchanged, *ledger.events[2:]),
+    (flat(ledger)[0], exchanged, *flat(ledger)[2:]),
     policy=P,
     pricing=FixedPricing({('RECEIPT', 'EUR'): '12'}),
   )
@@ -275,12 +276,12 @@ def test_claim_lifecycle_fixture_and_exchange_entry():
 def test_receivable_recognition_and_settlement_do_not_duplicate_gain():
   """Crystallizing a €1300 claim realizes €300, later collection realizes zero."""
   ledger = parse_ledger((ROOT / 'examples/rollover.json').read_text())
-  claim = ledger.events[2]
+  claim = flat(ledger)[2]
   claim = replace(
     claim, rollover=None, legs=tuple(replace(leg, tag='trade') for leg in claim.legs)
   )
   result = run(
-    (*ledger.events[:2], claim, ledger.events[3]),
+    (*flat(ledger)[:2], claim, flat(ledger)[3]),
     policy=P,
     pricing=FixedPricing({('CLAIM', 'EUR'): '1300'}),
   )
@@ -291,11 +292,11 @@ def test_receivable_recognition_and_settlement_do_not_duplicate_gain():
 def test_missing_exit_price_is_incomplete_without_destroying_claim():
   """An unavailable proceeds price leaves the claim's historical basis intact."""
   ledger = parse_ledger((ROOT / 'examples/rollover.json').read_text())
-  exit_event = ledger.events[-1]
+  exit_event = flat(ledger)[-1]
   exit_event = replace(
     exit_event, legs=(exit_event.legs[0], replace(exit_event.legs[1], asset='UNPRICED'))
   )
-  result = execute((*ledger.events[:-1], exit_event))
+  result = execute((*flat(ledger)[:-1], exit_event))
   assert not result.complete
   assert result.lots[0].asset == 'CLAIM' and result.lots[0].cost == 1000
   assert not result.realized
@@ -356,7 +357,7 @@ def test_mixed_zero_basis_origins_survive():
 def test_partial_claim_sale_releases_only_sold_units():
   """A claim can be sold before collection without awaiting any venue action."""
   ledger = parse_ledger((ROOT / 'examples/rollover.json').read_text())
-  settlement = ledger.events[-1]
+  settlement = flat(ledger)[-1]
   settlement = replace(
     settlement,
     legs=(
@@ -364,7 +365,7 @@ def test_partial_claim_sale_releases_only_sold_units():
       replace(settlement.legs[1], quantity=D(520)),
     ),
   )
-  result = execute((*ledger.events[:-1], settlement))
+  result = execute((*flat(ledger)[:-1], settlement))
   assert result.realized[0].pnl == 120
   assert result.lots[0].quantity == D('0.6') and result.lots[0].cost == 600
   assert exact_sum(origin.cost for origin in result.lots[0].origins) == 600
@@ -407,7 +408,7 @@ def test_retained_baseline_goldens(name):
   ledger = parse_ledger((ROOT / f'examples/{name}.json').read_text())
   assert ledger.policy is not None
   result = run(
-    ledger.events,
+    flat(ledger),
     links=ledger.links,
     policy=ledger.policy,
     pricing=TablePricing(ledger.prices, max_age=ledger.max_age),
@@ -573,7 +574,7 @@ def test_synthetic_settlement_fragments(scope):
   ledger = parse_ledger(json.dumps(fixture['ledger']))
   assert ledger.policy is not None
   policy = replace(ledger.policy, lot_scope=scope)
-  result = run(ledger.events, policy=policy, pricing=TablePricing(ledger.prices))
+  result = run(flat(ledger), policy=policy, pricing=TablePricing(ledger.prices))
   assert result.complete
   negatives = [item for item in result.exceptions if item.code == 'negative_position']
   assert {item.detail['compartment'] for item in negatives} == {

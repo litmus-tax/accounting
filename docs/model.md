@@ -48,6 +48,10 @@ A fee leg is an `expense` unless `Policy.fee_treatment` is `capitalize` and the 
 
 `{id, time, legs, description?}`. `id` must be unique across the ledger; links and every output row reference it. `time` is timezone-aware.
 
+### Atomic groups
+
+`run(events)` and `Ledger.events` take **atomic groups** in total order (policy 05 rule 6.3): each item is a list of events (a group) or a bare event (a group of one), so a flat list of events is one event per group. A group's events are applied in the order given, and the journal keeps that order. Holdings and liabilities are checked for shortness only after the whole group, never between its events (Ordering, item 4). The engine knows nothing of what makes a group; the caller decides (portfolio's `atomic_groups` option).
+
 ### `Link`
 
 `{src, dst, kind?}`: the transfer legs of `src` with negative quantity and the transfer legs of `dst` with positive quantity are one internal movement. `kind` is `transfer` (the default) or `swap`.
@@ -64,7 +68,7 @@ See [policy.md](policy.md).
 
 ### `Ledger`
 
-`{events, links?, policy?, prices?, max_age?, grid?}`: the CLI document. `grid` lists the instants of the P&L series (`run(..., grid=...)`, policy 05 rule 39.1). `prices` is a list of `PriceRecord` used through `TablePricing` (latest at or before the requested time). `max_age` is an ISO 8601 duration (`P1D`, `PT36H`; a number is seconds): a record older than that relative to the requested time is a gap rather than a carry-forward; absent, the latest price carries forward without bound.
+`{events, links?, policy?, prices?, max_age?, grid?}`: the CLI document. `events` holds atomic groups (arrays of events) and bare events (groups of one). `grid` lists the instants of the P&L series (`run(..., grid=...)`, policy 05 rule 39.1). `prices` is a list of `PriceRecord` used through `TablePricing` (latest at or before the requested time). `max_age` is an ISO 8601 duration (`P1D`, `PT36H`; a number is seconds): a record older than that relative to the requested time is a gap rather than a carry-forward; absent, the latest price carries forward without bound.
 
 ## Output
 
@@ -159,8 +163,8 @@ Prices are asked through the same pricing protocol and recorded in `Result.price
 | `unknown_event` | a link names an event id that does not exist | no |
 | `invalid_event` | validation failed (naive time, zero quantity, wrong sign, no legs); skipped | yes |
 | `duplicate_id` | a later event repeats an id; skipped | yes |
-| `negative_position` | an asset outside `position_assets` went net short under its lot key; booked anyway | no |
-| `negative_liability` | a `repay` exceeded what was owed under its `(compartment, asset)`; booked anyway, the liability goes negative | no |
+| `negative_position` | an asset outside `position_assets` is net short under its lot key after its atomic group; booked anyway | no |
+| `negative_liability` | a `repay` exceeded what was owed under its `(compartment, asset)`, and the liability is still negative after its atomic group; booked anyway, the liability goes negative | no |
 | `unbooked` | a leg left out of the books; always paired with its cause | yes |
 | `unbalanced` | an event's journal does not balance before rounding | yes |
 | `series_mismatch` | a series point whose total P&L differs from net assets minus contributions | yes |
@@ -173,9 +177,10 @@ Prices are asked through the same pricing protocol and recorded in `Result.price
 
 ## Ordering (contract)
 
-1. Events are processed by `time`; events with the same timestamp keep input order. Adapters must therefore emit deterministically.
+1. Events are processed by `time`; events with the same timestamp keep input order, and a group's events keep their order within it. Adapters must therefore emit deterministically.
 2. Within an event: borrow legs, then trade legs, then perpetual fills, then income legs, then transfer legs, then repay legs, then expense legs, then fee legs. Borrows first and repays after transfers let a borrow-swap or swap-repay event book in one go. Income before transfers lets a withdrawal's `performance` leg (the excess over an opaque compartment's replayed balance) be recognised before the transfer takes the units out (policy 05 rule 14.3).
 3. A linked pair is booked once, when the earlier of its two events is processed (ties in input order), at that event's time, after the income legs of both events (each valued at its own event's time); `Move.time` records it. When the destination's clock runs ahead of the source's, the lots leave the source at the destination's time, so a disposal in the destination between the two timestamps finds them.
+4. Shortness is checked after each atomic group (policy 05 rule 6.3): a holding outside `position_assets` (or a notional scope) that is negative after the group is one `negative_position` item, on the group's last event that touched it; a liability a repay or interest reversal took below zero and that is still negative after the group is one `negative_liability` item. A holding that goes short and back within a group raises nothing; the short lot it opened in between is closed by the inflow as any short is. A rollover output into a holding that was short before the group is refused (`unbooked`, as before); into one the group itself made short, it is booked and the short is delivered from it (closed against the output lots, realizing what the short was sold for less the basis carried). A group's events at different times, or split by a dependency on a later event, are booked as one group per contiguous run of the same time.
 
 ## Semantics worth knowing
 

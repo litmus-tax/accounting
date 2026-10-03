@@ -6,7 +6,7 @@ repayment with the realization of its liability side.
 from decimal import Decimal
 
 from litmus.accounting.engine.booking import Booking
-from litmus.accounting.engine.core import OpenLiability
+from litmus.accounting.engine.core import Finding, OpenLiability
 from litmus.accounting.model import (
   Event,
   Flow,
@@ -91,14 +91,19 @@ class Debt(Booking):
     owed = liability.quantity
     released = liability.cost * reduction / owed if owed > 0 else Decimal(0)
     if reduction > owed:
-      self.report(
-        'negative_liability',
-        event.id,
-        f'interest reversal {reduction} {leg.asset} in {liability.compartment} exceeds {owed} owed',
-        asset=leg.asset,
-        compartment=liability.compartment,
-        owed=str(owed),
-        reversed=str(reduction),
+      self.watch(
+        ('liability', (liability.compartment, leg.asset)),
+        Finding(
+          'negative_liability',
+          event.id,
+          f'interest reversal {reduction} {leg.asset} in {liability.compartment} exceeds {owed} owed',
+          {
+            'asset': leg.asset,
+            'compartment': liability.compartment,
+            'owed': str(owed),
+            'reversed': str(reduction),
+          },
+        ),
       )
     liability.quantity -= reduction
     liability.cost -= released
@@ -113,7 +118,8 @@ class Debt(Booking):
     proportional share of its basis. The difference between the basis released
     and the market value repaid is realized against the liability, under either
     `liability_valuation` (policy 05 rule 9.4). Repaying more than is owed is
-    reported as `negative_liability` and booked anyway.
+    booked anyway, and reported as `negative_liability` when the liability is
+    still negative after the atomic group (rule 6.3).
     """
     try:
       value = self.market(event, leg)
@@ -127,14 +133,19 @@ class Debt(Booking):
     owed = liability.quantity
     released = liability.cost * repaid / owed if owed > 0 else Decimal(0)
     if repaid > owed:
-      self.report(
-        'negative_liability',
-        event.id,
-        f'repaid {repaid} {leg.asset} in {liability.compartment} against {owed} owed',
-        asset=leg.asset,
-        compartment=liability.compartment,
-        owed=str(owed),
-        repaid=str(repaid),
+      self.watch(
+        ('liability', (liability.compartment, leg.asset)),
+        Finding(
+          'negative_liability',
+          event.id,
+          f'repaid {repaid} {leg.asset} in {liability.compartment} against {owed} owed',
+          {
+            'asset': leg.asset,
+            'compartment': liability.compartment,
+            'owed': str(owed),
+            'repaid': str(repaid),
+          },
+        ),
       )
     liability.quantity -= repaid
     liability.cost -= released

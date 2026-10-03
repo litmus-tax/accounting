@@ -10,7 +10,7 @@ from litmus.accounting import run, codec, FixedPricing
 from litmus.accounting.model import Event, Result
 from litmus.accounting.pricing import TablePricing
 from litmus.accounting.engine.journal import Journal
-from tests.conftest import leg, event, policy, t
+from tests.conftest import flat, leg, event, policy, t
 
 Key = tuple[str | None, str | None]
 """A journal or liability key: `(compartment, asset)`."""
@@ -266,6 +266,6 @@ def test_rule_29_every_example_journal_liability_equals_liability_rows_at_every_
     links=ledger.links,
     policy=replace(ledger.policy, minor_unit=None),
     pricing=TablePricing(ledger.prices),
-    grid=sorted({e.time for e in ledger.events}),
+    grid=sorted({e.time for e in flat(ledger)}),
   )
   assert_liability_matches_rows_at_every_point(r)

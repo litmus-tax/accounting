@@ -10,6 +10,7 @@ from decimal import Decimal
 
 from litmus.accounting.engine.arithmetic import exact_sum
 from litmus.accounting.engine.checks import Linked, pairs, sides
+from litmus.accounting.engine.core import Finding
 from litmus.accounting.engine.debt import Debt
 from litmus.accounting.engine.totals import EXACT
 from litmus.accounting.model import (
@@ -167,21 +168,20 @@ class Transfers(Debt):
           self.scope_positions.get(scope, Decimal(0)), leg.quantity
         )
       source_scope = (a.compartment, a.asset)
-      source_position = self.scope_positions[source_scope]
       if (
         self.notional_scopes
-        and source_position < 0
         and source_scope not in self.notional_scopes
         and asset not in self.positions
         and asset != self.fc
       ):
-        self.report(
-          'negative_position',
-          src.id,
-          f'{asset} in {a.compartment} is net short ({source_position}) after linked transfer',
-          asset=asset,
-          compartment=a.compartment,
-          position=str(source_position),
+        self.watch(
+          ('scope', source_scope),
+          Finding(
+            'negative_position',
+            src.id,
+            f'{asset} in {a.compartment} is net short ({{position}}) after linked transfer',
+            {'asset': asset, 'compartment': a.compartment},
+          ),
         )
       if asset == self.fc:
         if self.key(a) != self.key(b):

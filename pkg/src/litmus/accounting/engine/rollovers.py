@@ -9,7 +9,7 @@ from decimal import Decimal
 from litmus.accounting.engine.arithmetic import difference, exact_sum
 from litmus.accounting.engine.records import split_origins
 from litmus.accounting.engine.totals import crumb
-from litmus.accounting.engine.totals import EXACT
+from litmus.accounting.engine.totals import EXACT, LotKey
 from litmus.accounting.engine.transfers import Transfers
 from litmus.accounting.model import (
   Event,
@@ -51,7 +51,13 @@ class Rollovers(Transfers):
     return tuple(value / total for value in values)
 
   def rollover(self, event: Event):
-    """Atomically carry selected basis, retaining a slice for every acquisition."""
+    """
+    Atomically carry selected basis, retaining a slice for every acquisition.
+    An output into a holding that was short before the atomic group is refused;
+    one the group itself made short is delivered from the outputs: the short is
+    closed against them, realizing what it was sold for less the basis carried
+    (policy 05 rule 6.3).
+    """
     operation = event.rollover
     if operation is None:
       return
@@ -127,13 +133,24 @@ class Rollovers(Transfers):
         )
     for item in operation.outputs:
       leg = event.legs[item.leg]
-      if leg.asset == self.fc or book.sign(self.key(leg)) < 0:
+      key = self.key(leg)
+      if leg.asset == self.fc or (book.sign(key) < 0 and self.short_before(key)):
         reason = 'output requires a non-functional-currency, non-short holding'
     if reason:
       for leg in event.legs:
         if leg.tag == 'rollover':
           self.unbooked(event, leg, reason)
       return
+    # A holding the group made short is set aside, and delivered from the
+    # outputs once they are booked (policy 05 rule 6.3).
+    shorts: dict[LotKey, tuple[Leg, Decimal, Decimal]] = {}
+    for item in operation.outputs:
+      leg = event.legs[item.leg]
+      key = self.key(leg)
+      if key not in shorts and book.sign(key) < 0:
+        position = book.position(key)
+        taken = book.take(key, position)
+        shorts[key] = (leg, position, exact_sum(share for _, _, share in taken))
     basis_in = exact_sum(piece.cost for piece in consumed)
     allocations = shares
     inherited_remaining = [piece.cost for piece in consumed]
@@ -258,6 +275,9 @@ class Rollovers(Transfers):
           compartment=self.key(leg)[0],
           asset=leg.asset,
         )
+    for key, (leg, quantity, cost) in shorts.items():
+      self.journal.add(event, 'holding', -cost, compartment=key[0], asset=leg.asset)
+      self.lots(event, replace(leg, quantity=quantity, tag='trade'), cost)
     for leg, value in fee_values:
       self.book_leg(event, leg, value)
     unpaid = exact_sum(

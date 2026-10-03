@@ -7,7 +7,7 @@ from dataclasses import replace
 from datetime import datetime
 from decimal import Decimal
 
-from litmus.accounting.engine.core import Core
+from litmus.accounting.engine.core import Core, Finding
 from litmus.accounting.engine.perps import fills
 from litmus.accounting.engine.totals import EXACT
 from litmus.accounting.model import (
@@ -36,7 +36,8 @@ class Booking(Core):
     realized part. `fees` is the fee value already netted out of `value` under
     `fee_treatment: capitalize`, reported on the realized row. Functional-currency
     legs carry no lots. In a perpetual compartment an asset never goes below
-    zero: the shortfall is a liability (policy 05 rule 8.6).
+    zero: the shortfall is a liability (policy 05 rule 8.6). Elsewhere the
+    holding is checked for shortness when the atomic group closes (rule 6.3).
     """
     if leg.asset == self.fc:
       self.journal.add(
@@ -46,29 +47,25 @@ class Booking(Core):
     if leg.compartment in self.perp_compartments:
       self.settle(event, leg, value, fees=fees)
       return
-    applied = self.lots(event, leg, value, fees=fees, acquired=acquired)
+    self.lots(event, leg, value, fees=fees, acquired=acquired)
     scope = (leg.compartment, leg.asset)
     self.scope_positions[scope] = EXACT.add(
       self.scope_positions.get(scope, Decimal(0)), leg.quantity
     )
-    position = self.scope_positions[scope] if self.notional_scopes else applied.position
-    if (
-      position < 0
-      and leg.asset not in self.positions
-      and scope not in self.notional_scopes
-    ):
-      self.report(
-        'negative_position',
-        event.id,
-        f'{leg.asset} in {leg.compartment} is net short ({position}) and '
-        + (
-          'not an eligible notional scope'
-          if self.notional_scopes
-          else 'not a position asset'
+    if leg.asset not in self.positions and scope not in self.notional_scopes:
+      self.watch(
+        ('scope', scope) if self.notional_scopes else ('key', self.key(leg)),
+        Finding(
+          'negative_position',
+          event.id,
+          f'{leg.asset} in {leg.compartment} is net short ({{position}}) and '
+          + (
+            'not an eligible notional scope'
+            if self.notional_scopes
+            else 'not a position asset'
+          ),
+          {'asset': leg.asset, 'compartment': leg.compartment},
         ),
-        asset=leg.asset,
-        compartment=leg.compartment,
-        position=str(position),
       )
 
   def settle(

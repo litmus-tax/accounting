@@ -103,7 +103,10 @@ internal movement, booked when the earlier of the two events is processed.
 Within an event borrows are booked first, then trades, then perpetual fills,
 then income, then transfers, then repays, then expenses, then fees; across
 events with the same
-timestamp, input order wins. A `borrow` opens a lot at market value and a
+timestamp, input order wins. Events come in atomic groups (`Event[][]`, a bare
+event being a group of one): a group's events are applied in order, and
+shortness (`negative_position`, a rollover into a short holding,
+`negative_liability`) is checked only after the whole group (policy 05 rule 6.3). A `borrow` opens a lot at market value and a
 liability of the same quantity under `(liability compartment, asset)`; a `repay`
 is a disposal at market that reduces the liability and realizes its value change;
 `Policy.liability_valuation` (`cost` or `market`) says whether a valuation shows
