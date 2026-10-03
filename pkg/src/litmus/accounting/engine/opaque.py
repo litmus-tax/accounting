@@ -2,7 +2,8 @@
 Opaque positions (policy 05 rule 14): an opaque compartment is one position,
 booked by value. Coins moved in carry their basis into it, coins taken out are
 a redemption at market value that releases cost up to that value, and any value
-beyond it is a `performance` result, one line per compartment. Its contents are
+beyond it is a `performance` result, one line per compartment. A fee paid from
+inside it is part of that result and books nothing of its own. Its contents are
 tracked per asset from its legs; when `contents` legs leave it empty, the cost
 left is a `performance` loss.
 
@@ -39,14 +40,24 @@ class Opaque(Debt):
       position_asset(compartment),
     )
 
+  def inside(self, leg: Leg) -> bool:
+    """
+    Whether a leg changes an opaque compartment's contents: its `transfer` and
+    `contents` legs, and the fees paid from inside it, which are part of its
+    result and book nothing of their own (rule 14).
+    """
+    return leg.compartment in self.opaque and (
+      leg.fee or leg.tag in ('transfer', 'contents')
+    )
+
   def misplaced(self, event: Event, leg: Leg) -> bool:
     """
-    Report and say whether a leg cannot be booked where it is: a leg other than
-    `transfer` or `contents` in an opaque compartment, which holds no lots (rule
-    14.1), or a `contents` leg anywhere else.
+    Report and say whether a leg cannot be booked where it is: in an opaque
+    compartment, which holds no lots (rule 14.1), a leg other than a `transfer`,
+    a `contents` leg or a fee; a `contents` leg anywhere else.
     """
     if leg.compartment in self.opaque:
-      if leg.tag in ('transfer', 'contents') and not leg.fee:
+      if self.inside(leg):
         return False
       self.unbooked(
         event, leg, 'an opaque compartment holds no lots (policy 05 rule 14.1)'
@@ -60,7 +71,7 @@ class Opaque(Debt):
   def track(self, event: Event):
     """Add the event's legs in opaque compartments to their contents (rule 14.5)."""
     for leg in event.legs:
-      if leg.compartment in self.opaque and leg.tag in ('transfer', 'contents'):
+      if self.inside(leg):
         held = self.contents.setdefault(leg.compartment, {})
         held[leg.asset] = EXACT.add(held.get(leg.asset, ZERO), leg.quantity)
 

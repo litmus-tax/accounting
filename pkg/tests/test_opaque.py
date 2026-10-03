@@ -136,6 +136,32 @@ def test_a_move_between_opaque_compartments():
   assert (lot.asset, lot.cost) == ('position:opaque:vault', Decimal('110'))
 
 
+def test_a_fee_paid_from_inside_is_part_of_the_result():
+  """A vault withdrawal's commission, a fee leg in the opaque compartment, is paid from inside: the value out already nets it, so it books no expense of its own (rule 14) and only counts in the contents."""
+  events = [
+    event('buy', 1, leg('USDC', '10000'), leg('EUR', '-10000')),
+    *move('deposit', 2, 'USDC', '10000', 'A', BOT),
+    event('equity', 3, leg('USDC', '400', BOT, 'contents')),
+    event(
+      'withdraw:out',
+      4,
+      leg('USDC', '-10300', BOT, 'transfer'),
+      leg('USDC', '-100', BOT, 'expense', fee=True),
+    ),
+    event('withdraw:in', 4, leg('USDC', '10300', 'A', 'transfer')),
+  ]
+  result = run(
+    events,
+    links=links('deposit', 'withdraw'),
+    policy=opaque(),
+    pricing=FixedPricing({('USDC', 'EUR'): '1'}),
+  )
+  assert result.complete, result.exceptions
+  assert [(f.event, f.label, f.value) for f in result.flows] == [
+    ('withdraw:out', 'performance', Decimal('300'))
+  ]
+
+
 def test_a_redemption_without_a_price_is_unbooked():
   """A redemption needs the market value of what comes out: without a price both sides are unbooked and the run is incomplete."""
   events = [

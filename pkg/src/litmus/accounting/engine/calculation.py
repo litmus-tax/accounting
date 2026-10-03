@@ -68,7 +68,10 @@ class Engine(Rollovers):
     fees = [
       leg
       for index, leg in enumerate(event.legs)
-      if leg.fee and index not in rollover_fees and leg not in misplaced
+      if leg.fee
+      and index not in rollover_fees
+      and leg not in misplaced
+      and leg.compartment not in self.opaque
     ]
     capitalized = bool(trades) and self.policy.fee_treatment == 'capitalize'
     for leg in borrows:

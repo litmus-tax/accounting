@@ -54,7 +54,7 @@ Policy 05 rule 14: each compartment of `Policy.opaque_compartments` is one posit
 3. **Between two opaque compartments** a linked move is a redemption from one and an entry into the other at that market value (rule 14.13).
 4. **Empty.** The compartment's contents are the sum of its `transfer` and `contents` legs per asset. After an event with `contents` legs that leaves them all at zero, the units left are released as a `performance` `expense`.
 5. **Interim rule** (specs#135, decision 23 open): results are recognised only at redemptions and at an empty compartment. A position still open is never trued up to a value; series points value it (below) without booking anything.
-6. Any other leg in an opaque compartment, and a `contents` leg anywhere else, is `unbooked`.
+6. A fee leg in an opaque compartment (a vault's withdrawal commission) is paid from inside it: it counts in the contents and books nothing of its own, since the value out already nets it. Any other leg in an opaque compartment, and a `contents` leg anywhere else, is `unbooked`.
 
 A series point values a position from its contents at the instant's prices, at least zero (rules 14.6 and 14.12), and lists a compartment whose contents are not empty even when its cost is zero. `value()` does not: it prices `position:opaque:` lots like any asset.
 

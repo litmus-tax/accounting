@@ -303,8 +303,9 @@ class Policy:
   position (a linked one) or enters at market value (an unlinked one); a
   `transfer` leg out of one is a redemption: the coin received opens a lot at
   market value, the position releases its cost up to that value, and any value
-  beyond it is `performance` income. `contents` legs track what it holds; any
-  other leg in it is unbooked. Results are recognised only at redemptions and
+  beyond it is `performance` income. `contents` legs track what it holds; a fee
+  leg in it is paid from inside, part of its result, and books nothing of its
+  own; any other leg in it is unbooked. Results are recognised only at redemptions and
   when `contents` legs leave it empty (interim rule, specs#135): no true-ups of
   a position still open.
   """
