@@ -422,6 +422,7 @@ def test_retained_baseline_goldens(name):
   assert actual.pop('series') == []
   actual['policy'].pop('notional_scopes')
   actual['policy'].pop('perp_cost_method')
+  assert actual['policy'].pop('opaque_compartments') == []
   for lot in actual['lots']:
     lot.pop('origins')
   for row in actual['flows']:

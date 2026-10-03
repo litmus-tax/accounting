@@ -1,0 +1,166 @@
+{
+ "example": "positions example 9.2: a strategy futures wallet, 100 USDT in, 97 out (illustrative)",
+ "ledger": {
+  "policy": {
+   "cost_method": "fifo",
+   "lot_scope": "compartment",
+   "functional_currency": "USD",
+   "cash": [
+    "USDC",
+    "USDT",
+    "USDE"
+   ],
+   "minor_unit": 2,
+   "opaque_compartments": [
+    "futures:strategy"
+   ]
+  },
+  "prices": [
+   {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2025-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDT",
+    "quote": "USD",
+    "time": "2025-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDE",
+    "quote": "USD",
+    "time": "2025-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   }
+  ],
+  "events": [
+   {
+    "id": "buy",
+    "time": "2025-11-01T00:00:00Z",
+    "legs": [
+     {
+      "asset": "USDT",
+      "quantity": "100",
+      "compartment": "futures",
+      "tag": "trade"
+     },
+     {
+      "asset": "USD",
+      "quantity": "-100",
+      "compartment": "futures",
+      "tag": "trade"
+     }
+    ]
+   },
+   {
+    "id": "in:out",
+    "time": "2025-12-01T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDT",
+      "quantity": "-100",
+      "compartment": "futures",
+      "tag": "transfer"
+     }
+    ]
+   },
+   {
+    "id": "in:in",
+    "time": "2025-12-01T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDT",
+      "quantity": "100",
+      "compartment": "futures:strategy",
+      "tag": "transfer"
+     }
+    ]
+   },
+   {
+    "id": "out:out",
+    "time": "2025-12-04T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDT",
+      "quantity": "-97",
+      "compartment": "futures:strategy",
+      "tag": "transfer"
+     }
+    ]
+   },
+   {
+    "id": "out:in",
+    "time": "2025-12-04T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDT",
+      "quantity": "97",
+      "compartment": "futures",
+      "tag": "transfer"
+     }
+    ]
+   },
+   {
+    "id": "snapshot",
+    "time": "2026-01-01T16:00:00Z",
+    "legs": [
+     {
+      "asset": "USDT",
+      "quantity": "-3",
+      "compartment": "futures:strategy",
+      "tag": "contents"
+     }
+    ]
+   }
+  ],
+  "links": [
+   {
+    "src": "in:out",
+    "dst": "in:in"
+   },
+   {
+    "src": "out:out",
+    "dst": "out:in"
+   }
+  ]
+ },
+ "cases": [
+  {
+   "name": "loss-at-the-empty-snapshot",
+   "rules": [
+    "14.4",
+    "14.8"
+   ],
+   "expected": {
+    "complete": true,
+    "flows": [
+     {
+      "event": "snapshot",
+      "compartment": "futures:strategy",
+      "kind": "expense",
+      "label": "performance",
+      "value": "3.00"
+     }
+    ],
+    "holdings": [
+     {
+      "compartment": "futures",
+      "asset": "USDT",
+      "quantity": "97",
+      "cost": "97.00"
+     }
+    ],
+    "totals": {
+     "realized": "0.00",
+     "income": "0.00",
+     "expenses": "3.00"
+    }
+   }
+  }
+ ]
+}

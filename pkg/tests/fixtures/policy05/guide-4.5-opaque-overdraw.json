@@ -9,7 +9,10 @@
     "USDC",
     "USDT"
    ],
-   "minor_unit": 2
+   "minor_unit": 2,
+   "opaque_compartments": [
+    "copytrade"
+   ]
   },
   "prices": [
    {
@@ -78,8 +81,7 @@
       "asset": "USDT",
       "quantity": "80",
       "compartment": "copytrade",
-      "tag": "income",
-      "label": "performance"
+      "tag": "contents"
      }
     ]
    },
@@ -92,13 +94,6 @@
       "quantity": "-1200",
       "compartment": "copytrade",
       "tag": "transfer"
-     },
-     {
-      "asset": "USDT",
-      "quantity": "120",
-      "compartment": "copytrade",
-      "tag": "income",
-      "label": "performance"
      }
     ]
    },
@@ -130,23 +125,22 @@
   {
    "name": "performance-first",
    "rules": [
+    "14.2",
     "14.3",
+    "14.4",
+    "14.7",
     "29"
    ],
    "expected": {
     "complete": true,
     "flows": [
      {
-      "event": "snapshot-1",
-      "kind": "income",
-      "label": "performance",
-      "value": "80.00"
-     },
-     {
       "event": "withdraw-out",
+      "compartment": "copytrade",
+      "asset": "position:opaque:copytrade",
       "kind": "income",
       "label": "performance",
-      "value": "120.00"
+      "value": "200.00"
      }
     ],
     "holdings": [
@@ -158,34 +152,11 @@
      }
     ],
     "totals": {
-     "income": "200.00"
+     "realized": "0.00",
+     "income": "200.00",
+     "expenses": "0.00"
     },
     "journal": [
-     {
-      "event": "withdraw-out",
-      "account": "income",
-      "compartment": "copytrade",
-      "asset": "USDT",
-      "label": "performance",
-      "debit": "0",
-      "credit": "120.00"
-     },
-     {
-      "event": "withdraw-out",
-      "account": "holding",
-      "compartment": "copytrade",
-      "asset": "USDT",
-      "debit": "120.00",
-      "credit": "0"
-     },
-     {
-      "event": "withdraw-out",
-      "account": "holding",
-      "compartment": "copytrade",
-      "asset": "USDT",
-      "debit": "0",
-      "credit": "1200.00"
-     },
      {
       "event": "withdraw-out",
       "account": "holding",
@@ -193,9 +164,27 @@
       "asset": "USDT",
       "debit": "1200.00",
       "credit": "0"
+     },
+     {
+      "event": "withdraw-out",
+      "account": "holding",
+      "compartment": "copytrade",
+      "asset": "position:opaque:copytrade",
+      "debit": "0",
+      "credit": "1000.00"
+     },
+     {
+      "event": "withdraw-out",
+      "account": "income",
+      "compartment": "copytrade",
+      "asset": "position:opaque:copytrade",
+      "label": "performance",
+      "debit": "0",
+      "credit": "200.00"
      }
     ]
-   }
+   },
+   "note": "interim rule (specs#135): results only at redemptions and at an empty compartment; no true-ups of open positions; the guide recognises +80 at the snapshot and +120 at the withdrawal, the same +200 in total"
   }
  ]
 }

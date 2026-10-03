@@ -1,0 +1,211 @@
+{
+ "example": "positions example 8: copy trading (futures:copytrade, USDT, illustrative amounts)",
+ "ledger": {
+  "policy": {
+   "cost_method": "fifo",
+   "lot_scope": "compartment",
+   "functional_currency": "USD",
+   "cash": [
+    "USDC",
+    "USDT",
+    "USDE"
+   ],
+   "minor_unit": 2,
+   "opaque_compartments": [
+    "futures:copytrade"
+   ]
+  },
+  "prices": [
+   {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2025-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDT",
+    "quote": "USD",
+    "time": "2025-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDE",
+    "quote": "USD",
+    "time": "2025-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   }
+  ],
+  "events": [
+   {
+    "id": "buy",
+    "time": "2025-05-01T00:00:00Z",
+    "legs": [
+     {
+      "asset": "USDT",
+      "quantity": "1000",
+      "compartment": "futures",
+      "tag": "trade"
+     },
+     {
+      "asset": "USD",
+      "quantity": "-1000",
+      "compartment": "futures",
+      "tag": "trade"
+     }
+    ]
+   },
+   {
+    "id": "in:out",
+    "time": "2025-06-01T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDT",
+      "quantity": "-1000",
+      "compartment": "futures",
+      "tag": "transfer"
+     }
+    ]
+   },
+   {
+    "id": "in:in",
+    "time": "2025-06-01T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDT",
+      "quantity": "1000",
+      "compartment": "futures:copytrade",
+      "tag": "transfer"
+     }
+    ]
+   },
+   {
+    "id": "snapshot-2025",
+    "time": "2025-12-31T23:00:00Z",
+    "legs": [
+     {
+      "asset": "USDT",
+      "quantity": "80",
+      "compartment": "futures:copytrade",
+      "tag": "contents"
+     }
+    ]
+   },
+   {
+    "id": "out-1:out",
+    "time": "2026-02-10T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDT",
+      "quantity": "-500",
+      "compartment": "futures:copytrade",
+      "tag": "transfer"
+     }
+    ]
+   },
+   {
+    "id": "out-1:in",
+    "time": "2026-02-10T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDT",
+      "quantity": "500",
+      "compartment": "futures",
+      "tag": "transfer"
+     }
+    ]
+   },
+   {
+    "id": "out-2:out",
+    "time": "2026-03-15T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDT",
+      "quantity": "-650",
+      "compartment": "futures:copytrade",
+      "tag": "transfer"
+     }
+    ]
+   },
+   {
+    "id": "out-2:in",
+    "time": "2026-03-15T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDT",
+      "quantity": "650",
+      "compartment": "futures",
+      "tag": "transfer"
+     }
+    ]
+   },
+   {
+    "id": "snapshot-2026",
+    "time": "2026-04-01T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDT",
+      "quantity": "70",
+      "compartment": "futures:copytrade",
+      "tag": "contents"
+     }
+    ]
+   }
+  ],
+  "links": [
+   {
+    "src": "in:out",
+    "dst": "in:in"
+   },
+   {
+    "src": "out-1:out",
+    "dst": "out-1:in"
+   },
+   {
+    "src": "out-2:out",
+    "dst": "out-2:in"
+   }
+  ]
+ },
+ "cases": [
+  {
+   "name": "all-at-the-withdrawal",
+   "rules": [
+    "14.2",
+    "14.4",
+    "14.6",
+    "14.7",
+    "14.8"
+   ],
+   "note": "interim rule (specs#135): results only at redemptions and at an empty compartment; no true-ups of open positions; the policy page recognises +80 at the 2025-12-31 snapshot and +70 on 2026-03-15, the same +150 in total",
+   "expected": {
+    "complete": true,
+    "flows": [
+     {
+      "event": "out-2:out",
+      "compartment": "futures:copytrade",
+      "kind": "income",
+      "label": "performance",
+      "value": "150.00",
+      "time": "2026-03-15T12:00:00Z"
+     }
+    ],
+    "holdings": [
+     {
+      "compartment": "futures",
+      "asset": "USDT",
+      "quantity": "1150",
+      "cost": "1150.00"
+     }
+    ],
+    "totals": {
+     "realized": "0.00",
+     "income": "150.00",
+     "expenses": "0.00"
+    }
+   }
+  }
+ ]
+}

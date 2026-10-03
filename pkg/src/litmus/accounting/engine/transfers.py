@@ -1,7 +1,8 @@
 """
 Transfers: linked pairs at carried basis, swap links as a swap (policy 05 rule
-13.5), unlinked ones across the books' boundary by their basis (rule 13), and
-income booked before transfers (rule 14.3).
+13.5), unlinked ones across the books' boundary by their basis (rule 13), a
+side in an opaque compartment into or out of its position (rule 14), and income
+booked before transfers.
 """
 
 from dataclasses import replace
@@ -11,7 +12,7 @@ from decimal import Decimal
 from litmus.accounting.engine.arithmetic import exact_sum
 from litmus.accounting.engine.checks import Linked, pairs, sides
 from litmus.accounting.engine.core import Finding
-from litmus.accounting.engine.debt import Debt
+from litmus.accounting.engine.opaque import Opaque
 from litmus.accounting.engine.totals import EXACT
 from litmus.accounting.model import (
   Event,
@@ -22,20 +23,19 @@ from litmus.accounting.model import (
 from litmus.accounting.pricing import PriceGap
 
 
-class Transfers(Debt):
+class Transfers(Opaque):
   """Linked and unlinked transfer legs."""
 
   def income(self, event: Event):
     """
-    Book an event's income legs, once. They come before its transfers, so a
-    withdrawal's `performance` leg is recognised before the transfer takes the
-    units out (policy 05 rule 14.3).
+    Book an event's income legs, once, before its transfers and those of the
+    event linked to it.
     """
     if event.id in self.earned:
       return
     self.earned.add(event.id)
     for leg in event.legs:
-      if leg.tag == 'income' and not leg.fee:
+      if leg.tag == 'income' and not leg.fee and leg.compartment not in self.opaque:
         self.flow(event, leg)
 
   def transfer(self, event: Event, legs: list[Leg], linked: Linked):
@@ -64,6 +64,9 @@ class Transfers(Debt):
     market value, reported when unclassified; or at carried cost. The functional
     currency needs no classification.
     """
+    if leg.compartment in self.opaque:
+      self.opaque_external(event, leg)
+      return
     if leg.basis == 'carried' and leg.asset != self.fc:
       self.carried(event, leg)
       return
@@ -161,6 +164,9 @@ class Transfers(Debt):
         for owner, leg in ((src, a), (dst, b)):
           if leg is not None:
             self.unbooked(owner, leg, 'link does not conserve quantity')
+        continue
+      if a.compartment in self.opaque or b.compartment in self.opaque:
+        self.opaque_link(time, link, src, dst, a, b)
         continue
       for leg in (a, b):
         scope = (leg.compartment, leg.asset)

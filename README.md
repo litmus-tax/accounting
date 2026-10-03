@@ -97,7 +97,7 @@ documentation site can generate these schemas during its build.
 ## Contract in one paragraph
 
 A `Leg` is `{asset, quantity, compartment, tag, fee?, label?, liability?, price?, settles_in?}` with
-`tag ∈ {trade, transfer, income, expense, borrow, repay, rollover, position, notional}`. An `Event` is
+`tag ∈ {trade, transfer, income, expense, borrow, repay, rollover, position, notional, contents}`. An `Event` is
 `{id, time, legs}`. A `Link` is `{src, dst}` over event ids and marks one
 internal movement, booked when the earlier of the two events is processed.
 Within an event borrows are booked first, then trades, then perpetual fills,
@@ -115,7 +115,12 @@ caller supplies the cash list, the fiat list, income vs expense by sign, the
 `fee` flag, globally unique event ids, perpetual fills as `position` size legs
 (with their `notional` cash leg, or the venue's price on `pnl` venues), and the
 compartment granularity. A perpetual fill books nothing but the P&L its
-reduction realizes on a `notional` compartment (policy 05 rule 8).
+reduction realizes on a `notional` compartment (policy 05 rule 8). A compartment
+in `Policy.opaque_compartments` is one position by value (policy 05 rule 14):
+coins moved in carry their basis into it, coins taken out are a redemption at
+market value that releases cost up to that value, the excess is `performance`
+income, and `contents` legs that leave it empty book the cost left as a
+`performance` loss.
 
 ## Basis rollover and pending claims
 
@@ -130,7 +135,7 @@ accounting validate examples/rollover.json --json
 
 The synthetic rollover example carries €1000 into a receipt and pending claim,
 then realizes €300 on €1300 settlement, without a receipt price. New callers pin
-`schema_version: "0.10"`; generated schemas reject unknown JSON fields. Result
+`schema_version: "0.11"`; generated schemas reject unknown JSON fields. Result
 schema versions and their consumer impact are listed in
 [docs/migration.md](docs/migration.md).
 

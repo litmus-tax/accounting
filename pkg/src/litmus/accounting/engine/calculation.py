@@ -41,25 +41,37 @@ class Engine(Rollovers):
   """One run's mutable state. Use `run` unless you need the pieces."""
 
   def process(self, event: Event, linked: Linked):
-    """Book one event: borrows, trades, fills, income, transfers, repays, expenses, then fees."""
+    """
+    Book one event: borrows, trades, fills, income, transfers, repays,
+    expenses, then fees, and last whether its `contents` legs left an opaque
+    compartment empty (policy 05 rule 14).
+    """
+    self.track(event)
+    misplaced = [leg for leg in event.legs if self.misplaced(event, leg)]
+    if event.rollover and misplaced:
+      return
+    legs = [leg for leg in event.legs if leg not in misplaced]
     before = len(self.exceptions)
     self.rollover(event)
     if event.rollover and any(
       item.code == 'unbooked' for item in self.exceptions[before:]
     ):
       return
-    borrows = [l for l in event.legs if l.tag == 'borrow' and not l.fee]
-    trades = [l for l in event.legs if l.tag == 'trade' and not l.fee]
-    transfers = [l for l in event.legs if l.tag == 'transfer' and not l.fee]
-    repays = [l for l in event.legs if l.tag == 'repay' and not l.fee]
-    expenses = [l for l in event.legs if l.tag == 'expense' and not l.fee]
+    borrows = [l for l in legs if l.tag == 'borrow' and not l.fee]
+    trades = [l for l in legs if l.tag == 'trade' and not l.fee]
+    transfers = [l for l in legs if l.tag == 'transfer' and not l.fee]
+    repays = [l for l in legs if l.tag == 'repay' and not l.fee]
+    expenses = [l for l in legs if l.tag == 'expense' and not l.fee]
     rollover_fees: set[int] = (
       set(event.rollover.capitalized_fee_legs) if event.rollover else set()
     )
     fees = [
       leg
       for index, leg in enumerate(event.legs)
-      if leg.fee and index not in rollover_fees
+      if leg.fee
+      and index not in rollover_fees
+      and leg not in misplaced
+      and leg.compartment not in self.opaque
     ]
     capitalized = bool(trades) and self.policy.fee_treatment == 'capitalize'
     for leg in borrows:
@@ -77,6 +89,7 @@ class Engine(Rollovers):
     if not capitalized:
       for leg in fees:
         self.flow(event, leg)
+    self.emptied(event)
 
 
 def balances(events: Events) -> list[Balance]:
@@ -178,6 +191,10 @@ def run(
         perps=engine.perps,
         running=running,
         strict=strict,
+        opaque={
+          engine.position_key(compartment): contents
+          for compartment, contents in engine.contents.items()
+        },
       )
       points.append(found)
       if problem is not None:

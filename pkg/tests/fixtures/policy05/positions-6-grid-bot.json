@@ -1,0 +1,269 @@
+{
+ "example": "positions example 6: one grid bot (bot 3), 1,612.59 USDC in, 524.64 USDC and 1,087.79 USDT out",
+ "ledger": {
+  "policy": {
+   "cost_method": "fifo",
+   "lot_scope": "compartment",
+   "functional_currency": "USD",
+   "cash": [
+    "USDC",
+    "USDT",
+    "USDE"
+   ],
+   "minor_unit": 2,
+   "opaque_compartments": [
+    "spot:strategy"
+   ]
+  },
+  "prices": [
+   {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2025-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDT",
+    "quote": "USD",
+    "time": "2025-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDE",
+    "quote": "USD",
+    "time": "2025-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   }
+  ],
+  "events": [
+   {
+    "id": "buy",
+    "time": "2025-11-01T00:00:00Z",
+    "legs": [
+     {
+      "asset": "USDC",
+      "quantity": "1612.593177",
+      "compartment": "spot",
+      "tag": "trade"
+     },
+     {
+      "asset": "USD",
+      "quantity": "-1612.593177",
+      "compartment": "spot",
+      "tag": "trade"
+     }
+    ]
+   },
+   {
+    "id": "bot3-in:out",
+    "time": "2025-12-01T09:58:36Z",
+    "legs": [
+     {
+      "asset": "USDC",
+      "quantity": "-1612.593177",
+      "compartment": "spot",
+      "tag": "transfer"
+     }
+    ]
+   },
+   {
+    "id": "bot3-in:in",
+    "time": "2025-12-01T09:58:36Z",
+    "legs": [
+     {
+      "asset": "USDC",
+      "quantity": "1612.593177",
+      "compartment": "spot:strategy",
+      "tag": "transfer"
+     }
+    ]
+   },
+   {
+    "id": "bot3-usdc:out",
+    "time": "2025-12-01T10:03:16Z",
+    "legs": [
+     {
+      "asset": "USDC",
+      "quantity": "-524.641977",
+      "compartment": "spot:strategy",
+      "tag": "transfer"
+     }
+    ]
+   },
+   {
+    "id": "bot3-usdc:in",
+    "time": "2025-12-01T10:03:16Z",
+    "legs": [
+     {
+      "asset": "USDC",
+      "quantity": "524.641977",
+      "compartment": "spot",
+      "tag": "transfer"
+     }
+    ]
+   },
+   {
+    "id": "bot3-usdt:out",
+    "time": "2025-12-01T10:03:16Z",
+    "legs": [
+     {
+      "asset": "USDT",
+      "quantity": "-1087.79012759",
+      "compartment": "spot:strategy",
+      "tag": "transfer"
+     }
+    ]
+   },
+   {
+    "id": "bot3-usdt:in",
+    "time": "2025-12-01T10:03:16Z",
+    "legs": [
+     {
+      "asset": "USDT",
+      "quantity": "1087.79012759",
+      "compartment": "spot",
+      "tag": "transfer"
+     }
+    ]
+   },
+   {
+    "id": "snapshot",
+    "time": "2026-01-01T16:00:00Z",
+    "legs": [
+     {
+      "asset": "USDC",
+      "quantity": "-1087.9512",
+      "compartment": "spot:strategy",
+      "tag": "contents"
+     },
+     {
+      "asset": "USDT",
+      "quantity": "1087.79012759",
+      "compartment": "spot:strategy",
+      "tag": "contents"
+     }
+    ]
+   }
+  ],
+  "links": [
+   {
+    "src": "bot3-in:out",
+    "dst": "bot3-in:in"
+   },
+   {
+    "src": "bot3-usdc:out",
+    "dst": "bot3-usdc:in"
+   },
+   {
+    "src": "bot3-usdt:out",
+    "dst": "bot3-usdt:in"
+   }
+  ]
+ },
+ "cases": [
+  {
+   "name": "cost-recovery-then-empty",
+   "rules": [
+    "14.2",
+    "14.3",
+    "14.4",
+    "14.7",
+    "14.8"
+   ],
+   "note": "interim rule (specs#135): results only at redemptions and at an empty compartment; no true-ups of open positions",
+   "expected": {
+    "complete": true,
+    "flows": [
+     {
+      "event": "snapshot",
+      "compartment": "spot:strategy",
+      "asset": "position:opaque:spot:strategy",
+      "kind": "expense",
+      "label": "performance",
+      "value": "0.16"
+     }
+    ],
+    "holdings": [
+     {
+      "compartment": "spot",
+      "asset": "USDC",
+      "quantity": "524.641977",
+      "cost": "524.64"
+     },
+     {
+      "compartment": "spot",
+      "asset": "USDT",
+      "quantity": "1087.79012759",
+      "cost": "1087.79"
+     }
+    ],
+    "moves": [
+     {
+      "asset": "USDC",
+      "quantity": "1612.593177",
+      "cost": "1612.59"
+     }
+    ],
+    "totals": {
+     "realized": "0.00",
+     "income": "0.00",
+     "expenses": "0.16"
+    },
+    "journal": [
+     {
+      "event": "bot3-in:out",
+      "account": "holding",
+      "compartment": "spot",
+      "asset": "USDC",
+      "debit": "0",
+      "credit": "1612.59"
+     },
+     {
+      "event": "bot3-in:out",
+      "account": "holding",
+      "compartment": "spot:strategy",
+      "asset": "position:opaque:spot:strategy",
+      "debit": "1612.59",
+      "credit": "0"
+     },
+     {
+      "event": "bot3-usdt:out",
+      "account": "holding",
+      "compartment": "spot",
+      "asset": "USDT",
+      "debit": "1087.79",
+      "credit": "0"
+     },
+     {
+      "event": "bot3-usdt:out",
+      "account": "holding",
+      "compartment": "spot:strategy",
+      "asset": "position:opaque:spot:strategy",
+      "debit": "0",
+      "credit": "1087.79"
+     },
+     {
+      "event": "snapshot",
+      "account": "expense",
+      "compartment": "spot:strategy",
+      "asset": "position:opaque:spot:strategy",
+      "label": "performance",
+      "debit": "0.16",
+      "credit": "0"
+     },
+     {
+      "event": "snapshot",
+      "account": "holding",
+      "compartment": "spot:strategy",
+      "asset": "position:opaque:spot:strategy",
+      "debit": "0",
+      "credit": "0.16"
+     }
+    ]
+   }
+  }
+ ]
+}

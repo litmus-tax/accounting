@@ -1,0 +1,167 @@
+{
+ "example": "positions example 10: an hl vault (USDC, illustrative amounts)",
+ "ledger": {
+  "policy": {
+   "cost_method": "fifo",
+   "lot_scope": "compartment",
+   "functional_currency": "USD",
+   "cash": [
+    "USDC",
+    "USDT",
+    "USDE"
+   ],
+   "minor_unit": 2,
+   "opaque_compartments": [
+    "vault:0xabc"
+   ]
+  },
+  "prices": [
+   {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2025-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   }
+  ],
+  "events": [
+   {
+    "id": "buy",
+    "time": "2025-01-01T00:00:00Z",
+    "legs": [
+     {
+      "asset": "USDC",
+      "quantity": "10000",
+      "compartment": "perp",
+      "tag": "trade"
+     },
+     {
+      "asset": "USD",
+      "quantity": "-10000",
+      "compartment": "perp",
+      "tag": "trade"
+     }
+    ]
+   },
+   {
+    "id": "deposit:out",
+    "time": "2025-02-01T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDC",
+      "quantity": "-10000",
+      "compartment": "perp",
+      "tag": "transfer"
+     }
+    ]
+   },
+   {
+    "id": "deposit:in",
+    "time": "2025-02-01T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDC",
+      "quantity": "10000",
+      "compartment": "vault:0xabc",
+      "tag": "transfer"
+     }
+    ]
+   },
+   {
+    "id": "equity",
+    "time": "2025-03-01T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDC",
+      "quantity": "400",
+      "compartment": "vault:0xabc",
+      "tag": "contents"
+     }
+    ]
+   },
+   {
+    "id": "withdraw:out",
+    "time": "2025-04-01T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDC",
+      "quantity": "-10250",
+      "compartment": "vault:0xabc",
+      "tag": "transfer"
+     }
+    ]
+   },
+   {
+    "id": "withdraw:in",
+    "time": "2025-04-01T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDC",
+      "quantity": "10250",
+      "compartment": "perp",
+      "tag": "transfer"
+     }
+    ]
+   },
+   {
+    "id": "closed",
+    "time": "2025-05-01T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDC",
+      "quantity": "-150",
+      "compartment": "vault:0xabc",
+      "tag": "contents"
+     }
+    ]
+   }
+  ],
+  "links": [
+   {
+    "src": "deposit:out",
+    "dst": "deposit:in"
+   },
+   {
+    "src": "withdraw:out",
+    "dst": "withdraw:in"
+   }
+  ]
+ },
+ "cases": [
+  {
+   "name": "all-at-the-withdrawal",
+   "rules": [
+    "14.4",
+    "14.7",
+    "14.8",
+    "14.10"
+   ],
+   "note": "interim rule (specs#135): results only at redemptions and at an empty compartment; no true-ups of open positions; the policy page recognises +400 at the equity checkpoint and -150 when the vault is closed, the same +250 in total",
+   "expected": {
+    "complete": true,
+    "flows": [
+     {
+      "event": "withdraw:out",
+      "compartment": "vault:0xabc",
+      "kind": "income",
+      "label": "performance",
+      "value": "250.00"
+     }
+    ],
+    "holdings": [
+     {
+      "compartment": "perp",
+      "asset": "USDC",
+      "quantity": "10250",
+      "cost": "10250.00"
+     }
+    ],
+    "totals": {
+     "realized": "0.00",
+     "income": "250.00",
+     "expenses": "0.00"
+    }
+   }
+  }
+ ]
+}

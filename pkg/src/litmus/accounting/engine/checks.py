@@ -62,7 +62,7 @@ def problems(event: Event) -> list[str]:
       out.append(f'leg {i}: repay must be negative')
     elif leg.liability is not None and leg.tag not in ('borrow', 'repay'):
       out.append(f'leg {i}: only borrow and repay legs name a liability')
-    elif leg.fee and leg.tag in ('position', 'notional'):
+    elif leg.fee and leg.tag in ('position', 'notional', 'contents'):
       out.append(f'leg {i}: a {leg.tag} leg is never a fee')
     elif (leg.price is not None or leg.settles_in is not None) and (
       leg.tag != 'position' or leg.price is None or leg.settles_in is None

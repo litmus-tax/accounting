@@ -18,6 +18,7 @@ default.
 | `position_assets` | list of str | `[]` | Assets that may go net short (perp position assets). Any other asset going negative under its lot key is a `negative_position` exception (the short lot is still opened). |
 | `liability_valuation` | `cost` \| `market` | `cost` | Below. |
 | `perp_cost_method` | `average` \| `fifo` \| `lifo` \| `hifo` | `average` | Which entries a reduction of a perpetual position on a `notional` compartment closes (below). |
+| `opaque_compartments` | list of str | `[]` | Compartments booked as one position by value (policy 05 rule 14; [model](model.md#opaque-positions)). |
 | `minor_unit` | int \| null | `null` | Decimal places of the functional currency's minor unit. When set, every money field of the result and the valuation is rounded half-up to it at output; quantities and prices are never rounded, and `pnl` / `unrealized` are recomputed from the rounded parts so the identities hold. |
 
 Strict mode is a run option, not a policy field: `run(..., strict=True)` and
