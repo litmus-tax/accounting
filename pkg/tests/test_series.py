@@ -9,7 +9,7 @@ import pytest
 from litmus.accounting import run, codec, FixedPricing
 from litmus.accounting.model import Leg, Result
 from litmus.accounting.pricing import TablePricing
-from tests.conftest import leg, event, policy, t
+from tests.conftest import flat, leg, event, policy, t
 
 ROOT = Path(__file__).resolve().parents[2]
 LEDGERS = sorted((ROOT / 'examples').glob('*.json')) + sorted(
@@ -43,13 +43,13 @@ def test_the_check_holds_at_every_day_end(path: Path):
   document = json.loads(path.read_text())
   ledger = codec.parse_ledger(json.dumps(document.get('ledger', document)))
   assert ledger.policy is not None
-  days = sorted({e.time.date() for e in ledger.events})
+  days = sorted({e.time.date() for e in flat(ledger)})
   grid = [
-    datetime.combine(day, datetime.max.time(), tzinfo=ledger.events[0].time.tzinfo)
+    datetime.combine(day, datetime.max.time(), tzinfo=flat(ledger)[0].time.tzinfo)
     for day in days
   ]
   r = run(
-    ledger.events,
+    flat(ledger),
     links=ledger.links,
     policy=replace(ledger.policy, minor_unit=None),
     pricing=TablePricing(ledger.prices),

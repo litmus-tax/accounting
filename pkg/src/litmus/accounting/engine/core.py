@@ -1,17 +1,19 @@
 """
 The engine's state and the primitives every booking uses: lot keys, the
-exceptions report, market values, applying a leg to the lot book, and the
-liability ledger with the realization of its repaid side.
+exceptions report, market values, applying a leg to the lot book, the
+liability ledger with the realization of its repaid side, and the shortness
+checks run after each atomic group (policy 05 rule 6.3).
 """
 
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
+from typing_extensions import Literal
 
 from litmus.accounting.engine.journal import Journal
 from litmus.accounting.engine.lots import LotBook
 from litmus.accounting.engine.records import Applied
-from litmus.accounting.engine.totals import LotKey
+from litmus.accounting.engine.totals import ZERO, LotKey
 from litmus.accounting.engine.perps import PositionBook
 from litmus.accounting.model import (
   Event,
@@ -57,6 +59,21 @@ class OpenLiability:
     )
 
 
+Watch = tuple[Literal['key', 'scope', 'liability'], tuple[str | None, str]]
+"""What a shortness check reads: a lot key's position, a `(compartment, asset)` scope position, or a liability."""
+
+
+@dataclass(frozen=True)
+class Finding:
+  """The item a shortness check reports when what it watches is still short after the group."""
+
+  code: ExceptionCode
+  event: str
+  message: str
+  """The message, with `{position}` standing for the position after the group."""
+  detail: dict[str, str]
+
+
 class Core:
   """One run's mutable state and its booking primitives."""
 
@@ -87,6 +104,10 @@ class Core:
     self.journal = Journal()
     self.perp_compartments: set[str] = set()
     """Compartments holding perpetual positions: a settlement asset there never goes below zero (rule 8.6)."""
+    self.watched: dict[Watch, Finding] = {}
+    """Holdings and liabilities the current group may have left short, checked when it closes."""
+    self.opening: dict[LotKey, Decimal] | None = None
+    """Each lot key's position when the current group of several events opened; `None` for a group of one."""
 
   def key(self, leg: Leg) -> LotKey:
     """Lot key for a leg under the policy's lot scope."""
@@ -101,6 +122,53 @@ class Core:
   def report(self, code: ExceptionCode, event: str | None, message: str, **detail: str):
     """Append to the exceptions report."""
     self.exceptions.append(ExceptionItem(code, event, message, detail))
+
+  def open_group(self, size: int):
+    """
+    Start an atomic group of `size` events (policy 05 rule 6.3): shortness is
+    checked when it closes, and a holding short when it opened stays short to a
+    rollover output (`short_before`).
+    """
+    self.watched = {}
+    self.opening = dict(self.book.totals) if size > 1 else None
+
+  def short_before(self, key: LotKey) -> bool:
+    """Whether the lot key was short when the current group opened; for a group of one, whether it is short now."""
+    if self.opening is None:
+      return self.book.sign(key) < 0
+    return self.opening.get(key, ZERO) < 0
+
+  def watch(self, watch: Watch, finding: Finding):
+    """Check `watch` for shortness when the group closes; the latest finding names it."""
+    self.watched.pop(watch, None)
+    self.watched[watch] = finding
+
+  def close_group(self):
+    """
+    Report what the group left short (policy 05 rule 6.3): each watched holding
+    outside the position assets and notional scopes whose position is negative,
+    and each watched liability that is negative, once per group.
+    """
+    for (kind, scope), finding in self.watched.items():
+      if kind == 'key':
+        position = self.book.position(scope)
+      elif kind == 'scope':
+        position = self.scope_positions.get((str(scope[0]), scope[1]), ZERO)
+      else:
+        liability = self.liabilities.get((str(scope[0]), scope[1]))
+        position = liability.quantity if liability else ZERO
+      if position < 0:
+        self.report(
+          finding.code,
+          finding.event,
+          finding.message.replace('{position}', str(position)),
+          **{
+            **finding.detail,
+            **({} if kind == 'liability' else {'position': str(position)}),
+          },
+        )
+    self.watched = {}
+    self.opening = None
 
   def residues(self, event: Event):
     """

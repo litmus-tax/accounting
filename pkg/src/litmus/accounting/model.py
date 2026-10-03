@@ -13,7 +13,7 @@ between events.
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from decimal import Decimal
-from typing_extensions import Literal
+from typing_extensions import Literal, Sequence
 from pydantic import ConfigDict
 
 DOCUMENTED = ConfigDict(use_attribute_docstrings=True, extra='forbid')
@@ -195,6 +195,18 @@ class Event:
   description: str | None = None
   depends_on: tuple[str, ...] = ()
   rollover: Rollover | None = None
+
+
+Group = tuple[Event, ...]
+"""
+An atomic group (policy 05 rule 6.3): events applied in order, whose holdings
+are checked for shortness only after the last of them, never in between.
+"""
+Events = Sequence[Event | Sequence[Event]]
+"""
+The engine's input: atomic groups in total order. An item that is a single
+event is a group of one, so a flat list of events is one event per group.
+"""
 
 
 LinkKind = Literal['transfer', 'swap']
@@ -445,8 +457,12 @@ ExceptionCode = Literal[
 - `unknown_event`: a link references an event id that does not exist.
 - `invalid_event`: an event that fails validation; skipped.
 - `duplicate_id`: two events share an id; the later one is skipped.
-- `negative_position`: an asset outside `Policy.position_assets` went net short.
-- `negative_liability`: a repay or noncash interest reversal exceeded what was owed under its (liability compartment, asset); booked anyway.
+- `negative_position`: an asset outside `Policy.position_assets` is net short
+  after an atomic group (policy 05 rule 6.3); one item per holding and group,
+  on the group's last event that touched it.
+- `negative_liability`: a repay or noncash interest reversal exceeded what was
+  owed under its (liability compartment, asset), and the liability is still
+  negative after the group; booked anyway.
 - `unbooked`: a leg left out of the books (always paired with the cause). Makes the run incomplete.
 - `unbalanced`: an event whose journal lines do not balance before rounding (policy 05 rule 29.2). Makes the run incomplete.
 - `series_mismatch`: a series point whose total P&L differs from net assets at market minus net contributions (policy 05 rule 39.5). Makes the run incomplete.
@@ -722,7 +738,11 @@ class Ledger:
 
   __pydantic_config__ = DOCUMENTED
 
-  events: tuple[Event, ...]
+  events: tuple[Event | Group, ...]
+  """
+  Atomic groups in total order (policy 05 rule 6.3): a list of events is one
+  group, a bare event a group of one.
+  """
   schema_version: Literal[
     '0.2', '0.3', '0.4', '0.5', '0.6', '0.7', '0.8', '0.9', '0.10'
   ] = '0.10'

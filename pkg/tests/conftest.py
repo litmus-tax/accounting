@@ -4,9 +4,11 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing_extensions import Any
 import pytest
+from litmus.accounting.engine.checks import members
 from litmus.accounting.model import (
   Leg,
   Event,
+  Ledger,
   Link,
   Policy,
   LegTag,
@@ -48,6 +50,11 @@ def leg(
 def event(id: str, day: int, *legs: Leg, hour: int = 12) -> Event:
   """Build an event."""
   return Event(id=id, time=t(day, hour), legs=legs)
+
+
+def flat(ledger: Ledger) -> tuple[Event, ...]:
+  """A ledger's events with their atomic groups flattened, in input order."""
+  return tuple(event for _, event in members(ledger.events))
 
 
 def link(src: str, dst: str) -> Link:

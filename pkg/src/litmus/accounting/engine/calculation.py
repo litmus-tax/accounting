@@ -3,11 +3,13 @@ The engine: a pure function from events, links, policy and a pricing source to
 lots, realized PnL, income/expense flows, internal moves, prices used and an
 exceptions report.
 
-Ordering is part of the contract: events are processed by time, ties in input
+Ordering is part of the contract: events come in atomic groups (policy 05
+rule 6.3), processed by time, ties in input order, and a group's events in
 order; within an event borrow legs, then trades, then perpetual fills, then
 income legs, then transfers, then repay legs, then expense legs, then fee legs.
 A linked pair is booked when the earlier of its two events is processed, after
-the income legs of both.
+the income legs of both. Holdings and liabilities are checked for shortness
+after each group, never between its events.
 """
 
 from dataclasses import replace
@@ -22,6 +24,7 @@ from litmus.accounting.engine.rounding import round_result
 from litmus.accounting.model import (
   Balance,
   Event,
+  Events,
   Link,
   Policy,
   Result,
@@ -76,10 +79,10 @@ class Engine(Rollovers):
         self.flow(event, leg)
 
 
-def balances(events: Sequence[Event]) -> list[Balance]:
+def balances(events: Events) -> list[Balance]:
   """Net quantity per (compartment, asset) over every leg of every event."""
   totals: dict[tuple[str, str], Decimal] = {}
-  for e in events:
+  for _, e in checks.members(events):
     for l in e.legs:
       k = (l.compartment, l.asset)
       totals[k] = totals.get(k, Decimal(0)) + l.quantity
@@ -90,7 +93,7 @@ def balances(events: Sequence[Event]) -> list[Balance]:
 
 @fixed_context
 def run(
-  events: Sequence[Event],
+  events: Events,
   *,
   links: Sequence[Link] = (),
   policy: Policy,
@@ -102,7 +105,12 @@ def run(
   Run the books.
 
   Args:
-    events: Any order; processed by time, ties in input order.
+    events: Atomic groups (policy 05 rule 6.3), each a sequence of events or a
+      bare event (a group of one). Processed by time, ties in input order, a
+      group's events in order; shortness (`negative_position`, a rollover
+      output into a short holding, `negative_liability`) is checked after each
+      group, never between its events. A group's events at different times,
+      or split by a dependency, are booked as several groups.
     links: Pairs of event ids that are one internal movement.
     policy: Cost method, lot scope, functional currency, valuation rules.
     pricing: Caller-implemented price source.
@@ -129,7 +137,11 @@ def run(
   }
   engine.exceptions.extend(checked.exceptions)
   engine.complete = checked.complete
-  identities = {(leg.compartment, leg.asset) for event in events for leg in event.legs}
+  identities = {
+    (leg.compartment, leg.asset)
+    for _, event in checks.members(events)
+    for leg in event.legs
+  }
   scopes = [(scope.compartment, scope.asset) for scope in policy.notional_scopes]
   if len(scopes) != len(set(scopes)) or any(
     scope not in identities for scope in scopes
@@ -172,18 +184,23 @@ def run(
         engine.exceptions.append(problem)
         engine.complete = False
 
-  for e in checked.events:
-    snapshot(e.time)
-    if any(dependency in failed for dependency in e.depends_on):
-      engine.complete = False
-      engine.report('unbooked', e.id, 'required predecessor was not completely booked')
-      failed.add(e.id)
-      continue
-    before = len(engine.exceptions)
-    engine.process(e, checked.linked)
-    engine.residues(e)
-    if any(item.code == 'unbooked' for item in engine.exceptions[before:]):
-      failed.add(e.id)
+  for group in checked.groups:
+    snapshot(group[0].time)
+    engine.open_group(len(group))
+    for e in group:
+      if any(dependency in failed for dependency in e.depends_on):
+        engine.complete = False
+        engine.report(
+          'unbooked', e.id, 'required predecessor was not completely booked'
+        )
+        failed.add(e.id)
+        continue
+      before = len(engine.exceptions)
+      engine.process(e, checked.linked)
+      engine.residues(e)
+      if any(item.code == 'unbooked' for item in engine.exceptions[before:]):
+        failed.add(e.id)
+    engine.close_group()
   snapshot(None)
   result = Result(
     policy=policy,
