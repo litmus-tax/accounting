@@ -7,7 +7,7 @@ contributions.
 
 from datetime import datetime
 from decimal import Decimal
-from typing_extensions import Sequence
+from typing_extensions import Mapping, Sequence
 from litmus.accounting.model import (
   ExceptionItem,
   Flow,
@@ -23,6 +23,7 @@ from litmus.accounting.pricing import PriceGap, Valuer, effective_time
 from litmus.accounting.engine.journal import Journal, TOLERANCE
 from litmus.accounting.engine.lots import LotBook
 from litmus.accounting.engine.perps import PositionBook
+from litmus.accounting.engine.totals import LotKey
 
 
 class Missing:
@@ -60,18 +61,36 @@ class Missing:
 
 
 def holdings(
-  book: LotBook, journal: Journal, fc: str
+  book: LotBook,
+  journal: Journal,
+  fc: str,
+  opaque: Mapping[LotKey, Mapping[str, Decimal]] = {},
 ) -> list[tuple[str | None, str, Decimal, Decimal]]:
-  """Quantity and cost per lot key; the functional currency's from its journal lines."""
+  """
+  Quantity and cost per lot key; the functional currency's from its journal
+  lines; and every opaque position whose contents are not empty, even with no
+  cost left.
+  """
   out: dict[tuple[str | None, str], tuple[Decimal, Decimal]] = {}
   for key, quantity in book.totals.items():
     cost = book.costs[key]
     if quantity or cost:
       out[key] = (quantity, cost)
+  for key, contents in opaque.items():
+    if key not in out and any(contents.values()):
+      out[key] = (Decimal(0), Decimal(0))
   for (account, compartment, asset), amount in journal.balances.items():
     if account == 'holding' and asset == fc and amount:
       out[(compartment, fc)] = (amount, amount)
   return [(c, a, q, cost) for (c, a), (q, cost) in sorted(out.items(), key=str)]
+
+
+def contents_value(prices: Missing, contents: Mapping[str, Decimal]) -> Decimal | None:
+  """An opaque position's value: its contents at market, at least zero (rule 14.6); `None` on a gap."""
+  values = [prices.value(asset, q) for asset, q in sorted(contents.items()) if q]
+  if any(value is None for value in values):
+    return None
+  return max(sum((v for v in values if v is not None), Decimal(0)), Decimal(0))
 
 
 class Running:
@@ -113,16 +132,25 @@ def point(
   perps: PositionBook,
   running: Running,
   strict: bool,
+  opaque: Mapping[LotKey, Mapping[str, Decimal]] = {},
 ) -> tuple[SeriesPoint, ExceptionItem | None]:
   """
   The series point at `at` from the engine's state after every event up to it,
-  and a `series_mismatch` exception when its check fails (rule 39.5).
+  and a `series_mismatch` exception when its check fails (rule 39.5). An opaque
+  position (`opaque`: its lot key to its contents) is valued from its
+  event-implied contents at the instant's prices, never below zero (rules 14.6
+  and 14.12).
   """
   fc = valuer.policy.functional_currency
   prices = Missing(valuer, at, strict=strict)
   held: list[SeriesHolding] = []
-  for compartment, asset, quantity, cost in holdings(book, journal, fc):
-    value = prices.value(asset, quantity)
+  for compartment, asset, quantity, cost in holdings(book, journal, fc, opaque):
+    contents = opaque.get((compartment, asset))
+    value = (
+      prices.value(asset, quantity)
+      if contents is None
+      else contents_value(prices, contents)
+    )
     held.append(
       SeriesHolding(
         compartment=compartment,

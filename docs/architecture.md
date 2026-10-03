@@ -32,6 +32,7 @@
 | `engine/debt.py` | Liabilities: borrowing, accrued and reversed interest, repayment and its liability side. | `engine`, `model`, `pricing` |
 | `engine/journal.py` | The double-entry journal recorded as the engine books: lines per event on named accounts, rounded against the result rows, balance checked. | `engine`, `model`, `pricing` |
 | `engine/lots.py` | `LotBook`: open lots per key, sign-crossing closes and FIFO/LIFO/HIFO/average consumption order. | `engine`, `model`, `pricing` |
+| `engine/opaque.py` | Opaque positions (policy 05 rule 14): entries carrying basis, redemptions at market value with cost recovery, `performance` results, and the empty compartment. | `engine`, `model`, `pricing` |
 | `engine/operations.py` | Structural checks and stable causal ordering for generic basis operations. | `engine`, `model`, `pricing` |
 | `engine/perps.py` | Open perpetual positions on a settled basis: fill pairing, entry basis per `perp_cost_method`, realized P&L in the settlement asset. | `engine`, `model`, `pricing` |
 | `engine/records.py` | A lot book's records: the working `OpenLot`, `Consumed` and `Applied`, the HIFO rank, and exact allocation of a lot's origins. | `engine`, `model`, `pricing` |
@@ -39,5 +40,5 @@
 | `engine/rounding.py` | Rounds functional-currency money outputs to the minor unit, recomputing derived amounts from rounded parts. | `engine`, `model`, `pricing` |
 | `engine/series.py` | The P&L series: a point per grid instant from the engine's state, valued at market, with the total-P&L check. | `engine`, `model`, `pricing` |
 | `engine/totals.py` | A lot book's exact quantities: per-key running totals of quantity and basis, and the 1e-18 quantity net (policy 05 rule 20.3). | `engine`, `model`, `pricing` |
-| `engine/transfers.py` | Transfers: linked pairs at carried basis, unlinked ones by their boundary basis, income before transfers. | `engine`, `model`, `pricing` |
+| `engine/transfers.py` | Transfers: linked pairs at carried basis, unlinked ones by their boundary basis, sides in opaque compartments routed to their positions, income before transfers. | `engine`, `model`, `pricing` |
 <!-- structure:end -->

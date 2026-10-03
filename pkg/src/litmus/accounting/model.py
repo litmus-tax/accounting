@@ -29,6 +29,7 @@ LegTag = Literal[
   'rollover',
   'position',
   'notional',
+  'contents',
 ]
 """
 How the engine treats a leg:
@@ -59,6 +60,12 @@ How the engine treats a leg:
   (policy 05 rule 8.1). On a `notional` compartment its price comes from the
   fill's `notional` leg; on a `pnl` compartment it carries `price` and
   `settles_in`.
+- `contents`: a change in what an opaque compartment holds that no transfer
+  explains (an opaque result's per-asset residual, policy 05 rule 14.8). Only
+  in a compartment of `Policy.opaque_compartments`. Books nothing by itself:
+  when an event with `contents` legs leaves its compartment's event-implied
+  contents at zero in every asset, the position's remaining cost is a
+  `performance` loss (the empty compartment, rule 14.8).
 - `notional`: the notional cash leg of a perpetual fill on a `notional`
   compartment, in the settlement asset: not booked; it gives the fill price
   (cash / size, rule 8.2).
@@ -288,6 +295,19 @@ class Policy:
   notional_scopes: tuple[NotionalScope, ...] = ()
   perp_cost_method: CostMethod = 'average'
   """Which entries a reduction of a perpetual position on a `notional` compartment closes (policy 05 rule 8.2)."""
+  opaque_compartments: tuple[str, ...] = ()
+  """
+  Compartments booked as one position by value (policy 05 rule 14): the asset
+  `position:opaque:<compartment>`, held in units of the functional currency at
+  a cost of 1 each. A `transfer` leg into one carries the coins' basis into the
+  position (a linked one) or enters at market value (an unlinked one); a
+  `transfer` leg out of one is a redemption: the coin received opens a lot at
+  market value, the position releases its cost up to that value, and any value
+  beyond it is `performance` income. `contents` legs track what it holds; any
+  other leg in it is unbooked. Results are recognised only at redemptions and
+  when `contents` legs leave it empty (interim rule, specs#135): no true-ups of
+  a position still open.
+  """
 
 
 PriceSource = Literal['market', 'official']
@@ -650,9 +670,9 @@ class RolloverRecord:
   cost_reference: str | None
 
 
-ResultVersion = Literal['0.10']
+ResultVersion = Literal['0.11']
 """The result schema this engine writes and reads (policy 05 rule 27.2)."""
-RESULT_VERSION: ResultVersion = '0.10'
+RESULT_VERSION: ResultVersion = '0.11'
 
 
 @dataclass(frozen=True)
@@ -744,8 +764,8 @@ class Ledger:
   group, a bare event a group of one.
   """
   schema_version: Literal[
-    '0.2', '0.3', '0.4', '0.5', '0.6', '0.7', '0.8', '0.9', '0.10'
-  ] = '0.10'
+    '0.2', '0.3', '0.4', '0.5', '0.6', '0.7', '0.8', '0.9', '0.10', '0.11'
+  ] = '0.11'
   links: tuple[Link, ...] = ()
   policy: Policy | None = None
   prices: tuple[PriceRecord, ...] = ()

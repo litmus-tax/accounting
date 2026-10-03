@@ -108,6 +108,10 @@ class Core:
     """Holdings and liabilities the current group may have left short, checked when it closes."""
     self.opening: dict[LotKey, Decimal] | None = None
     """Each lot key's position when the current group of several events opened; `None` for a group of one."""
+    self.opaque = set(policy.opaque_compartments)
+    """Compartments booked as one position by value (policy 05 rule 14)."""
+    self.contents: dict[str, dict[str, Decimal]] = {}
+    """Per opaque compartment, its event-implied contents per asset: the sum of its legs so far (rule 14.5)."""
 
   def key(self, leg: Leg) -> LotKey:
     """Lot key for a leg under the policy's lot scope."""

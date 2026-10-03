@@ -219,7 +219,12 @@ class Booking(Core):
     compartment: `income` or `expense` in the settlement asset, label
     `realized_pnl` (rule 8.2).
     """
-    found, bad = fills(event)
+    found, bad = fills(
+      replace(
+        event,
+        legs=tuple(leg for leg in event.legs if leg.compartment not in self.opaque),
+      )
+    )
     for leg, reason in bad:
       self.unbooked(event, leg, reason)
     for fill in found:

@@ -33,7 +33,8 @@ __init__ = ["engine", "valuation", "pricing"]
 "engine/core.py" = { doc = "The engine's state and booking primitives: lot keys, the exceptions report, market values, legs into lots, and the liability ledger." }
 "engine/booking.py" = { doc = "Legs into lots with perpetual-compartment settlement shortfalls, income and expense flows, trades and perpetual fills." }
 "engine/debt.py" = { doc = "Liabilities: borrowing, accrued and reversed interest, repayment and its liability side." }
-"engine/transfers.py" = { doc = "Transfers: linked pairs at carried basis, unlinked ones by their boundary basis, income before transfers." }
+"engine/opaque.py" = { doc = "Opaque positions (policy 05 rule 14): entries carrying basis, redemptions at market value with cost recovery, `performance` results, and the empty compartment." }
+"engine/transfers.py" = { doc = "Transfers: linked pairs at carried basis, unlinked ones by their boundary basis, sides in opaque compartments routed to their positions, income before transfers." }
 "engine/rollovers.py" = { doc = "Rollovers: atomic basis carries, with allocation by market value across several outputs." }
 "engine/journal.py" = { doc = "The double-entry journal recorded as the engine books: lines per event on named accounts, rounded against the result rows, balance checked." }
 "engine/lots.py" = { doc = "`LotBook`: open lots per key, sign-crossing closes and FIFO/LIFO/HIFO/average consumption order." }

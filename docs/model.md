@@ -14,7 +14,7 @@ on the wire; timestamps are ISO 8601 and must carry a timezone.
 | `asset` | str | Opaque asset id. On `position` legs, the perpetual instrument (`BTC-PERP`). |
 | `quantity` | Decimal | Signed: positive inflow, negative outflow. Never zero. |
 | `compartment` | str | Opaque account, subaccount or wallet id. |
-| `tag` | `trade` \| `transfer` \| `income` \| `expense` \| `borrow` \| `repay` \| `rollover` \| `position` \| `notional` | What the engine does with the leg (below). |
+| `tag` | `trade` \| `transfer` \| `income` \| `expense` \| `borrow` \| `repay` \| `rollover` \| `position` \| `notional` \| `contents` | What the engine does with the leg (below). |
 | `fee` | bool = false | The leg is a fee of its event. Must be negative. |
 | `label` | str? | Free-form sub-classification for reporting (`funding`, `gas`, `realized_pnl`). On `borrow` and `repay` legs it describes the facility; `interest` on a `borrow` leg marks an accrual. |
 | `price` | Decimal? | `position` legs on `pnl` compartments only: the venue's fill price, in `settles_in` per unit. |
@@ -41,8 +41,22 @@ Tags:
 7. `rollover`: an input or output of the event's `rollover` operation ([operations.md](operations.md)).
 8. `position`: the size leg of a perpetual fill; books nothing and changes the open position `(compartment, asset)` (policy 05 rule 8, [policy.md](policy.md#perpetuals-on-a-settled-basis)).
 9. `notional`: the notional cash leg of a fill on a `notional` compartment; not booked, it gives the fill price and the settlement asset.
+10. `contents`: a change in what an opaque compartment holds that no transfer explains (an opaque result's per-asset residual, policy 05 rule 14.8), only in a compartment of `Policy.opaque_compartments`. It books nothing; it is counted in the compartment's contents, and an event whose `contents` legs leave every asset of the compartment at zero recognises the position's remaining cost as a `performance` loss ([Opaque positions](#opaque-positions)).
 
 A fee leg is an `expense` unless `Policy.fee_treatment` is `capitalize` and the event has trade legs, in which case its value is folded into the trade (see the policy doc).
+
+### Opaque positions
+
+Policy 05 rule 14: each compartment of `Policy.opaque_compartments` is one position, the asset `position:opaque:<compartment>`, held as lots of units of the functional currency at a cost of 1 each, so a lot's quantity is its cost. No lot of a coin is held in it.
+
+1. **In.** The inflow of a linked `transfer` into it takes the source's lots, and their basis opens position lots with the same acquisition times and origins; nothing is realized, and a `Move` records it. An unlinked inflow enters at market value (or at `cost` when `carried`), against the `external` account.
+2. **Out.** An outflow is a redemption: the coin received opens a lot at its market value at the source's time (a linked one) or leaves the books at it (an unlinked one). The position releases its units up to that value; value beyond them is a `Flow` of `income` labelled `performance`, asset `position:opaque:<compartment>`, `quantity` the signed result in the functional currency. Several coins out of one bot close are several redemptions, which release the same cost as one.
+3. **Between two opaque compartments** a linked move is a redemption from one and an entry into the other at that market value (rule 14.13).
+4. **Empty.** The compartment's contents are the sum of its `transfer` and `contents` legs per asset. After an event with `contents` legs that leaves them all at zero, the units left are released as a `performance` `expense`.
+5. **Interim rule** (specs#135, decision 23 open): results are recognised only at redemptions and at an empty compartment. A position still open is never trued up to a value; series points value it (below) without booking anything.
+6. Any other leg in an opaque compartment, and a `contents` leg anywhere else, is `unbooked`.
+
+A series point values a position from its contents at the instant's prices, at least zero (rules 14.6 and 14.12), and lists a compartment whose contents are not empty even when its cost is zero. `value()` does not: it prices `position:opaque:` lots like any asset.
 
 ### `Event`
 

@@ -9,7 +9,10 @@
     "USDC",
     "USDT"
    ],
-   "minor_unit": 2
+   "minor_unit": 2,
+   "opaque_compartments": [
+    "copytrade"
+   ]
   },
   "prices": [
    {
@@ -78,8 +81,7 @@
       "asset": "USDT",
       "quantity": "80",
       "compartment": "copytrade",
-      "tag": "income",
-      "label": "performance"
+      "tag": "contents"
      }
     ]
    },
@@ -91,8 +93,7 @@
       "asset": "USDT",
       "quantity": "-30",
       "compartment": "copytrade",
-      "tag": "expense",
-      "label": "performance"
+      "tag": "contents"
      }
     ]
    },
@@ -136,24 +137,22 @@
   {
    "name": "checkpoints",
    "rules": [
-    "14.1",
-    "29",
-    "7"
+    "14.2",
+    "14.3",
+    "14.4",
+    "14.7",
+    "29"
    ],
    "expected": {
     "complete": true,
     "flows": [
      {
-      "event": "snapshot-1",
+      "event": "back-out",
+      "compartment": "copytrade",
+      "asset": "position:opaque:copytrade",
       "kind": "income",
       "label": "performance",
-      "value": "80.00"
-     },
-     {
-      "event": "snapshot-2",
-      "kind": "expense",
-      "label": "performance",
-      "value": "30.00"
+      "value": "50.00"
      }
     ],
     "holdings": [
@@ -166,84 +165,10 @@
     ],
     "totals": {
      "realized": "0.00",
-     "income": "80.00",
-     "expenses": "30.00"
+     "income": "50.00",
+     "expenses": "0.00"
     },
     "journal": [
-     {
-      "event": "deposit",
-      "account": "holding",
-      "compartment": "spot",
-      "asset": "USD",
-      "debit": "0",
-      "credit": "1000.00"
-     },
-     {
-      "event": "deposit",
-      "account": "holding",
-      "compartment": "spot",
-      "asset": "USDT",
-      "debit": "1000.00",
-      "credit": "0"
-     },
-     {
-      "event": "to-copy-out",
-      "account": "holding",
-      "compartment": "spot",
-      "asset": "USDT",
-      "debit": "0",
-      "credit": "1000.00"
-     },
-     {
-      "event": "to-copy-out",
-      "account": "holding",
-      "compartment": "copytrade",
-      "asset": "USDT",
-      "debit": "1000.00",
-      "credit": "0"
-     },
-     {
-      "event": "snapshot-1",
-      "account": "income",
-      "compartment": "copytrade",
-      "asset": "USDT",
-      "label": "performance",
-      "debit": "0",
-      "credit": "80.00"
-     },
-     {
-      "event": "snapshot-1",
-      "account": "holding",
-      "compartment": "copytrade",
-      "asset": "USDT",
-      "debit": "80.00",
-      "credit": "0"
-     },
-     {
-      "event": "snapshot-2",
-      "account": "expense",
-      "compartment": "copytrade",
-      "asset": "USDT",
-      "label": "performance",
-      "debit": "30.00",
-      "credit": "0"
-     },
-     {
-      "event": "snapshot-2",
-      "account": "holding",
-      "compartment": "copytrade",
-      "asset": "USDT",
-      "debit": "0",
-      "credit": "30.00"
-     },
-     {
-      "event": "back-out",
-      "account": "holding",
-      "compartment": "copytrade",
-      "asset": "USDT",
-      "debit": "0",
-      "credit": "1050.00"
-     },
      {
       "event": "back-out",
       "account": "holding",
@@ -251,9 +176,27 @@
       "asset": "USDT",
       "debit": "1050.00",
       "credit": "0"
+     },
+     {
+      "event": "back-out",
+      "account": "holding",
+      "compartment": "copytrade",
+      "asset": "position:opaque:copytrade",
+      "debit": "0",
+      "credit": "1000.00"
+     },
+     {
+      "event": "back-out",
+      "account": "income",
+      "compartment": "copytrade",
+      "asset": "position:opaque:copytrade",
+      "label": "performance",
+      "debit": "0",
+      "credit": "50.00"
      }
     ]
-   }
+   },
+   "note": "interim rule (specs#135): results only at redemptions and at an empty compartment; no true-ups of open positions; the guide recognises +80 and \u221230 at the snapshots, the same +50 in total"
   }
  ]
 }
