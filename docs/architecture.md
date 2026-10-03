@@ -34,9 +34,10 @@
 | `engine/lots.py` | `LotBook`: open lots per key, sign-crossing closes and FIFO/LIFO/HIFO/average consumption order. | `engine`, `model`, `pricing` |
 | `engine/operations.py` | Structural checks and stable causal ordering for generic basis operations. | `engine`, `model`, `pricing` |
 | `engine/perps.py` | Open perpetual positions on a settled basis: fill pairing, entry basis per `perp_cost_method`, realized P&L in the settlement asset. | `engine`, `model`, `pricing` |
+| `engine/records.py` | A lot book's records: the working `OpenLot`, `Consumed` and `Applied`, the HIFO rank, and exact allocation of a lot's origins. | `engine`, `model`, `pricing` |
 | `engine/rollovers.py` | Rollovers: atomic basis carries, with allocation by market value across several outputs. | `engine`, `model`, `pricing` |
 | `engine/rounding.py` | Rounds functional-currency money outputs to the minor unit, recomputing derived amounts from rounded parts. | `engine`, `model`, `pricing` |
 | `engine/series.py` | The P&L series: a point per grid instant from the engine's state, valued at market, with the total-P&L check. | `engine`, `model`, `pricing` |
-| `engine/totals.py` | Per-key running totals of a lot book: the context position sum without summing lots, and exact decisions within its rounding margin. | `engine`, `model`, `pricing` |
+| `engine/totals.py` | A lot book's exact quantities: per-key running totals of quantity and basis, and the 1e-18 quantity net (policy 05 rule 20.3). | `engine`, `model`, `pricing` |
 | `engine/transfers.py` | Transfers: linked pairs at carried basis, unlinked ones by their boundary basis, income before transfers. | `engine`, `model`, `pricing` |
 <!-- structure:end -->

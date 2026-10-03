@@ -37,8 +37,9 @@ __init__ = ["engine", "valuation", "pricing"]
 "engine/rollovers.py" = { doc = "Rollovers: atomic basis carries, with allocation by market value across several outputs." }
 "engine/journal.py" = { doc = "The double-entry journal recorded as the engine books: lines per event on named accounts, rounded against the result rows, balance checked." }
 "engine/lots.py" = { doc = "`LotBook`: open lots per key, sign-crossing closes and FIFO/LIFO/HIFO/average consumption order." }
+"engine/records.py" = { doc = "A lot book's records: the working `OpenLot`, `Consumed` and `Applied`, the HIFO rank, and exact allocation of a lot's origins." }
 "engine/perps.py" = { doc = "Open perpetual positions on a settled basis: fill pairing, entry basis per `perp_cost_method`, realized P&L in the settlement asset." }
-"engine/totals.py" = { doc = "Per-key running totals of a lot book: the context position sum without summing lots, and exact decisions within its rounding margin." }
+"engine/totals.py" = { doc = "A lot book's exact quantities: per-key running totals of quantity and basis, and the 1e-18 quantity net (policy 05 rule 20.3)." }
 "engine/series.py" = { doc = "The P&L series: a point per grid instant from the engine's state, valued at market, with the total-P&L check." }
 "engine/operations.py" = { doc = "Structural checks and stable causal ordering for generic basis operations." }
 "engine/rounding.py" = { doc = "Rounds functional-currency money outputs to the minor unit, recomputing derived amounts from rounded parts." }

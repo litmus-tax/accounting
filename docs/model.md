@@ -165,6 +165,7 @@ Prices are asked through the same pricing protocol and recorded in `Result.price
 | `unbalanced` | an event's journal does not balance before rounding | yes |
 | `series_mismatch` | a series point whose total P&L differs from net assets minus contributions | yes |
 | `invalid_grid` | a grid instant without a timezone; skipped | no |
+| `quantity_residue` | information: a take or change would have left a holding nonzero but smaller than 1e-18; treated as zero (policy 05 rule 20.3), `detail` names `asset`, `compartment` and `residue` | no |
 
 ### `Valuation` and `Position`
 

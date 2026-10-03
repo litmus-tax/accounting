@@ -62,10 +62,17 @@ following records and origins reaches original acquisitions.
 All decimal arithmetic runs in the engine's own decimal context
 (`engine.arithmetic.CONTEXT`: 28 significant digits, half-even, the Python
 default), whatever the caller's context is, so the same ledger gives the same
-result bytes on any machine (policy 05 rule 2.2). For rollover-participating lots, finite sums/subtractions use enough precision
-to preserve their exact represented values. Ordinary lots retain the baseline
-Decimal operation order, including that context's rounding; this prevents
-incidental changes at historical half-cent realization thresholds. The final output receives each input's monetary division
+result bytes on any machine (policy 05 rule 2.2). Quantities are exact (policy 05
+rule 20.3): the lot book only adds, subtracts and compares them, always without
+rounding, and a position is the exact sum of its lots, so splitting a lot never
+loses precision. Only basis is divided, in the context. A take or a change that
+would leave a holding nonzero but smaller than `1e-18` (`engine.totals.NET`) treats
+it as zero: a shortfall is discarded, or the crumb's lots go with the take and
+release their basis with it, and a `quantity_residue` item names the asset,
+compartment and residue. For rollover-participating lots, finite basis sums and
+subtractions use enough precision to preserve their exact represented values.
+Ordinary lots retain the baseline Decimal operation order for basis, including
+the context's rounding. The final output receives each input's monetary division
 residue. The largest weighted slice receives unit-quantity residue, avoiding loss
 of a tiny final contribution. Thus exact finite-decimal sums satisfy:
 

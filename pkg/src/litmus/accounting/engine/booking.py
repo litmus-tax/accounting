@@ -9,6 +9,7 @@ from decimal import Decimal
 
 from litmus.accounting.engine.core import Core
 from litmus.accounting.engine.perps import fills
+from litmus.accounting.engine.totals import EXACT
 from litmus.accounting.model import (
   Event,
   Flow,
@@ -47,8 +48,8 @@ class Booking(Core):
       return
     applied = self.lots(event, leg, value, fees=fees, acquired=acquired)
     scope = (leg.compartment, leg.asset)
-    self.scope_positions[scope] = (
-      self.scope_positions.get(scope, Decimal(0)) + leg.quantity
+    self.scope_positions[scope] = EXACT.add(
+      self.scope_positions.get(scope, Decimal(0)), leg.quantity
     )
     position = self.scope_positions[scope] if self.notional_scopes else applied.position
     if (
@@ -90,7 +91,7 @@ class Booking(Core):
       if quantity:
         share = quantity / leg.quantity
         book(event, replace(leg, quantity=quantity), value * share, fees=fees * share)
-    self.scope_positions[scope] = held + leg.quantity
+    self.scope_positions[scope] = EXACT.add(held, leg.quantity)
 
   def owe(self, event: Event, leg: Leg, value: Decimal, *, fees: Decimal = Decimal(0)):
     """A settlement shortfall: the liability grows by the outflow's quantity at its market value."""

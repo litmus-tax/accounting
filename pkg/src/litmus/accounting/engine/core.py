@@ -9,7 +9,9 @@ from datetime import datetime
 from decimal import Decimal
 
 from litmus.accounting.engine.journal import Journal
-from litmus.accounting.engine.lots import Applied, LotBook, LotKey
+from litmus.accounting.engine.lots import LotBook
+from litmus.accounting.engine.records import Applied
+from litmus.accounting.engine.totals import LotKey
 from litmus.accounting.engine.perps import PositionBook
 from litmus.accounting.model import (
   Event,
@@ -65,8 +67,6 @@ class Core:
     self.valuer = Valuer(pricing, policy)
     self.book = LotBook(policy.cost_method, origins=policy.cost_method != 'average')
     """Under `average` a pool is quantity and total cost only: no origins (policy 05 rule 18.2)."""
-    self.book.report_position = not policy.notional_scopes
-    """`Applied.position` is read only without notional scopes (`book_leg`)."""
     self.liabilities: dict[tuple[str, str], OpenLiability] = {}
     self.realized: list[Realized] = []
     self.flows: list[Flow] = []
@@ -101,6 +101,30 @@ class Core:
   def report(self, code: ExceptionCode, event: str | None, message: str, **detail: str):
     """Append to the exceptions report."""
     self.exceptions.append(ExceptionItem(code, event, message, detail))
+
+  def residues(self, event: Event):
+    """
+    Report each holding the quantity net treated as zero while `event` was
+    booked (policy 05 rule 20.3), so that new crumbs stay visible. The items
+    are informational: the run stays complete.
+    """
+    for book in (self.book, *self.perps.books.values()):
+      for residue in book.residues:
+        compartment, asset = residue.key
+        if compartment is None:
+          compartment = next(
+            (leg.compartment for leg in event.legs if leg.asset == asset), ''
+          )
+        self.report(
+          'quantity_residue',
+          event.id,
+          f'{asset} in {compartment}: a holding of {residue.quantity} was treated '
+          'as zero (quantity net, policy 05 rule 20.3)',
+          asset=asset,
+          compartment=compartment,
+          residue=str(residue.quantity),
+        )
+      book.residues.clear()
 
   def unbooked(self, event: Event, leg: Leg, reason: str):
     """Record that a leg was left out of the books; the run is then incomplete."""

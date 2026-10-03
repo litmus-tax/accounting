@@ -1,4 +1,4 @@
-"""The pre-#17 `LotBook` (543bbfc), kept verbatim as a test oracle for the linear lot book; only `origins=`, `sign()` and `fork()` are shims for the current engine's calls."""
+"""The pre-#17 `LotBook` (543bbfc), kept as a test oracle for the linear lot book; only `origins=`, `sign()` and `fork()` are shims for the current engine's calls. Since accounting 0.10 its quantity arithmetic is exact, as policy 05 rule 20.3 requires: quantities are added, subtracted and compared without rounding. It has no quantity net."""
 
 from dataclasses import dataclass, replace
 from datetime import datetime
@@ -91,6 +91,8 @@ class LotBook:
     """Shim: this book always tracks origins, as the engine did before #26."""
     self.lots: dict[LotKey, list[OpenLot]] = {}
     self.counter = 0
+    self.residues: list[object] = []
+    """Shim for the current engine's call: this book has no quantity net, so it records none."""
 
   def next_id(self) -> str:
     """Sequential lot id."""
@@ -109,7 +111,7 @@ class LotBook:
 
   def position(self, key: LotKey) -> Decimal:
     """Net signed quantity held under `key`."""
-    return sum((lot.quantity for lot in self.lots.get(key, [])), Decimal(0))
+    return exact_sum(lot.quantity for lot in self.lots.get(key, []))
 
   def order(self, lots: list[OpenLot]) -> list[OpenLot]:
     """
@@ -143,7 +145,7 @@ class LotBook:
     lots = self.lots.setdefault(key, [])
     if self.method == 'average' and lots:
       pool = lots[0]
-      pool.quantity += quantity
+      pool.quantity = exact_sum((pool.quantity, quantity))
       pool.exact_basis = pool.exact_basis or exact_basis
       pool.cost = exact_sum((pool.cost, cost)) if pool.exact_basis else pool.cost + cost
       pool.origins += origins
@@ -178,7 +180,7 @@ class LotBook:
     removed. Takes less than asked when the key holds less.
     """
     lots = self.lots.get(key, [])
-    remaining = abs(quantity)
+    remaining = quantity.copy_abs()
     out: list[tuple[OpenLot, Decimal, Decimal]] = []
     ordered = (
       self.order(lots)
@@ -189,15 +191,18 @@ class LotBook:
       if remaining == 0:
         break
       lot.exact_basis = lot.exact_basis or exact_basis
-      take = min(remaining, abs(lot.quantity))
+      take = min(remaining, lot.quantity.copy_abs())
       share = (
         lot.cost
-        if lot.exact_basis and take == abs(lot.quantity)
-        else lot.cost * take / abs(lot.quantity)
+        if lot.exact_basis and take == lot.quantity.copy_abs()
+        else lot.cost * take / lot.quantity.copy_abs()
       )
-      origins = split_origins(lot.origins, take / abs(lot.quantity), share)
+      origins = split_origins(lot.origins, take / lot.quantity.copy_abs(), share)
       consumed = replace(
-        lot, quantity=take * sign(lot.quantity), cost=share, origins=origins
+        lot,
+        quantity=take if lot.quantity > 0 else take.copy_negate(),
+        cost=share,
+        origins=origins,
       )
       lot.origins = tuple(
         replace(origin, cost=difference(origin.cost, used.cost))
@@ -206,9 +211,9 @@ class LotBook:
       lot.cost = difference(lot.cost, share) if lot.exact_basis else lot.cost - share
       if not lot.exact_basis:
         lot.origins = split_origins(lot.origins, Decimal(1), lot.cost)
-      lot.quantity -= take * sign(lot.quantity)
+      lot.quantity = difference(lot.quantity, consumed.quantity)
       out.append((consumed, take, share))
-      remaining -= take
+      remaining = difference(remaining, take)
       if lot.quantity == 0:
         lots.remove(lot)
     return out
@@ -240,15 +245,15 @@ class LotBook:
     opened: OpenLot | None = None
     close_qty = Decimal(0)
     if sign(pos) == -sign(quantity):
-      close_qty = min(abs(pos), abs(quantity)) * sign(quantity)
+      close_qty = min(pos.copy_abs(), quantity.copy_abs()).copy_sign(quantity)
       closed = self.close(key, close_qty)
-    open_qty = quantity - close_qty
+    open_qty = difference(quantity, close_qty)
     if open_qty != 0:
       open_value = value * open_qty / quantity
       opened = self.open(
         key, quantity=open_qty, cost=open_value, time=time, event=event
       )
-    return Applied(closed=closed, opened=opened, position=pos + quantity)
+    return Applied(closed=closed, opened=opened, position=exact_sum((pos, quantity)))
 
   def move(
     self, src: LotKey, dst: LotKey, quantity: Decimal
@@ -264,7 +269,7 @@ class LotBook:
     created = [
       self.open(
         dst,
-        quantity=take * sign(quantity),
+        quantity=take if quantity > 0 else take.copy_negate(),
         cost=share,
         time=lot.acquired,
         event=lot.event,
@@ -275,7 +280,9 @@ class LotBook:
     ]
     return (
       Consumed(
-        quantity=sum((take * sign(quantity) for _, take, _ in taken), Decimal(0)),
+        quantity=exact_sum(
+          take if quantity > 0 else take.copy_negate() for _, take, _ in taken
+        ),
         cost=exact_sum(share for _, _, share in taken)
         if any(lot.exact_basis for lot, _, _ in taken)
         else sum((share for _, _, share in taken), Decimal(0)),

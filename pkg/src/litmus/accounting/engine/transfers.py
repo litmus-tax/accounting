@@ -11,6 +11,7 @@ from decimal import Decimal
 from litmus.accounting.engine.arithmetic import exact_sum
 from litmus.accounting.engine.checks import Linked, pairs, sides
 from litmus.accounting.engine.debt import Debt
+from litmus.accounting.engine.totals import EXACT
 from litmus.accounting.model import (
   Event,
   Leg,
@@ -101,13 +102,15 @@ class Transfers(Debt):
       self.book_leg(event, leg, cost, acquired=leg.acquired)
       return
     taken = self.book.take(key, -leg.quantity)
-    moved = sum((quantity for _, quantity, _ in taken), Decimal(0))
+    moved = exact_sum(quantity for _, quantity, _ in taken)
     cost = exact_sum(share for _, _, share in taken)
     self.journal.add(event, 'holding', -cost, compartment=key[0], asset=leg.asset)
     self.journal.add(
       event, 'external', cost, compartment=leg.compartment, asset=leg.asset
     )
-    self.scope_positions[scope] = self.scope_positions.get(scope, Decimal(0)) - moved
+    self.scope_positions[scope] = EXACT.subtract(
+      self.scope_positions.get(scope, Decimal(0)), moved
+    )
     if moved < -leg.quantity:
       self.unbooked(event, leg, f'only {moved} {leg.asset} held to carry out at cost')
 
@@ -160,8 +163,8 @@ class Transfers(Debt):
         continue
       for leg in (a, b):
         scope = (leg.compartment, leg.asset)
-        self.scope_positions[scope] = (
-          self.scope_positions.get(scope, Decimal(0)) + leg.quantity
+        self.scope_positions[scope] = EXACT.add(
+          self.scope_positions.get(scope, Decimal(0)), leg.quantity
         )
       source_scope = (a.compartment, a.asset)
       source_position = self.scope_positions[source_scope]
