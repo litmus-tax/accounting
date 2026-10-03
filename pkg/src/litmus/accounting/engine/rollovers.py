@@ -7,7 +7,9 @@ from dataclasses import replace
 from decimal import Decimal
 
 from litmus.accounting.engine.arithmetic import difference, exact_sum
-from litmus.accounting.engine.lots import split_origins
+from litmus.accounting.engine.records import split_origins
+from litmus.accounting.engine.totals import crumb
+from litmus.accounting.engine.totals import EXACT
 from litmus.accounting.engine.transfers import Transfers
 from litmus.accounting.model import (
   Event,
@@ -106,11 +108,15 @@ class Rollovers(Transfers):
       ):
         reason = 'selected lot does not exist under the input identity'
         break
-      available = sum(
-        (lot.quantity for lot in candidates if not item.lots or lot.id in item.lots),
-        Decimal(0),
+      available = exact_sum(
+        lot.quantity for lot in candidates if not item.lots or lot.id in item.lots
       )
-      if available < -leg.quantity or any(lot.quantity < 0 for lot in candidates):
+      # A shortfall smaller than the quantity net is a crumb the take discards
+      # (policy 05 rule 20.3).
+      short = difference(-leg.quantity, available)
+      if (short > 0 and not crumb(short)) or any(
+        lot.quantity < 0 for lot in candidates
+      ):
         reason = 'insufficient positive input lots'
         break
       for lot, quantity, cost in book.take(
@@ -261,8 +267,8 @@ class Rollovers(Transfers):
     for leg in event.legs:
       if leg.tag == 'rollover':
         scope = (leg.compartment, leg.asset)
-        self.scope_positions[scope] = (
-          self.scope_positions.get(scope, Decimal(0)) + leg.quantity
+        self.scope_positions[scope] = EXACT.add(
+          self.scope_positions.get(scope, Decimal(0)), leg.quantity
         )
     self.rollovers.append(
       RolloverRecord(

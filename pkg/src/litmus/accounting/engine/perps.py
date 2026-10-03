@@ -85,8 +85,6 @@ class PositionBook:
       'notional': LotBook(perp_cost_method, origins=False),
       'pnl': LotBook('average', origins=False),
     }
-    for book in self.books.values():
-      book.report_position = False
     self.terms: dict[PositionKey, tuple[Settlement, str]] = {}
 
   def conflict(self, fill: Fill) -> bool:
@@ -129,7 +127,7 @@ class PositionBook:
     ):
       book = self.books[settlement]
       lots = book.lots.get((compartment, instrument), [])
-      size = sum((lot.quantity for lot in lots), Decimal(0))
+      size = book.position((compartment, instrument))
       if size == 0:
         continue
       entry = sum((lot.cost for lot in lots), Decimal(0))

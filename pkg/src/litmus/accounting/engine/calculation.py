@@ -181,6 +181,7 @@ def run(
       continue
     before = len(engine.exceptions)
     engine.process(e, checked.linked)
+    engine.residues(e)
     if any(item.code == 'unbooked' for item in engine.exceptions[before:]):
       failed.add(e.id)
   snapshot(None)

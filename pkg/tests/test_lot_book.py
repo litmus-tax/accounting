@@ -34,9 +34,9 @@ def state(book: lots.LotBook | reference_lots.LotBook) -> dict[str, tuple[D, D]]
   }
 
 
-def test_a_walked_lot_left_with_a_residue_is_kept_and_an_emptied_one_dropped():
-  """The owner's crash: rounding leaves a residue in a walked lot while a later lot empties."""
-  # policy 05 rule 2.2 (determinism); regression for #17 on the owner's ledger
+def test_taking_what_is_held_empties_the_key_without_a_residue():
+  """The owner's crash: lots needing more than 28 digits to add up are taken exactly, leaving no residue lot."""
+  # policy 05 rule 20.3 (quantities are exact); regression for #17 on the owner's ledger
   quantities = [
     '0.01003307145546695169717495902',
     '0.01783806158285971680860112723',
@@ -53,14 +53,10 @@ def test_a_walked_lot_left_with_a_residue_is_kept_and_an_emptied_one_dropped():
         time=T0 + timedelta(days=day),
         event=f'e{day}',
       )
-    book.take(KEY, D('-0.5111560895693274860000000000'))
+    book.take(KEY, -sum((D(q) for q in quantities), D(0)))
   new, old = books
-  assert state(new) == state(old)
-  assert all(lot.quantity != 0 for lot in new.lots[KEY])
-  assert new.position(KEY) == sum((lot.quantity for lot in new.lots[KEY]), D(0))
-  # A second take no longer divides by a zero-quantity lot.
-  new.take(KEY, D('-1'))
-  assert new.lots[KEY] == []
+  assert state(new) == state(old) == {}
+  assert new.position(KEY) == 0 and new.residues == []
 
 
 def fields(
@@ -249,9 +245,9 @@ def without_origins(result: str) -> object:
   return strip(json.loads(result))
 
 
-def test_position_keeps_the_context_sum_where_the_lots_need_more_digits():
-  """Where lot quantities need more than 28 digits to add up, the position is the old context-rounded sum."""
-  # policy 05 rule 2.2: results stay byte-identical with the pre-#17 book
+def test_position_is_the_exact_sum_where_the_lots_need_more_digits():
+  """Where lot quantities need more than 28 digits to add up, the position is still their exact sum."""
+  # policy 05 rule 20.3: quantities are never rounded
   books = [lots.LotBook('fifo'), reference_lots.LotBook('fifo')]
   for book in books:
     for day, q in enumerate(
@@ -261,8 +257,8 @@ def test_position_keeps_the_context_sum_where_the_lots_need_more_digits():
         KEY, quantity=D(q), cost=D(1), time=T0 + timedelta(days=day), event=f'e{day}'
       )
   new, old = books
-  assert new.position(KEY) == old.position(KEY) == D('12.49325969333867107519139887')
-  assert new.totals[KEY] == D('12.4932596933386710751913988690')
+  assert new.position(KEY) == old.position(KEY) == D('12.4932596933386710751913988690')
+  assert new.totals[KEY] == new.position(KEY)
 
 
 def test_an_average_pool_is_quantity_and_cost_only():
