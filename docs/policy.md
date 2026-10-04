@@ -31,6 +31,8 @@ A fee leg is any leg with `fee: true`; it must be negative.
 1. `expense` (default): every fee is an expense `Flow` at market value and, when paid in a non-functional asset, a disposal of that asset at market (with its own realized PnL). It never touches the basis or proceeds of the trade it belongs to.
 2. `capitalize`: on an event that has trade legs, the fee legs are valued at market and folded into the non-fixing side of the trade. If that side is received (an acquisition, e.g. buying BTC with EUR or opening a perp with USDC) the fee value is added to the basis of the lots opened. If that side is given (a disposal, e.g. selling BTC for EUR or closing a perp) the fee value is deducted from proceeds, and the `Realized` row reports it in `fees`. No `Flow` is emitted for those fees. The fee legs still leave their own lots (a USDC fee reduces the USDC lots at market). Fees on events without trade legs (transfer fees, gas on a plain transfer, funding) remain expenses.
 
+A fee leg in an opaque compartment is never capitalised: it is an expense that reduces the position's remaining cost, and without a price it stays in the compartment's `performance` (policy 05 rule 14.14; [model](model.md#opaque-positions)).
+
 A trade whose fee cannot be priced is left entirely unbooked (`price_gap` plus one `unbooked` per leg), like a trade whose fixing side cannot be priced.
 
 ## Liabilities

@@ -45,7 +45,8 @@ class Engine(Rollovers):
   def process(self, event: Event, linked: Linked):
     """
     Book one event: borrows, trades, fills, income, transfers, repays,
-    expenses, then fees, and last whether its `contents` legs left an opaque
+    expenses, then fees (those inside an opaque compartment reduce its
+    position's cost, rule 14.14), and last whether its `contents` legs left an opaque
     compartment empty (policy 05 rule 14).
     """
     self.track(event)
@@ -67,14 +68,13 @@ class Engine(Rollovers):
     rollover_fees: set[int] = (
       set(event.rollover.capitalized_fee_legs) if event.rollover else set()
     )
-    fees = [
+    paid = [
       leg
       for index, leg in enumerate(event.legs)
-      if leg.fee
-      and index not in rollover_fees
-      and leg not in misplaced
-      and leg.compartment not in self.opaque
+      if leg.fee and index not in rollover_fees and leg not in misplaced
     ]
+    fees = [leg for leg in paid if leg.compartment not in self.opaque]
+    inside = [leg for leg in paid if leg.compartment in self.opaque]
     capitalized = bool(trades) and self.policy.fee_treatment == 'capitalize'
     for leg in borrows:
       self.borrow(event, leg)
@@ -91,6 +91,8 @@ class Engine(Rollovers):
     if not capitalized:
       for leg in fees:
         self.flow(event, leg)
+    for leg in inside:
+      self.fee_inside(event, leg)
     self.emptied(event)
 
 
