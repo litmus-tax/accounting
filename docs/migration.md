@@ -1,6 +1,6 @@
 # Versions, migration and extension
 
-Distribution version is 0.13.0. `Ledger.schema_version` accepts `0.2` to `0.13`
+Distribution version is 0.13.1. `Ledger.schema_version` accepts `0.2` to `0.13`
 and defaults to `0.13`; Result explicitly emits `schema_version:"0.13"`.
 Omitting the input version preserves ordinary historical ledgers. New callers
 should pin 0.10 and validate against this repo's generated schemas. The package is
@@ -29,6 +29,17 @@ revision.
 | `0.11` | Opaque positions (policy 05 rule 14, owner, 2026-10-03; interim rule of specs#135). Ledger: `Policy.opaque_compartments` and tag `contents`. Each opaque compartment is one position `position:opaque:<compartment>`, lots of functional-currency units at a cost of 1: a linked transfer in carries the coins' basis into it (a `Move`), a transfer out is a redemption at market value that releases cost up to that value, the excess a `performance` income `Flow` whose asset is the position; `contents` legs track what it holds, and leaving it empty books the cost left as a `performance` expense. No true-up of an open position. Series points value a position from its contents, at least zero. A fee leg in an opaque compartment is paid from inside it: it counts in the contents and books nothing. Any other leg in an opaque compartment is `unbooked`. | Send each opaque compartment (`visibility: opaque` in the unit's `/compartments`) in `opaque_compartments`, and an `opaque_result`'s legs as `contents` legs instead of `performance` income or expense. Expect `performance` flows on `position:opaque:` assets, one line per compartment, and position lots in `lots`. Ledgers without `opaque_compartments` book as before. Results sealed under `0.10` are refused by `parse_result`. |
 | `0.12` | Accounting computes realized results, flows and cost only (policy 05 rules 1.5 and 39.9; owner, 2026-10-03, specs#135). Removed: `run(grid=...)`, `Ledger.grid`, `Ledger.max_age`, `Result.series` and the `SeriesPoint` family, `value()` with `Valuation`, `Position` and `LiabilityPosition`, the CLI `value` verb and the `valuation` schema, `Policy.liability_valuation` (decision 24: liabilities are carried at cost until repaid), and the exception codes `series_mismatch` and `invalid_grid`. `TablePricing` is daily: a row prices its own UTC day from its time on and nothing carries forward. Added: `Result.open_rows` (`OpenRow`: holdings, opaque positions, liabilities at carrying value and open positions at entry basis, at the end of the run, term 14) and the exception code `cost_identity`, checked after every atomic group without prices (rule 39.5.1). | Stop sending `grid`, `max_age` and `liability_valuation`, and the prices of holdings: send only the prices events need, one row per (asset, UTC day) the caller resolved (its stale, peg and first-available rules). Read the remaining cost from `open_rows`, and value holdings in the caller (portfolio's live layer, rule 39). Accept `cost_identity` wherever exception codes are enumerated; it makes the result incomplete. Results sealed under `0.11` are refused by `parse_result`. |
 | `0.13` | Fees inside an opaque compartment (policy 05 rule 14.14, owner, 2026-10-04). A fee leg in an opaque compartment is a fee expense `Flow` (`fee: true`, its own label) at market value at its time, never capitalised, and the position's remaining cost falls by that value; value beyond the remaining cost is a `performance` gain at the fee's time. The leg still counts in the contents. A fee without a price books nothing, stays in the compartment's `performance`, and raises the new exception code `unpriced_opaque_fee` (informational, the run stays complete) naming the asset, compartment and quantity. The ledger is unchanged. | Price fee legs in opaque compartments like any fee leg. Accept `unpriced_opaque_fee` wherever exception codes are enumerated, as information, never as an open issue. A compartment's `performance` now excludes its reported fees; its total result is unchanged. Results sealed under `0.12` are refused by `parse_result`. |
+
+Distribution 0.13.1 keeps result schema 0.13. Rebates inside an opaque
+compartment (policy 05 rule 14.14.6, owner, 2026-10-04): an `income` leg
+labelled `fee_rebate` in an opaque compartment, which 0.13.0 left `unbooked`, is
+`fee_rebate` income at market value at its time, and the position's remaining
+cost rises by that value; the leg counts in the contents. Without a price it
+books nothing, stays in the compartment's `performance`, and raises
+`unpriced_opaque_fee` (informational). Any other `income` leg there is still
+`unbooked`. Consumer impact: none in shape; serve a positive `fee` leg in an
+opaque compartment as an `income` leg labelled `fee_rebate`, as elsewhere
+(rule 7, row 2), and price it like any fee leg.
 
 Distribution 0.10.1 keeps result schema 0.10. Ledger (additive): `events`
 takes atomic groups (policy 05 rule 6.3, owner, 2026-10-03): each item is an

@@ -232,6 +232,78 @@ def test_a_fee_without_a_price_stays_in_the_result():
     ]
 
 
+def test_a_rebate_inside_raises_the_cost():
+  """A rebate the venue reports inside an opaque compartment is `fee_rebate` income at market value that raises the position's cost and counts in the contents, so `performance` excludes it (rule 14.14.6). In EUR at 0.9."""
+  events = [
+    event('buy', 1, leg('USDC', '100'), leg('EUR', '-90')),
+    *move('in', 2, 'USDC', '100', 'A', BOT),
+    event('rebate', 3, leg('USDC', '2', BOT, 'income', label='fee_rebate')),
+    event('snapshot', 4, leg('USDC', '-102', BOT, 'contents')),
+  ]
+  result = run(
+    events,
+    links=links('in'),
+    policy=opaque(),
+    pricing=FixedPricing({('USDC', 'EUR'): '0.9'}),
+  )
+  assert result.complete, result.exceptions
+  assert [(f.event, f.label, f.kind, f.fee, f.value) for f in result.flows] == [
+    ('rebate', 'fee_rebate', 'income', False, Decimal('1.8')),
+    ('snapshot', 'performance', 'expense', False, Decimal('91.8')),
+  ]
+
+
+def test_a_rebate_without_a_price_stays_in_the_result():
+  """A reported rebate that cannot be priced books no income and raises no cost; it still raises the contents, so it lands in `performance`, with the informational item of rule 14.14.3 (rule 14.14.6). The run stays complete, in strict mode too."""
+  events = [
+    event('buy', 1, leg('USDC', '100'), leg('EUR', '-100')),
+    *move('in', 2, 'USDC', '100', 'A', BOT),
+    event('rebate', 3, leg('USDC', '1', BOT, 'income', label='fee_rebate')),
+    *move('out', 5, 'USDC', '101', BOT, 'A'),
+  ]
+  prices = [
+    PriceRecord(
+      asset='USDC', quote='EUR', time=t(day), source='market', price=Decimal(1)
+    )
+    for day in (2, 5)
+  ]
+  for strict in (False, True):
+    result = run(
+      events,
+      links=links('in', 'out'),
+      policy=opaque(),
+      pricing=TablePricing(prices),
+      strict=strict,
+    )
+    assert result.complete, result.exceptions
+    (item,) = result.exceptions
+    assert (item.code, item.event, item.detail) == (
+      'unpriced_opaque_fee',
+      'rebate',
+      {'asset': 'USDC', 'compartment': BOT, 'quantity': '1'},
+    )
+    assert [(f.event, f.label, f.value) for f in result.flows] == [
+      ('out:out', 'performance', Decimal(1))
+    ]
+
+
+def test_other_income_inside_is_unbooked():
+  """Only a `fee_rebate` income leg is a rebate: any other income leg in an opaque compartment is unbooked (rule 14.1)."""
+  events = [
+    event('buy', 1, leg('USDC', '100'), leg('EUR', '-100')),
+    *move('in', 2, 'USDC', '100', 'A', BOT),
+    event('yield', 3, leg('USDC', '1', BOT, 'income', label='yield')),
+  ]
+  result = run(
+    events,
+    links=links('in'),
+    policy=opaque(),
+    pricing=FixedPricing({('USDC', 'EUR'): '1'}),
+  )
+  assert not result.complete
+  assert [item.code for item in result.exceptions] == ['unbooked']
+
+
 def test_a_fee_outside_the_compartment_is_an_ordinary_fee():
   """A withdrawal fee charged in spot is booked by rule 7 and touches neither the position's cost nor its contents (rule 14.14.4)."""
   events = [

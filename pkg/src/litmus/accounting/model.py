@@ -108,6 +108,8 @@ class Leg:
   Free-form sub-classification for reporting (`funding`, `gas`, `withdrawal`).
   On `borrow` and `repay` legs it describes the facility; `interest` on a
   `borrow` leg marks signed noncash accrual or reversal (see `LegTag`).
+  `fee_rebate` on an `income` leg in an opaque compartment marks a rebate the
+  venue reports inside it (policy 05 rule 14.14.6).
   """
   liability: str | None = None
   """
@@ -295,8 +297,9 @@ class Policy:
   `transfer` leg out of one is a redemption: the coin received opens a lot at
   market value, the position releases its cost up to that value, and any value
   beyond it is `performance` income. `contents` legs track what it holds; a fee
-  leg in it is paid from inside, part of its result, and books nothing of its
-  own; any other leg in it is unbooked. Results are recognised only at redemptions and
+  leg in it is a fee expense that reduces the position's cost, and an `income`
+  leg labelled `fee_rebate` in it is a rebate that raises it (policy 05 rule
+  14.14); any other leg in it is unbooked. Results are recognised only at redemptions and
   when `contents` legs leave it empty (interim rule, specs#135): no true-ups of
   a position still open.
   """
@@ -485,8 +488,9 @@ ExceptionCode = Literal[
   holding nonzero but smaller than 1e-18; it was treated as zero, its basis
   released with the take (policy 05 rule 20.3). `detail` names the `asset`,
   `compartment` and `residue`. Never makes the run incomplete.
-- `unpriced_opaque_fee`: informational. A fee leg inside an opaque compartment
-  had no price at its time: it books no expense and reduces no cost, and stays
+- `unpriced_opaque_fee`: informational. A fee leg (or a `fee_rebate` income
+  leg) inside an opaque compartment had no price at its time: it books no
+  expense (or income) and changes no cost, and stays
   in the compartment's `performance` through its contents (policy 05 rule
   14.14.3). `detail` names the `asset`, `compartment` and `quantity`; the event
   is the record. Never makes the run incomplete.
