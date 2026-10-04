@@ -20,9 +20,23 @@
     "price": "1"
    },
    {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2026-09-02T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
     "asset": "USDT",
     "quote": "USD",
     "time": "2026-09-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDT",
+    "quote": "USD",
+    "time": "2026-09-02T00:00:00Z",
     "source": "market",
     "price": "1"
    },
@@ -107,9 +121,6 @@
      }
     ]
    }
-  ],
-  "grid": [
-   "2026-09-30T10:07:00Z"
   ]
  },
  "cases": [
@@ -117,9 +128,6 @@
    "name": "books",
    "rules": [
     "29",
-    "39.3",
-    "39.4",
-    "39.5",
     "8.1",
     "8.2",
     "8.3",
@@ -183,33 +191,32 @@
       "debit": "0",
       "credit": "2.74"
      }
-    ],
-    "series": [
+    ]
+   }
+  },
+  {
+   "name": "books-as-of",
+   "rules": [
+    "39.5.1",
+    "term 14"
+   ],
+   "as_of": "2026-09-30T10:07:00Z",
+   "expected": {
+    "complete": true,
+    "open_rows": [
      {
-      "at": "2026-09-30T10:07:00Z",
-      "complete": true,
-      "positions": [
-       {
-        "compartment": "aster:perp",
-        "unrealized": "44.86"
-       },
-       {
-        "compartment": "lighter:perp",
-        "unrealized": "-45.65"
-       }
-      ],
-      "liabilities": [
-       {
-        "compartment": "aster:perp",
-        "asset": "USDT",
-        "quantity": "2.735981",
-        "value": "2.74",
-        "unrealized": "0.00"
-       }
-      ],
-      "contributions": "896.34",
-      "net_assets": "892.81",
-      "total_pnl": "-3.53"
+      "kind": "liability",
+      "compartment": "aster:perp",
+      "asset": "USDT",
+      "quantity": "2.735981"
+     },
+     {
+      "kind": "position",
+      "compartment": "aster:perp"
+     },
+     {
+      "kind": "position",
+      "compartment": "lighter:perp"
      }
     ]
    }

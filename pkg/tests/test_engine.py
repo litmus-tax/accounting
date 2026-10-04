@@ -286,7 +286,7 @@ def test_the_caller_decimal_context_does_not_change_the_result():
   """The same ledger gives the same result bytes under any ambient decimal context."""
   # policy 05 rule 2.2 (gap 13)
   from decimal import ROUND_DOWN, localcontext
-  from litmus.accounting import codec, value
+  from litmus.accounting import codec
 
   events = [
     event('buy', 1, leg('BTC', '3'), leg('EUR', '-10000')),
@@ -295,11 +295,10 @@ def test_the_caller_decimal_context_does_not_change_the_result():
   ]
   prices = FixedPricing({('BTC', 'EUR'): '3333.333333333333333333'})
 
-  def books() -> tuple[str, str]:
-    """Run and value the ledger, as JSON."""
+  def books() -> str:
+    """Run the ledger, as JSON."""
     r = run(events, policy=policy('average', minor_unit=2), pricing=prices)
-    v = value(r.lots, at=t(4), policy=policy('average', minor_unit=2), pricing=prices)
-    return codec.dump_result(r), codec.dump_valuation(v)
+    return codec.dump_result(r)
 
   expected = books()
   with localcontext() as context:

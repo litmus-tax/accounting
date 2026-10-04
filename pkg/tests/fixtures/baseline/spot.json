@@ -10,8 +10,7 @@
     "trade_valuation": "received",
     "fee_treatment": "capitalize",
     "position_assets": [],
-    "minor_unit": 2,
-    "liability_valuation": "cost"
+    "minor_unit": 2
   },
   "lots": [
     {

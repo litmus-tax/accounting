@@ -11,8 +11,9 @@
     "fee_treatment": "expense",
     "position_assets": [],
     "minor_unit": null,
-    "liability_valuation": "cost",
-    "notional_scopes": []
+    "notional_scopes": [],
+    "perp_cost_method": "average",
+    "opaque_compartments": []
   },
   "lots": [],
   "liabilities": [],
@@ -147,5 +148,108 @@
       "cost_reference": null
     }
   ],
-  "schema_version": "0.3"
+  "positions": [],
+  "journal": [
+    {
+      "event": "evidence:opening",
+      "time": "2026-01-01T00:00:00Z",
+      "account": "holding",
+      "compartment": "wallet",
+      "asset": "EUR",
+      "label": null,
+      "debit": "0",
+      "credit": "1000"
+    },
+    {
+      "event": "evidence:opening",
+      "time": "2026-01-01T00:00:00Z",
+      "account": "holding",
+      "compartment": "wallet",
+      "asset": "TOKEN",
+      "label": null,
+      "debit": "1000",
+      "credit": "0"
+    },
+    {
+      "event": "evidence:entry",
+      "time": "2026-02-01T00:00:00Z",
+      "account": "holding",
+      "compartment": "wallet",
+      "asset": "TOKEN",
+      "label": null,
+      "debit": "0",
+      "credit": "1000"
+    },
+    {
+      "event": "evidence:entry",
+      "time": "2026-02-01T00:00:00Z",
+      "account": "holding",
+      "compartment": "wallet",
+      "asset": "RECEIPT",
+      "label": null,
+      "debit": "1000",
+      "credit": "0"
+    },
+    {
+      "event": "evidence:withdraw-request",
+      "time": "2026-03-01T00:00:00Z",
+      "account": "holding",
+      "compartment": "wallet",
+      "asset": "RECEIPT",
+      "label": null,
+      "debit": "0",
+      "credit": "1000"
+    },
+    {
+      "event": "evidence:withdraw-request",
+      "time": "2026-03-01T00:00:00Z",
+      "account": "holding",
+      "compartment": "wallet",
+      "asset": "CLAIM",
+      "label": null,
+      "debit": "1000",
+      "credit": "0"
+    },
+    {
+      "event": "evidence:claim-settlement",
+      "time": "2026-04-01T00:00:00Z",
+      "account": "holding",
+      "compartment": "wallet",
+      "asset": "EUR",
+      "label": null,
+      "debit": "1300",
+      "credit": "0"
+    },
+    {
+      "event": "evidence:claim-settlement",
+      "time": "2026-04-01T00:00:00Z",
+      "account": "holding",
+      "compartment": "wallet",
+      "asset": "CLAIM",
+      "label": null,
+      "debit": "0",
+      "credit": "1000"
+    },
+    {
+      "event": "evidence:claim-settlement",
+      "time": "2026-04-01T00:00:00Z",
+      "account": "realized",
+      "compartment": "wallet",
+      "asset": "CLAIM",
+      "label": null,
+      "debit": "0",
+      "credit": "300"
+    }
+  ],
+  "open_rows": [
+    {
+      "kind": "holding",
+      "compartment": "wallet",
+      "asset": "EUR",
+      "quantity": "300",
+      "cost": "300",
+      "settles_in": null
+    }
+  ],
+  "schema_version": "0.12"
 }

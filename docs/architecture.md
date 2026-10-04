@@ -1,6 +1,6 @@
 # Architecture
 
-`litmus-accounting` is a pure calculation engine: callers hand it selected facts, policy and prices, and it returns lots, realized PnL, flows, valuations and an exceptions report without fetching, interpreting sources or choosing policy. `model` is the leaf contract every other module builds on; `codec` and `schema` are its JSON boundary; `pricing` is the protocol the caller implements; `engine/` books the ledger and `valuation` prices open positions through the same protocol; `cli` wraps all of that. The behavioral reference is the [technical documentation](index.md); this page holds the module map.
+`litmus-accounting` is a pure calculation engine: callers hand it selected facts, policy and prices, and it returns lots, realized PnL, flows, the open-lot rows at `as_of` and an exceptions report without fetching, interpreting sources or choosing policy. `model` is the leaf contract every other module builds on; `codec` and `schema` are its JSON boundary; `pricing` is the protocol the caller implements; `engine/` books the ledger and values nothing at market (portfolio values); `cli` wraps all of that. The behavioral reference is the [technical documentation](index.md); this page holds the module map.
 
 ## Module map
 
@@ -11,13 +11,12 @@
 
 | Module | Responsibility | May import |
 | --- | --- | --- |
-| `__init__.py` | Exposes `calculation`, `valuation` and `pricing` as package attributes. | `engine`, `valuation`, `pricing` |
-| `cli.py` | `accounting [--json] {run,validate,value,schema}` Typer app; findings in results, runtime failures exit 1, usage errors exit 2. | `codec`, `schema`, `engine`, `model`, `pricing`, `valuation` |
+| `__init__.py` | Exposes `calculation` and `pricing` as package attributes. | `engine`, `pricing` |
+| `cli.py` | `accounting [--json] {run,validate,schema}` Typer app; findings in results, runtime failures exit 1, usage errors exit 2. | `codec`, `schema`, `engine`, `model`, `pricing` |
 | `codec.py` | JSON in and out through `pydantic.TypeAdapter` over the model dataclasses (Decimal strings, ISO datetimes). | `model` |
 | `model.py` | Frozen-dataclass ledger input (events, legs, links, liabilities, policy) and output records; the one schema for library, CLI and JSON. (split pending: #1) | — |
-| `pricing.py` | The `Pricing` protocol, the policy-applying `Valuer`, recorded price answers and `PriceGap`. | `model` |
-| `schema.py` | JSON Schema for ledger, result and valuation generated from the model, for `accounting schema`. | `codec` |
-| `valuation.py` | Period-end valuation of open lots and liabilities at one point in time through the pricing protocol. | `model`, `pricing`, `engine` |
+| `pricing.py` | The `Pricing` protocol, the daily `TablePricing`, the policy-applying `Valuer`, recorded price answers and `PriceGap`. | `model` |
+| `schema.py` | JSON Schema for the ledger and the result generated from the model, for `accounting schema`. | `codec` |
 
 ### engine
 
@@ -26,7 +25,7 @@
 | `engine/__init__.py` | Exposes `calculation` and re-exports `run` and `validate`. | `engine`, `model`, `pricing` |
 | `engine/arithmetic.py` | Exact finite-decimal sums and differences for conservation after bounded division. | `engine`, `model`, `pricing` |
 | `engine/booking.py` | Legs into lots with perpetual-compartment settlement shortfalls, income and expense flows, trades and perpetual fills. | `engine`, `model`, `pricing` |
-| `engine/calculation.py` | `run`: the engine over a ledger in time order, emitting series points, then rounding and the journal; `Engine` books one event in the contract's order. | `engine`, `model`, `pricing` |
+| `engine/calculation.py` | `run`: the engine over a ledger in time order, checking the cost identity after each group, then the open-lot rows, rounding and the journal; `Engine` books one event in the contract's order. | `engine`, `model`, `pricing` |
 | `engine/checks.py` | Structural checks that need no prices: invalid and duplicate events, dependencies, and links (unknown events, conflicts, mismatches). | `engine`, `model`, `pricing` |
 | `engine/core.py` | The engine's state and booking primitives: lot keys, the exceptions report, market values, legs into lots, and the liability ledger. | `engine`, `model`, `pricing` |
 | `engine/debt.py` | Liabilities: borrowing, accrued and reversed interest, repayment and its liability side. | `engine`, `model`, `pricing` |
@@ -36,9 +35,9 @@
 | `engine/operations.py` | Structural checks and stable causal ordering for generic basis operations. | `engine`, `model`, `pricing` |
 | `engine/perps.py` | Open perpetual positions on a settled basis: fill pairing, entry basis per `perp_cost_method`, realized P&L in the settlement asset. | `engine`, `model`, `pricing` |
 | `engine/records.py` | A lot book's records: the working `OpenLot`, `Consumed` and `Applied`, the HIFO rank, and exact allocation of a lot's origins. | `engine`, `model`, `pricing` |
+| `engine/remaining.py` | What the books hold at cost without prices: the cost identity after each group and the open-lot rows at `as_of`. | `engine`, `model`, `pricing` |
 | `engine/rollovers.py` | Rollovers: atomic basis carries, with allocation by market value across several outputs. | `engine`, `model`, `pricing` |
 | `engine/rounding.py` | Rounds functional-currency money outputs to the minor unit, recomputing derived amounts from rounded parts. | `engine`, `model`, `pricing` |
-| `engine/series.py` | The P&L series: a point per grid instant from the engine's state, valued at market, with the total-P&L check. | `engine`, `model`, `pricing` |
 | `engine/totals.py` | A lot book's exact quantities: per-key running totals of quantity and basis, and the 1e-18 quantity net (policy 05 rule 20.3). | `engine`, `model`, `pricing` |
 | `engine/transfers.py` | Transfers: linked pairs at carried basis, unlinked ones by their boundary basis, sides in opaque compartments routed to their positions, income before transfers. | `engine`, `model`, `pricing` |
 <!-- structure:end -->

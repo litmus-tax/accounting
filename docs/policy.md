@@ -16,13 +16,12 @@ default.
 | `trade_valuation` | `given` \| `received` | `received` | Which side fixes a trade's value when neither side holds the functional currency or cash. |
 | `fee_treatment` | `expense` \| `capitalize` | `expense` | Below. |
 | `position_assets` | list of str | `[]` | Assets that may go net short (perp position assets). Any other asset going negative under its lot key is a `negative_position` exception (the short lot is still opened). |
-| `liability_valuation` | `cost` \| `market` | `cost` | Below. |
 | `perp_cost_method` | `average` \| `fifo` \| `lifo` \| `hifo` | `average` | Which entries a reduction of a perpetual position on a `notional` compartment closes (below). |
 | `opaque_compartments` | list of str | `[]` | Compartments booked as one position by value (policy 05 rule 14; [model](model.md#opaque-positions)). |
-| `minor_unit` | int \| null | `null` | Decimal places of the functional currency's minor unit. When set, every money field of the result and the valuation is rounded half-up to it at output; quantities and prices are never rounded, and `pnl` / `unrealized` are recomputed from the rounded parts so the identities hold. |
+| `minor_unit` | int \| null | `null` | Decimal places of the functional currency's minor unit. When set, every money field of the result is rounded half-up to it at output; quantities and prices are never rounded, and `pnl` is recomputed from the rounded parts so `pnl = proceeds - cost` holds. |
 
-Strict mode is a run option, not a policy field: `run(..., strict=True)` and
-`value(..., strict=True)` raise `PriceGap` on the first missing price; the CLI
+Strict mode is a run option, not a policy field: `run(..., strict=True)`
+raises `PriceGap` on the first missing price; the CLI
 flag is `--strict` and returns status 1 when a missing price aborts the run.
 
 ## Fee treatment
@@ -34,14 +33,11 @@ A fee leg is any leg with `fee: true`; it must be negative.
 
 A trade whose fee cannot be priced is left entirely unbooked (`price_gap` plus one `unbooked` per leg), like a trade whose fixing side cannot be priced.
 
-## Liability valuation
+## Liabilities
 
 A `borrow` leg opens a liability worth the market value of what was received; a `repay` leg disposes of the asset given (normal PnL on its lots) and reduces the liability.
 
-The option decides **when** a change in the owed asset's price is recognised, never **whether** (policy 05 rule 9.4). Under either value, repaying realizes the difference between the basis released and the market value repaid as a `Realized` row whose `lots` names the liability id (`quantity` positive like a short cover, `proceeds` negative, `pnl = proceeds - cost`), so borrowing an asset and repaying the same units nets to zero.
-
-1. `cost` (default): the liability is held at cost; `value` reports its market value with `unrealized: null`.
-2. `market`: the liability is remeasured at market; `value` reports `unrealized = cost - value`.
+The liability is carried at cost until it is repaid (policy 05 rule 9.4; owner, 2026-10-03, decision 24: `liability_valuation` is removed). Repaying realizes the difference between the basis released and the market value repaid as a `Realized` row whose `lots` names the liability id (`quantity` positive like a short cover, `proceeds` negative, `pnl = proceeds - cost`), so borrowing an asset and repaying the same units nets to zero. Its market value before then is portfolio's live layer, never the engine's (rule 39.4).
 
 Accrued unpaid interest is a `borrow` leg labelled `interest`: nothing is received, the liability grows at market value, and the same value is an `interest` expense (rule 9.3.1). A negative one reverses an accrual: the liability releases a proportional share of its basis, which is `interest` income. Interest actually paid is an ordinary `expense` leg labelled `interest` (rule 9.3.2); it does not touch the liability. Interest is never capitalized into the borrowed asset's lots.
 

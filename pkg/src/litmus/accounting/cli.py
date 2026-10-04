@@ -1,5 +1,5 @@
 """
-Command line: `accounting [--json] {run,validate,value,schema} ...`.
+Command line: `accounting [--json] {run,validate,schema} ...`.
 
 A `typer` app. `--json` is a callback option on the app and an option on every
 verb, so it is accepted before or after the verb. Completed calculations report
@@ -8,7 +8,6 @@ findings in their result. Runtime failures exit one; parser usage errors exit tw
 
 import sys
 from dataclasses import replace
-from datetime import datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing_extensions import Annotated, Sequence
@@ -16,9 +15,8 @@ import pydantic
 import typer
 from litmus.accounting import codec, schema
 from litmus.accounting.engine import run, validate
-from litmus.accounting.model import Result, Policy, Valuation, ExceptionItem, Ledger
+from litmus.accounting.model import Result, Policy, ExceptionItem, Ledger
 from litmus.accounting.pricing import TablePricing, PriceGap
-from litmus.accounting.valuation import value
 
 app = typer.Typer(
   name='accounting',
@@ -47,25 +45,8 @@ def read(path: str) -> str:
     raise Usage(f'cannot read {path}: {e.strerror}') from e
 
 
-def parse_duration(text: str) -> timedelta:
-  """An ISO 8601 duration (`P1D`, `PT36H`) or a number of seconds."""
-  adapter = pydantic.TypeAdapter(timedelta)
-  try:
-    return adapter.validate_strings(text)
-  except pydantic.ValidationError:
-    pass
-  try:
-    return timedelta(seconds=float(text))
-  except ValueError as e:
-    raise Usage(
-      f'invalid duration {text!r}: use ISO 8601 (P1D, PT36H) or seconds'
-    ) from e
-
-
-def load(
-  ledger: str, policy: str | None, prices: str | None, max_age: str | None
-) -> Ledger:
-  """Parse the ledger file, applying the `--policy`, `--prices` and `--max-age` overrides."""
+def load(ledger: str, policy: str | None, prices: str | None) -> Ledger:
+  """Parse the ledger file, applying the `--policy` and `--prices` overrides."""
   try:
     doc = codec.parse_ledger(read(ledger))
     if policy:
@@ -74,8 +55,6 @@ def load(
       doc = replace(doc, prices=tuple(codec.parse_prices(read(prices))))
   except pydantic.ValidationError as e:
     raise Usage(f'invalid input\n{e}') from e
-  if max_age is not None:
-    doc = replace(doc, max_age=parse_duration(max_age))
   return doc
 
 
@@ -122,32 +101,6 @@ def summary(result: Result) -> str:
   return '\n'.join([*lines, *exception_lines(result.exceptions)])
 
 
-def valuation_summary(v: Valuation, policy: Policy) -> str:
-  """Human-readable digest of a valuation."""
-  fc = policy.functional_currency
-  total = sum((p.value for p in v.positions if p.value is not None), Decimal(0))
-  unrealized = sum(
-    (p.unrealized for p in v.positions if p.unrealized is not None), Decimal(0)
-  )
-  lines = [
-    f'valuation at {v.at.isoformat()}: {total} {fc}, unrealized {unrealized} {fc}'
-  ]
-  for p in v.positions:
-    where = f' @ {p.compartment}' if p.compartment else ''
-    lines.append(
-      f'  {p.lot}: {p.quantity} {p.asset}{where} cost {p.cost} value {p.value} unrealized {p.unrealized}'
-    )
-  if v.liabilities:
-    owed = sum((p.value for p in v.liabilities if p.value is not None), Decimal(0))
-    lines.append(f'liabilities: {owed} {fc}')
-    for p in v.liabilities:
-      lines.append(
-        f'  {p.liability}: {p.quantity} {p.asset} @ {p.compartment} cost {p.cost} value {p.value} unrealized {p.unrealized}'
-      )
-  lines.append(f'prices used: {len(v.prices)}   complete: {v.complete}')
-  return '\n'.join([*lines, *exception_lines(v.exceptions)])
-
-
 JsonFlag = Annotated[
   bool | None, typer.Option('--json', help='Emit JSON instead of the human summary.')
 ]
@@ -155,7 +108,7 @@ LedgerArg = Annotated[
   str,
   typer.Argument(
     metavar='LEDGER',
-    help='JSON file with "events", optional "links", "policy", "prices", "max_age".',
+    help='JSON file with "events", optional "links", "policy" and "prices".',
   ),
 ]
 PolicyOpt = Annotated[
@@ -165,13 +118,6 @@ PolicyOpt = Annotated[
 PricesOpt = Annotated[
   str | None,
   typer.Option('--prices', help="JSON list of price records (overrides the ledger's)."),
-]
-MaxAgeOpt = Annotated[
-  str | None,
-  typer.Option(
-    '--max-age',
-    help="Oldest usable price relative to the requested time, ISO 8601 (P1D) or seconds (overrides the ledger's).",
-  ),
 ]
 StrictOpt = Annotated[
   bool, typer.Option('--strict', help='Stop at the first price gap.')
@@ -195,21 +141,19 @@ def run_(
   ledger: LedgerArg,
   policy: PolicyOpt = None,
   prices: PricesOpt = None,
-  max_age: MaxAgeOpt = None,
   strict: StrictOpt = False,
   json: JsonFlag = None,
 ):
-  """Compute lots, liabilities, realized PnL, flows and exceptions."""
-  doc = load(ledger, policy, prices, max_age)
+  """Compute lots, liabilities, realized PnL, flows, open-lot rows and exceptions."""
+  doc = load(ledger, policy, prices)
   pol = policy_of(doc)
   try:
     result = run(
       doc.events,
       links=doc.links,
       policy=pol,
-      pricing=TablePricing(doc.prices, max_age=doc.max_age),
+      pricing=TablePricing(doc.prices),
       strict=strict,
-      grid=doc.grid,
     )
   except PriceGap as e:
     raise fail(str(e), 1) from e
@@ -226,7 +170,7 @@ def validate_(
   json: JsonFlag = None,
 ):
   """Check the ledger shape and structure without prices."""
-  doc = load(ledger, policy, prices, None)
+  doc = load(ledger, policy, prices)
   problems = validate(doc.events, doc.links)
   if wants_json(ctx, json):
     typer.echo(codec.dump_exceptions(problems))
@@ -237,57 +181,12 @@ def validate_(
   raise typer.Exit(0)
 
 
-@app.command('value')
-def value_(
-  ctx: typer.Context,
-  ledger: LedgerArg,
-  at: Annotated[
-    str, typer.Option('--at', help='Valuation time, ISO 8601 with timezone.')
-  ],
-  policy: PolicyOpt = None,
-  prices: PricesOpt = None,
-  max_age: MaxAgeOpt = None,
-  strict: StrictOpt = False,
-  json: JsonFlag = None,
-):
-  """Period-end valuation of the open lots and liabilities."""
-  doc = load(ledger, policy, prices, max_age)
-  pol = policy_of(doc)
-  try:
-    when = datetime.fromisoformat(at)
-  except ValueError as e:
-    raise Usage(f'invalid --at: {e}') from e
-  if when.tzinfo is None:
-    raise Usage('invalid --at: timestamp must carry a timezone')
-  pricing = TablePricing(doc.prices, max_age=doc.max_age)
-  try:
-    result = run(
-      doc.events, links=doc.links, policy=pol, pricing=pricing, strict=strict
-    )
-    valuation = value(
-      result.lots,
-      liabilities=result.liabilities,
-      at=when,
-      policy=pol,
-      pricing=pricing,
-      strict=strict,
-    )
-  except PriceGap as e:
-    raise fail(str(e), 1) from e
-  typer.echo(
-    codec.dump_valuation(valuation)
-    if wants_json(ctx, json)
-    else valuation_summary(valuation, pol)
-  )
-  raise typer.Exit(0)
-
-
 @app.command('schema')
 def schema_(
   ctx: typer.Context,
   name: Annotated[
     str,
-    typer.Argument(help='Which schema to print: ledger, result or valuation.'),
+    typer.Argument(help='Which schema to print: ledger or result.'),
   ] = 'ledger',
   out: Annotated[
     str | None,
@@ -302,7 +201,7 @@ def schema_(
   json: JsonFlag = None,
 ):
   """Print, write or check the JSON schema files."""
-  if name != 'ledger' and name != 'result' and name != 'valuation':
+  if name != 'ledger' and name != 'result':
     raise Usage(f'unknown schema {name!r}; one of {", ".join(schema.NAMES)}')
   if check:
     stale = schema.stale(Path(check))

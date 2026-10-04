@@ -48,19 +48,23 @@ class Totals:
     self.totals: dict[LotKey, Decimal] = {}
     """Net quantity per key, exact."""
     self.costs: dict[LotKey, Decimal] = {}
-    """Net basis per key, exact (series points read it)."""
+    """Net basis per key, exact (the open-lot rows read it)."""
+    self.cost = ZERO
+    """Net basis of every key, exact (the cost identity reads it)."""
 
   def fork(self) -> 'Totals':
     """A copy that can change without touching this one."""
     copy = Totals()
     copy.totals = dict(self.totals)
     copy.costs = dict(self.costs)
+    copy.cost = self.cost
     return copy
 
   def change(self, key: LotKey, held: Decimal, now: Decimal, cost: Decimal):
     """A lot under `key` went from `held` to `now` units and its basis changed by `cost`, exactly."""
     self.totals[key] = EXACT.add(self.totals.get(key, ZERO), EXACT.subtract(now, held))
     self.costs[key] = EXACT.add(self.costs.get(key, ZERO), cost)
+    self.cost = EXACT.add(self.cost, cost)
 
   def exact(self, key: LotKey) -> Decimal:
     """The exact sum of a key's lot quantities."""

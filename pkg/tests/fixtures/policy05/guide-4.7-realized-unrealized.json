@@ -1,0 +1,127 @@
+{
+ "example": "guide \u00a74.7: realized in accounting, unrealized in portfolio",
+ "ledger": {
+  "policy": {
+   "cost_method": "fifo",
+   "lot_scope": "compartment",
+   "functional_currency": "USD",
+   "minor_unit": 2
+  },
+  "prices": [],
+  "events": [
+   {
+    "id": "deposit",
+    "time": "2026-03-01T09:00:00Z",
+    "legs": [
+     {
+      "asset": "USD",
+      "quantity": "6000",
+      "compartment": "exchange",
+      "tag": "transfer",
+      "basis": "market"
+     }
+    ]
+   },
+   {
+    "id": "buy",
+    "time": "2026-03-01T10:00:00Z",
+    "legs": [
+     {
+      "asset": "ETH",
+      "quantity": "2",
+      "compartment": "exchange",
+      "tag": "trade"
+     },
+     {
+      "asset": "USD",
+      "quantity": "-6000",
+      "compartment": "exchange",
+      "tag": "trade"
+     }
+    ]
+   },
+   {
+    "id": "sale",
+    "time": "2026-03-03T14:00:00Z",
+    "legs": [
+     {
+      "asset": "ETH",
+      "quantity": "-0.5",
+      "compartment": "exchange",
+      "tag": "trade"
+     },
+     {
+      "asset": "USD",
+      "quantity": "1800",
+      "compartment": "exchange",
+      "tag": "trade"
+     }
+    ]
+   }
+  ]
+ },
+ "cases": [
+  {
+   "name": "books",
+   "rules": [
+    "1.5",
+    "39.5.1",
+    "39.9",
+    "term 14"
+   ],
+   "expected": {
+    "complete": true,
+    "realized": [
+     {
+      "event": "sale",
+      "asset": "ETH",
+      "proceeds": "1800.00",
+      "cost": "1500.00",
+      "pnl": "300.00"
+     }
+    ],
+    "totals": {
+     "realized": "300.00",
+     "income": "0",
+     "expenses": "0"
+    },
+    "open_rows": [
+     {
+      "kind": "holding",
+      "compartment": "exchange",
+      "asset": "ETH",
+      "quantity": "1.5",
+      "cost": "4500.00"
+     },
+     {
+      "kind": "holding",
+      "compartment": "exchange",
+      "asset": "USD",
+      "quantity": "1800",
+      "cost": "1800.00"
+     }
+    ]
+   }
+  },
+  {
+   "name": "books-2-march",
+   "rules": [
+    "39.5.1",
+    "term 14"
+   ],
+   "as_of": "2026-03-02T23:59:59Z",
+   "expected": {
+    "complete": true,
+    "open_rows": [
+     {
+      "kind": "holding",
+      "compartment": "exchange",
+      "asset": "ETH",
+      "quantity": "2",
+      "cost": "6000.00"
+     }
+    ]
+   }
+  }
+ ]
+}

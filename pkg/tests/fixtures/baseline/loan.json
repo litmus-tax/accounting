@@ -13,8 +13,7 @@
     "trade_valuation": "received",
     "fee_treatment": "expense",
     "position_assets": [],
-    "minor_unit": 2,
-    "liability_valuation": "cost"
+    "minor_unit": 2
   },
   "lots": [
     {

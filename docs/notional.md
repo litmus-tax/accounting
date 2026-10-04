@@ -27,7 +27,7 @@ compartment being `Leg.liability` or the leg's own; labels remain informational.
 Borrow principal opens inventory and debt at market basis. `borrow` labelled
 `interest` increases unpaid debt without receiving inventory and is an interest
 expense; repay disposes paid assets, reduces debt and realizes the debt's value
-change under either liability valuation. Over-repayment remains an exception and
+change; until then it is carried at cost. Over-repayment remains an exception and
 is not clipped.
 
 The engine retains raw leg balances, including interest accrual legs, for backwards
@@ -46,7 +46,7 @@ reverse evidenced noncash interest already included elsewhere. This is a source
 supersession adjustment, not negative borrowing or a cash repayment. The engine
 reduces outstanding debt and releases a proportional share of its carried basis,
 which is `interest` income (the accrual it reverses was an expense); it creates no
-lot or realized gain under either liability valuation policy, and requires no
+lot or realized gain, and requires no
 current market price. Positive interest accrual remains valued at
 market as before. A reversal exceeding outstanding debt reports
 `negative_liability` and retains the negative quantity/basis rather than clipping

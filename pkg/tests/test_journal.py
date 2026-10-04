@@ -3,6 +3,7 @@
 import json
 from dataclasses import replace
 from datetime import datetime
+from typing_extensions import Any, Sequence
 from decimal import Decimal as D
 from pathlib import Path
 import pytest
@@ -125,7 +126,7 @@ def test_a_rounding_residue_gets_a_rounding_line():
 def test_an_unbalanced_event_is_an_exception():
   """Lines that do not balance before rounding raise `unbalanced` (checked on the journal itself)."""
   # policy 05 rule 29.2
-  journal = Journal()
+  journal = Journal('EUR')
   e = Event('e', t(1), (leg('USDC', '1'),))
   journal.add(e, 'holding', D('10'), asset='USDC')
   journal.add(e, 'income', D('-9'), label='yield')
@@ -172,18 +173,29 @@ def liability_balances(result: Result, until: datetime | None = None) -> dict[Ke
   return out
 
 
-def assert_liability_matches_rows_at_every_point(result: Result):
-  """At every series point the journal's liability account is minus the liabilities' carrying value, per key."""
-  assert result.series
-  for point in result.series:
+def assert_liability_matches_rows_at_every_instant(
+  items: Sequence[Event | Sequence[Event]], **run_args: Any
+):
+  """
+  At every event instant the journal's liability account is minus the
+  liabilities' carrying value in the open-lot rows, per key: the books run on
+  the groups up to each instant (the engine serves cost only at its `as_of`).
+  """
+  groups = [[item] if isinstance(item, Event) else list(item) for item in items]
+  instants = sorted({e.time for group in groups for e in group})
+  assert instants
+  for at in instants:
+    prefix = [group for group in groups if all(e.time <= at for e in group)]
+    result = run(prefix, **run_args)
     owed: dict[Key, D] = {}
-    for row in point.liabilities:
-      key = (row.compartment, row.asset)
-      owed[key] = owed.get(key, D(0)) - row.cost
-    journal = liability_balances(result, point.at)
+    for row in result.open_rows:
+      if row.kind == 'liability':
+        key = (row.compartment, row.asset)
+        owed[key] = owed.get(key, D(0)) - row.cost
+    journal = liability_balances(result)
     for key in owed.keys() | journal.keys():
       assert abs(journal.get(key, D(0)) - owed.get(key, D(0))) < D('1e-18'), (
-        point.at,
+        at,
         key,
         journal.get(key),
         owed.get(key),
@@ -236,36 +248,32 @@ def test_rule_9_3_1_accrued_interest_is_credited_to_the_liability():
 @pytest.mark.parametrize(
   'accrue_first', [True, False], ids=['accrued', 'accrued_after']
 )
-def test_rule_29_journal_liability_equals_liability_rows_at_every_point(
+def test_rule_29_journal_liability_equals_liability_rows_at_every_instant(
   accrue_first: bool,
 ):
   """The journal's liability balance equals the liabilities rows at every point, including an accrual booked after the repayment it preceded (evm closes it after its block)."""
-  # policy 05 rules 9.3.1, 29.1 and 39
+  # policy 05 rules 9.3.1, 29.1 and term 14
   events = loan(accrue_first=accrue_first)
-  r = run(
-    events,
-    policy=policy(),
-    pricing=FixedPricing({('USDC', 'EUR'): '1'}),
-    grid=sorted({e.time for e in events}),
+  pricing = FixedPricing({('USDC', 'EUR'): '1'})
+  assert_liability_matches_rows_at_every_instant(
+    events, policy=policy(), pricing=pricing
   )
-  assert_liability_matches_rows_at_every_point(r)
+  r = run(events, policy=policy(), pricing=pricing)
   assert liability_balances(r) == {('debt', 'USDC'): D(0)}
   assert sum(f.value for f in r.flows if f.label == 'interest') == D(5)
 
 
 @pytest.mark.parametrize('path', LEDGERS, ids=lambda p: p.stem)
-def test_rule_29_every_example_journal_liability_equals_liability_rows_at_every_point(
+def test_rule_29_every_example_journal_liability_equals_liability_rows_at_every_instant(
   path: Path,
 ):
   """In every example and fixture, at every event instant, the journal's liability account matches the liabilities rows."""
-  # policy 05 rules 29.1 and 39
+  # policy 05 rules 29.1 and term 14
   ledger = ledger_of(path)
   assert ledger.policy is not None
-  r = run(
+  assert_liability_matches_rows_at_every_instant(
     ledger.events,
     links=ledger.links,
     policy=replace(ledger.policy, minor_unit=None),
     pricing=TablePricing(ledger.prices),
-    grid=sorted({e.time for e in flat(ledger)}),
   )
-  assert_liability_matches_rows_at_every_point(r)

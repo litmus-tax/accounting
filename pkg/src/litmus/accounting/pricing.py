@@ -7,7 +7,7 @@ records every answer so the caller can persist it, and reports gaps.
 """
 
 import bisect
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing_extensions import Protocol, Mapping, Iterable
 from litmus.accounting.model import Policy, PriceRecord, PriceSource
@@ -43,15 +43,14 @@ class PriceGap(Exception):
 
 class TablePricing:
   """
-  In-memory `Pricing` over a table of records; picks the latest price at or
-  before the requested time for the pair, no older than `max_age` when one is
-  set. Used by the CLI and tests.
+  In-memory `Pricing` over a table of records; picks the latest price for the
+  pair at or before the requested time on the same UTC day. A table is daily:
+  a row prices only its own UTC day, and nothing is carried forward to a later
+  day. Which price a day takes (a stale one, a peg) is the caller's choice
+  (policy 05 rules 1.5 and 39.10). Used by the CLI, portfolio and tests.
   """
 
-  def __init__(
-    self, records: Iterable[PriceRecord], *, max_age: timedelta | None = None
-  ):
-    self.max_age = max_age
+  def __init__(self, records: Iterable[PriceRecord]):
     self.table: dict[tuple[str, str], list[tuple[datetime, Decimal]]] = {}
     for r in records:
       if r.price is not None:
@@ -63,14 +62,19 @@ class TablePricing:
   def price(
     self, asset: str, quote: str, time: datetime, *, source: PriceSource
   ) -> Decimal | None:
-    """Latest price at or before `time` and within `max_age` of it, or `None`."""
+    """Latest price at or before `time` on its UTC day, or `None`."""
     index = bisect.bisect_right(self.times.get((asset, quote), []), time)
     if index == 0:
       return None
     at, price = self.table[(asset, quote)][index - 1]
-    if self.max_age is not None and time - at > self.max_age:
+    if utc_day(at) != utc_day(time):
       return None
     return price
+
+
+def utc_day(time: datetime) -> date:
+  """The UTC calendar day of an aware instant."""
+  return time.astimezone(timezone.utc).date()
 
 
 class FixedPricing:

@@ -13,13 +13,6 @@
   },
   "prices": [
    {
-    "asset": "stETH",
-    "quote": "USD",
-    "time": "2026-01-01T00:00:00Z",
-    "source": "market",
-    "price": "3000"
-   },
-   {
     "asset": "ETH",
     "quote": "USD",
     "time": "2026-01-01T00:00:00Z",
@@ -34,21 +27,7 @@
     "price": "3400"
    },
    {
-    "asset": "claim:w-eth",
-    "quote": "USD",
-    "time": "2026-01-02T00:00:00Z",
-    "source": "market",
-    "price": "3400"
-   },
-   {
     "asset": "ETH",
-    "quote": "USD",
-    "time": "2026-01-09T00:00:00Z",
-    "source": "market",
-    "price": "3500"
-   },
-   {
-    "asset": "claim:w-eth",
     "quote": "USD",
     "time": "2026-01-09T00:00:00Z",
     "source": "market",
@@ -62,11 +41,74 @@
     "price": "1"
    },
    {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2026-01-02T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2026-01-09T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
     "asset": "USDT",
     "quote": "USD",
     "time": "2026-01-01T00:00:00Z",
     "source": "market",
     "price": "1"
+   },
+   {
+    "asset": "USDT",
+    "quote": "USD",
+    "time": "2026-01-02T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDT",
+    "quote": "USD",
+    "time": "2026-01-09T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "claim:w-eth",
+    "quote": "USD",
+    "time": "2026-01-02T00:00:00Z",
+    "source": "market",
+    "price": "3400"
+   },
+   {
+    "asset": "claim:w-eth",
+    "quote": "USD",
+    "time": "2026-01-09T00:00:00Z",
+    "source": "market",
+    "price": "3500"
+   },
+   {
+    "asset": "stETH",
+    "quote": "USD",
+    "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "3000"
+   },
+   {
+    "asset": "stETH",
+    "quote": "USD",
+    "time": "2026-01-02T00:00:00Z",
+    "source": "market",
+    "price": "3000"
+   },
+   {
+    "asset": "stETH",
+    "quote": "USD",
+    "time": "2026-01-09T00:00:00Z",
+    "source": "market",
+    "price": "3000"
    }
   ],
   "events": [

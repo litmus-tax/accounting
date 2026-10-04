@@ -411,7 +411,7 @@ def test_retained_baseline_goldens(name):
     flat(ledger),
     links=ledger.links,
     policy=ledger.policy,
-    pricing=TablePricing(ledger.prices, max_age=ledger.max_age),
+    pricing=TablePricing(ledger.prices),
   )
   actual = json.loads(dump_result(result))
   expected = json.loads((FIXTURES / f'baseline/{name}.json').read_text())
@@ -419,7 +419,7 @@ def test_retained_baseline_goldens(name):
   actual.pop('rollovers')
   assert actual.pop('positions') == []
   actual.pop('journal')
-  assert actual.pop('series') == []
+  actual.pop('open_rows')
   actual['policy'].pop('notional_scopes')
   actual['policy'].pop('perp_cost_method')
   assert actual['policy'].pop('opaque_compartments') == []

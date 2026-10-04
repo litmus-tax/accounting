@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 import jsonschema
 import pytest
-from litmus.accounting import run, value, schema, codec
+from litmus.accounting import run, schema, codec
 from litmus.accounting.pricing import TablePricing
 from tests.conftest import t
 
@@ -36,11 +36,6 @@ def test_result_round_trip(example: Path):
   text = codec.dump_result(result)
   jsonschema.validate(json.loads(text), schema.schema('result'))
   assert codec.parse_result(text) == result
-  valuation = value(result.lots, at=t(31), policy=ledger.policy, pricing=pricing)
-  jsonschema.validate(
-    json.loads(codec.dump_valuation(valuation)),
-    schema.schema('valuation'),
-  )
 
 
 def test_ledger_round_trip():

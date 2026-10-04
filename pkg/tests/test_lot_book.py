@@ -227,7 +227,24 @@ def test_engine_results_match_the_reference_book(
     # The reference tracks origins; under `average` the engine no longer does
     # (policy 05 rule 18.2). Everything else must still match.
     actual, expected = without_origins(actual), without_origins(expected)
-  assert actual == expected
+  assert by_value(actual) == by_value(expected)
+
+
+def by_value(result: object) -> object:
+  """
+  A result's JSON with its open-lot rows' quantities as decimals: the engine's
+  exact running total and the reference's sum of lots are equal numbers that
+  may differ in trailing zeros.
+  """
+  import json
+
+  document = json.loads(result) if isinstance(result, str) else result
+  assert isinstance(document, dict)
+  rows = document.pop('open_rows')  # type: ignore[union-attr]
+  return {
+    **document,  # type: ignore[dict-item]
+    'open_rows': [{**row, 'quantity': D(row['quantity'])} for row in rows],
+  }
 
 
 def without_origins(result: str) -> object:

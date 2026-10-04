@@ -105,27 +105,19 @@ def test_validate(tmp_path, capsys):
   assert 'naive timestamp' in out[0]['message']
 
 
-def test_value(capsys):
-  """`value` prices the open lots at `--at`; gaps make it exit 1."""
-  assert main(['value', BRIDGE, '--at', '2026-03-01T00:00:00Z', '--json']) == 0
-  out = json.loads(capsys.readouterr().out)
-  assets = {p['asset']: p for p in out['positions']}
-  assert assets['HYPE']['value'] == '1980.00'
-  assert main(['value', SPOT, '--at', '2026-03-01T00:00:00Z']) == 0
-  assert '[price_gap]' in capsys.readouterr().out
-  assert main(['value', SPOT, '--at', 'yesterday']) == 2
-  assert main(['value', SPOT, '--at', '2026-03-01T00:00:00']) == 2
+def test_value_is_gone(capsys):
+  """The engine values nothing at market (policy 05 rule 1.5): there is no `value` verb."""
+  assert main(['value', BRIDGE, '--at', '2026-03-01T00:00:00Z']) == 2
 
 
 def test_schema_verbs(tmp_path, capsys):
-  """`schema` prints one schema, writes all three, and checks a directory."""
+  """`schema` prints one schema, writes both, and checks a directory."""
   assert main(['schema', 'result']) == 0
   assert json.loads(capsys.readouterr().out)['title'] == 'Accounting result'
   assert main(['schema', '--out', str(tmp_path)]) == 0
   assert sorted(p.name for p in tmp_path.iterdir()) == [
     'ledger.schema.json',
     'result.schema.json',
-    'valuation.schema.json',
   ]
   assert main(['schema', '--check', str(tmp_path)]) == 0
   (tmp_path / 'ledger.schema.json').write_text('{}')
@@ -155,18 +147,5 @@ def test_loan_example(capsys):
     ('gas', '2.00'),
     ('interest', '18.00'),
   ]
-  assert main(['--json', 'value', LOAN, '--at', '2026-06-01T00:00:00Z']) == 0
-  out = json.loads(capsys.readouterr().out)
-  (owed,) = out['liabilities']
-  assert (owed['value'], owed['unrealized']) == ('19.00', None)
-
-
-def test_max_age_option(capsys):
-  """`--max-age` overrides the ledger's; a stale table turns into gaps (exit 1); a bad duration is usage (exit 2)."""
-  assert main(['run', LOAN, '--max-age', 'P1D', '--json']) == 0
-  out = json.loads(capsys.readouterr().out)
-  assert 'price_gap' in {x['code'] for x in out['exceptions']}
-  assert main(['run', LOAN, '--max-age', '31536000']) == 0
-  capsys.readouterr()
-  assert main(['run', LOAN, '--max-age', 'soon']) == 2
-  assert 'invalid duration' in capsys.readouterr().err
+  rows = [r for r in out['open_rows'] if r['kind'] == 'liability']
+  assert [(r['quantity'], r['cost']) for r in rows] == [('20', '18.00')]

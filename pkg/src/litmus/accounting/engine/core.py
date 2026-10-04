@@ -101,7 +101,7 @@ class Core:
     self.perps = PositionBook(policy.perp_cost_method)
     self.earned: set[str] = set()
     """Events whose income legs are booked (policy 05 rule 14.3)."""
-    self.journal = Journal()
+    self.journal = Journal(policy.functional_currency)
     self.perp_compartments: set[str] = set()
     """Compartments holding perpetual positions: a settlement asset there never goes below zero (rule 8.6)."""
     self.watched: dict[Watch, Finding] = {}

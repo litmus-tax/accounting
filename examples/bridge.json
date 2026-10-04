@@ -8,9 +8,20 @@
   },
   "prices": [
     {"asset": "ETH", "quote": "EUR", "time": "2026-01-01T00:00:00Z", "source": "market", "price": "1500"},
+    {"asset": "ETH", "quote": "EUR", "time": "2026-01-05T00:00:00Z", "source": "market", "price": "1500"},
     {"asset": "ETH", "quote": "EUR", "time": "2026-02-01T00:00:00Z", "source": "market", "price": "2000"},
+    {"asset": "ETH", "quote": "EUR", "time": "2026-02-09T00:00:00Z", "source": "market", "price": "2000"},
+    {"asset": "ETH", "quote": "EUR", "time": "2026-02-10T00:00:00Z", "source": "market", "price": "2000"},
+    {"asset": "ETH", "quote": "EUR", "time": "2026-02-11T00:00:00Z", "source": "market", "price": "2000"},
     {"asset": "HYPE", "quote": "EUR", "time": "2026-02-01T00:00:00Z", "source": "market", "price": "20"},
-    {"asset": "USDC", "quote": "EUR", "time": "2026-01-01T00:00:00Z", "source": "market", "price": "0.9"}
+    {"asset": "HYPE", "quote": "EUR", "time": "2026-02-09T00:00:00Z", "source": "market", "price": "20"},
+    {"asset": "HYPE", "quote": "EUR", "time": "2026-02-10T00:00:00Z", "source": "market", "price": "20"},
+    {"asset": "HYPE", "quote": "EUR", "time": "2026-02-11T00:00:00Z", "source": "market", "price": "20"},
+    {"asset": "USDC", "quote": "EUR", "time": "2026-01-01T00:00:00Z", "source": "market", "price": "0.9"},
+    {"asset": "USDC", "quote": "EUR", "time": "2026-01-05T00:00:00Z", "source": "market", "price": "0.9"},
+    {"asset": "USDC", "quote": "EUR", "time": "2026-02-09T00:00:00Z", "source": "market", "price": "0.9"},
+    {"asset": "USDC", "quote": "EUR", "time": "2026-02-10T00:00:00Z", "source": "market", "price": "0.9"},
+    {"asset": "USDC", "quote": "EUR", "time": "2026-02-11T00:00:00Z", "source": "market", "price": "0.9"}
   ],
   "events": [
     {"id": "evm:buy", "time": "2026-01-05T10:00:00Z", "description": "buy 1 ETH on a DEX", "legs": [

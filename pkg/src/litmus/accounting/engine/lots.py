@@ -67,6 +67,11 @@ class LotBook:
     """Exact net basis per key."""
     return self.tally.costs
 
+  @property
+  def cost(self) -> Decimal:
+    """Exact net basis of every key: the assets at cost the cost identity reads."""
+    return self.tally.cost
+
   def position(self, key: LotKey) -> Decimal:
     """Net signed quantity held under `key`, exact."""
     return self.tally.exact(key)

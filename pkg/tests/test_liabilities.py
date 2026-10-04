@@ -1,8 +1,8 @@
-"""Liabilities: `borrow` and `repay` legs, `liability_valuation`, `Liability` output and valuation."""
+"""Liabilities: `borrow` and `repay` legs, at cost until repaid, `Liability` output and open-lot rows."""
 
 from decimal import Decimal as D
 import pytest
-from litmus.accounting import run, value, FixedPricing
+from litmus.accounting import run, FixedPricing
 from litmus.accounting.model import Result
 from tests.conftest import leg, event, policy, t
 
@@ -82,16 +82,14 @@ def test_partial_repay_releases_proportional_basis(method, scope):
   assert (owed.quantity, owed.cost, owed.updated) == (D('2510'), D('2259'), t(5))
 
 
-def test_market_valuation_realizes_the_liability(method, scope):
-  """Under `market` the repaid part is revalued and the difference realized against the liability."""
+def test_repay_realizes_the_liability_side(method, scope):
+  """The repaid part is revalued at market and the difference realized against the liability, held at cost until then (policy 05 rule 9.4)."""
   pricing = FixedPricing({('USDC', 'EUR'): '0.9', ('ETH', 'EUR'): '2000'})
   events = [
     event('borrow', 1, leg('USDC', '1000', tag='borrow', label='x')),
     event('repay', 2, leg('USDC', '-400', tag='repay', label='x')),
   ]
-  r = run(
-    events, policy=policy(method, scope, liability_valuation='market'), pricing=pricing
-  )
+  r = run(events, policy=policy(method, scope), pricing=pricing)
   assert codes(r) == []
   asset, debt = r.realized
   assert (asset.quantity, asset.pnl) == (D('-400'), D('0'))
@@ -102,11 +100,7 @@ def test_market_valuation_realizes_the_liability(method, scope):
     D('0'),
     ('liability-1',),
   )
-  moved = run(
-    events,
-    policy=policy(method, scope, liability_valuation='market'),
-    pricing=StepPricing(),
-  )
+  moved = run(events, policy=policy(method, scope), pricing=StepPricing())
   asset, debt = moved.realized
   assert (asset.proceeds, asset.cost, asset.pnl) == (D('380'), D('360'), D('20'))
   assert (debt.proceeds, debt.cost, debt.pnl) == (D('-380'), D('-360'), D('-20'))
@@ -228,61 +222,32 @@ def test_validate_signs():
   ]
 
 
-@pytest.mark.parametrize('valuation', ['cost', 'market'])
-def test_value_reports_liabilities_at_market(valuation):
-  """`value` prices open liabilities; unrealized only under `market`."""
-  p = policy('fifo', 'compartment', liability_valuation=valuation, minor_unit=2)
+def test_open_rows_hold_liabilities_at_carrying_value():
+  """An open liability is an open-lot row at its carrying value, never at market (policy 05 term 14, rule 9.4)."""
+  p = policy('fifo', 'compartment', minor_unit=2)
   r = run(loan(repay='-5000'), policy=p, pricing=PRICES)
-  v = value(
-    r.lots,
-    liabilities=r.liabilities,
-    at=t(31),
-    policy=p,
-    pricing=FixedPricing({('USDC', 'EUR'): '0.95', ('ETH', 'EUR'): '2100'}),
-  )
-  assert v.complete
-  (owed,) = v.liabilities
-  assert (owed.liability, owed.asset, owed.compartment, owed.label) == (
-    'liability-1',
-    'USDC',
+  (owed,) = [row for row in r.open_rows if row.kind == 'liability']
+  assert (owed.compartment, owed.asset, owed.quantity, owed.cost) == (
     'A',
-    'aave-v3',
+    'USDC',
+    D('20'),
+    D('18.00'),
   )
-  assert (owed.quantity, owed.cost, owed.value) == (D('20'), D('18.00'), D('19.00'))
-  assert owed.unrealized == (D('-1.00') if valuation == 'market' else None)
-  assert [p.asset for p in v.prices] == ['ETH', 'USDC']
 
 
-def test_value_liability_price_gap():
-  """A liability that cannot be priced is a `price_gap` naming the liability."""
-  p = policy('fifo', 'compartment')
-  r = run(loan(repay='-5000'), policy=p, pricing=PRICES)
-  v = value(
-    r.lots, liabilities=r.liabilities, at=t(31), policy=p, pricing=FixedPricing({})
-  )
-  assert not v.complete
-  gaps = [x for x in v.exceptions if x.detail.get('liability')]
-  assert [(x.event, x.detail['liability']) for x in gaps] == [('borrow', 'liability-1')]
-  assert v.liabilities[0].value is None and v.liabilities[0].unrealized is None
-
-
-@pytest.mark.parametrize('valuation', ['cost', 'market'])
-def test_signed_interest_reversal_changes_only_debt_at_carried_basis(valuation):
+def test_signed_interest_reversal_changes_only_debt_at_carried_basis():
   """Superseded noncash accrual releases proportional debt basis as interest income, never cash or PnL."""
   # policy 05 rule 9.3.1: the accrual was an expense, so its reversal is income.
   from litmus.accounting.pricing import TablePricing
   from litmus.accounting.model import PriceRecord
-  from datetime import timedelta
 
   events = [
     event('principal', 1, leg('USDC', '100', tag='borrow', label='facility')),
     event('accrual', 1, leg('USDC', '20', tag='borrow', label='interest')),
     event('supersede', 2, leg('USDC', '-5', tag='borrow', label='interest')),
   ]
-  pricing = TablePricing(
-    (PriceRecord('USDC', 'EUR', t(1), 'market', D('0.9')),), max_age=timedelta(hours=1)
-  )
-  result = run(events, policy=policy(liability_valuation=valuation), pricing=pricing)
+  pricing = TablePricing((PriceRecord('USDC', 'EUR', t(1), 'market', D('0.9')),))
+  result = run(events, policy=policy(), pricing=pricing)
   assert result.complete and not result.exceptions
   assert [(row.quantity, row.cost) for row in result.liabilities] == [
     (D(115), D('103.5'))
@@ -390,7 +355,10 @@ def test_cli_books_signed_interest_with_no_cash_movement(tmp_path, capsys):
       event('reverse', 3, leg('USDC', '-5', tag='borrow', label='interest')),
     ),
     policy=policy(),
-    prices=(PriceRecord('USDC', 'EUR', t(1), 'market', D('0.9')),),
+    prices=(
+      PriceRecord('USDC', 'EUR', t(1), 'market', D('0.9')),
+      PriceRecord('USDC', 'EUR', t(2), 'market', D('0.9')),
+    ),
   )
   path = tmp_path / 'signed-interest.json'
   path.write_bytes(ledger_adapter.dump_json(ledger))
@@ -448,9 +416,8 @@ def test_only_borrow_and_repay_legs_name_a_liability():
   ]
 
 
-@pytest.mark.parametrize('valuation', ['cost', 'market'])
-def test_borrowing_and_repaying_the_same_units_nets_to_zero(valuation):
-  """Borrow 1 ETH at 3,000 and repay it at 3,500: +500 on the coin, -500 on the debt, under both options."""
+def test_borrowing_and_repaying_the_same_units_nets_to_zero():
+  """Borrow 1 ETH at 3,000 and repay it at 3,500: +500 on the coin, -500 on the debt."""
 
   # policy 05 rule 9.4 (gap 21, probe 5)
   class Rising:
@@ -464,7 +431,7 @@ def test_borrowing_and_repaying_the_same_units_nets_to_zero(valuation):
     event('borrow', 1, leg('ETH', '1', tag='borrow', liability='debt:aave')),
     event('repay', 2, leg('ETH', '-1', tag='repay', liability='debt:aave')),
   ]
-  r = run(events, policy=policy(liability_valuation=valuation), pricing=Rising())
+  r = run(events, policy=policy(), pricing=Rising())
   assert [(x.compartment, x.pnl) for x in r.realized] == [
     ('A', D('500')),
     ('debt:aave', D('-500')),

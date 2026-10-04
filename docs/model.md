@@ -36,7 +36,7 @@ Tags:
 3. `income`: a positive inflow valued at market at event time; opens a lot at that value and emits a `Flow`.
 4. `expense`: a negative outflow valued at market at event time; consumes lots at that value (realizing PnL on them) and emits a `Flow`.
 5. `borrow`: a positive quantity received against a liability. Opens a lot at market value at event time (no income, no PnL) and opens or grows the liability `(liability or compartment, asset)` by the same quantity and value (policy 05 rule 9.1). Labelled `interest` it is accrued unpaid interest: nothing is received and no lot opens; the liability grows and an `expense` flow labelled `interest` of the same market value is booked (rule 9.3.1). Portfolio sends the unit's accrual leg (negative in the liability compartment) as this positive `borrow` leg in that compartment.
-6. `repay`: a negative quantity given back against a liability. A disposal at market with its normal realized PnL on the asset's lots; the liability shrinks by the quantity and releases a proportional share of its basis, and the released basis minus the market value repaid is a second `Realized` row against the liability (`compartment` is the liability's, `lots` names the liability id), under either `liability_valuation` (rule 9.4). Repaying more than is owed is a `negative_liability` exception; the liability goes negative rather than being clipped.
+6. `repay`: a negative quantity given back against a liability. A disposal at market with its normal realized PnL on the asset's lots; the liability shrinks by the quantity and releases a proportional share of its basis, and the released basis minus the market value repaid is a second `Realized` row against the liability (`compartment` is the liability's, `lots` names the liability id): the liability is carried at cost until then (rule 9.4). Repaying more than is owed is a `negative_liability` exception; the liability goes negative rather than being clipped.
 
 7. `rollover`: an input or output of the event's `rollover` operation ([operations.md](operations.md)).
 8. `position`: the size leg of a perpetual fill; books nothing and changes the open position `(compartment, asset)` (policy 05 rule 8, [policy.md](policy.md#perpetuals-on-a-settled-basis)).
@@ -53,10 +53,10 @@ Policy 05 rule 14: each compartment of `Policy.opaque_compartments` is one posit
 2. **Out.** An outflow is a redemption: the coin received opens a lot at its market value at the source's time (a linked one) or leaves the books at it (an unlinked one). The position releases its units up to that value; value beyond them is a `Flow` of `income` labelled `performance`, asset `position:opaque:<compartment>`, `quantity` the signed result in the functional currency. Several coins out of one bot close are several redemptions, which release the same cost as one.
 3. **Between two opaque compartments** a linked move is a redemption from one and an entry into the other at that market value (rule 14.13).
 4. **Empty.** The compartment's contents are the sum of its `transfer` and `contents` legs per asset. After an event with `contents` legs that leaves them all at zero, the units left are released as a `performance` `expense`.
-5. **Interim rule** (specs#135, decision 23 open): results are recognised only at redemptions and at an empty compartment. A position still open is never trued up to a value; series points value it (below) without booking anything.
+5. **Interim rule** (specs#135, decision 23 open): results are recognised only at redemptions and at an empty compartment. A position still open is never trued up to a value; the engine never values it (portfolio's live layer does, policy 05 rule 39.10).
 6. A fee leg in an opaque compartment (a vault's withdrawal commission) is paid from inside it: it counts in the contents and books nothing of its own, since the value out already nets it. Any other leg in an opaque compartment, and a `contents` leg anywhere else, is `unbooked`.
 
-A series point values a position from its contents at the instant's prices, at least zero (rules 14.6 and 14.12), and lists a compartment whose contents are not empty even when its cost is zero. `value()` does not: it prices `position:opaque:` lots like any asset.
+Its open-lot row at the end of the run (`OpenRow` of kind `opaque`) holds its remaining cost, and is listed while its contents are not empty even when that cost is zero.
 
 ### `Event`
 
@@ -82,7 +82,7 @@ See [policy.md](policy.md).
 
 ### `Ledger`
 
-`{events, links?, policy?, prices?, max_age?, grid?}`: the CLI document. `events` holds atomic groups (arrays of events) and bare events (groups of one). `grid` lists the instants of the P&L series (`run(..., grid=...)`, policy 05 rule 39.1). `prices` is a list of `PriceRecord` used through `TablePricing` (latest at or before the requested time). `max_age` is an ISO 8601 duration (`P1D`, `PT36H`; a number is seconds): a record older than that relative to the requested time is a gap rather than a carry-forward; absent, the latest price carries forward without bound.
+`{events, links?, policy?, prices?}`: the CLI document. `events` holds atomic groups (arrays of events) and bare events (groups of one). `prices` is a list of `PriceRecord` used through `TablePricing`: the prices the events need, the latest at or before the requested time on its UTC day. A day without a row is a gap; nothing is carried to a later day (the caller chooses each day's price, policy 05 rules 1.5 and 39.10). Since 0.12 there is no `max_age` and no `grid`.
 
 ## Output
 
@@ -101,8 +101,8 @@ See [policy.md](policy.md).
 | `exceptions` | The exceptions report. |
 | `positions` | Open perpetual positions at the end, by compartment then instrument (`PerpPosition`). |
 | `journal` | The double entry of every booked event (`JournalLine`), balanced per event after rounding (policy 05 rule 29). |
-| `series` | One `SeriesPoint` per grid instant (policy 05 rule 39). |
-| `complete` | False when any leg was left unbooked. |
+| `open_rows` | What is still held at cost at the end of the run, its `as_of` (`OpenRow`, policy 05 term 14). |
+| `complete` | False when any leg was left unbooked, or the cost identity failed after a group. |
 
 ### `Lot`
 
@@ -127,22 +127,22 @@ See [policy.md](policy.md).
 
 Lines that restate a result row carry its rounded figure (a disposal's cost and P&L, a flow's value, a move's cost), so the journal ties to the rows. A linked transfer is one entry on its source event, with both sides of the move. Before rounding each event balances within decimal-division residue, else it is an `unbalanced` exception and the result is incomplete; after rounding a remaining residue becomes a `rounding` line. Unbooked legs have no lines.
 
-### `SeriesPoint`
+### `OpenRow`
 
-`run(..., grid=[...])` emits one point per instant (sorted, duplicates dropped), from the engine's state after every event up to and including the instant:
+`{kind, compartment, asset, quantity, cost, settles_in}`: what is still held at cost at the end of the run (policy 05 term 14). It needs no price, and the engine serves it at no other instant.
 
-| Field | Meaning |
-|---|---|
-| `at` | The instant. |
-| `holdings` | Per lot key `(compartment, asset)`, the functional currency included: `quantity`, `cost`, `value` at market and `unrealized`. |
-| `liabilities` | Per liability: `quantity`, `cost` (carrying value), `value` at market and `unrealized = cost - value`, whatever `liability_valuation` is (rule 39.4). |
-| `positions` | Per open perpetual position: `size`, `entry` (in `settles_in`), `mark` (the instrument's price in `settles_in`) and `unrealized = (size × mark − entry)` in the functional currency. |
-| `realized`, `flows` | Cumulative realized P&L, and income and expenses by label. |
-| `unrealized`, `total_pnl`, `net_assets` | Their sums: `total_pnl = realized + income − expenses + unrealized`; `net_assets` = holdings at market − liabilities at market + positions' unrealized. |
-| `contributions` | Net external transfers in, minus out, at their booked value. |
-| `complete`, `missing` | A price missing at the instant leaves that row's `value` and `unrealized` `null` (never zero), names the asset in `missing`, and leaves the totals `null`. |
+| `kind` | Rows | `quantity` | `cost` |
+|---|---|---|---|
+| `holding` | one per lot key `(compartment, asset)`, the functional currency included (from its journal lines) | the exact net quantity | the open lots' basis |
+| `opaque` | one per opaque position whose cost or contents are not zero | its units | its remaining cost |
+| `liability` | one per open liability, `compartment` the liability compartment | what is owed | its carrying value (cost, rule 9.4) |
+| `position` | one per open perpetual position, `asset` the instrument | its signed size | its entry basis in `settles_in`, signed like the size (not money, never rounded) |
 
-Prices are asked through the same pricing protocol and recorded in `Result.prices`. Before rounding, every complete point must satisfy `total_pnl = net_assets − contributions` (rule 39.5); a point that does not is a `series_mismatch` exception and the result is incomplete. Money is rounded row by row and the derived figures recomputed from the rounded parts.
+Holdings, opaque positions and liabilities are sorted by key, then positions. A caller joins them with values on read: unrealized P&L per holding is its value at `as_of` less this cost (policy 05 rule 39.12.2).
+
+### The cost identity
+
+After every atomic group the engine checks, without prices (policy 05 rule 39.5.1): assets at cost (the lot book's exact basis, opaque positions included, plus the functional currency's holding lines) − liabilities at carrying value = net contributions (the `external` journal account) + realized P&L + income − expenses. It is the journal's trial balance read from the engine's own state. A group that opens or changes a difference is a `cost_identity` exception naming the group's last event, with the `difference` and its `change`; the result is incomplete.
 
 ### `PerpPosition`
 
@@ -181,13 +181,8 @@ Prices are asked through the same pricing protocol and recorded in `Result.price
 | `negative_liability` | a `repay` exceeded what was owed under its `(compartment, asset)`, and the liability is still negative after its atomic group; booked anyway, the liability goes negative | no |
 | `unbooked` | a leg left out of the books; always paired with its cause | yes |
 | `unbalanced` | an event's journal does not balance before rounding | yes |
-| `series_mismatch` | a series point whose total P&L differs from net assets minus contributions | yes |
-| `invalid_grid` | a grid instant without a timezone; skipped | no |
+| `cost_identity` | after a group, assets at cost minus liabilities differ from contributions plus realized P&L plus income minus expenses (above); reported where the difference opens or changes | yes |
 | `quantity_residue` | information: a take or change would have left a holding nonzero but smaller than 1e-18; treated as zero (policy 05 rule 20.3), `detail` names `asset`, `compartment` and `residue` | no |
-
-### `Valuation` and `Position`
-
-`value(lots, liabilities=..., at=...)` returns `{at, positions, liabilities, prices, exceptions, complete}` with one `Position{lot, asset, compartment, quantity, cost, value, unrealized}` per lot and one `LiabilityPosition{liability, asset, compartment, label, quantity, cost, value, unrealized}` per liability; `value` and `unrealized` are `null` on a gap. A liability's `unrealized` is `cost - value` under `liability_valuation: market` and `null` under `cost` (the liability carries no PnL of its own; its market value is still reported).
 
 ## Ordering (contract)
 

@@ -1,4 +1,4 @@
-# Accounting 0.11 technical reference
+# Accounting 0.12 technical reference
 
 This pure engine receives caller-selected facts, policy and prices. It does not fetch
 source records, interpret protocols, prove wallet ownership or select company tax
@@ -7,14 +7,14 @@ policy. Portfolio owns those decisions and preserves evidence behind event IDs.
 1. [Model and ordinary lot behavior](model.md): legs, links, liability identity and JSON.
 2. [Basis operations and claims](operations.md): causal order, lineage, capitalization,
    allocations and worked position lifecycles.
-3. [Policy and valuation](policy.md): cost methods, pricing and ordinary fees.
+3. [Policy](policy.md): cost methods, pricing, ordinary fees and liabilities at cost.
 4. [Scoped notional accounting](notional.md): compartment eligibility and global pools.
 5. [CLI and replay](cli.md): commands and exit behavior.
 6. [Migration and extension](migration.md): schema versions, strict validation and fixtures.
 
 The frozen dataclasses in `litmus.accounting.model` define the contract.
 Pydantic TypeAdapter provides validation and generates JSON Schema on demand
-with `accounting schema ledger`, `result` or `valuation`. Decimals are JSON strings and times are timezone-aware ISO timestamps.
+with `accounting schema ledger` or `result`. Decimals are JSON strings and times are timezone-aware ISO timestamps.
 Unknown JSON fields are rejected. Structural cross-field invariants are checked by
 `validate`/`run`; a JSON-schema pass alone does not establish a bookable operation.
 
