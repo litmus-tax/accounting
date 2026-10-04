@@ -3,7 +3,15 @@
 from dataclasses import replace
 from decimal import Decimal
 from litmus.accounting import FixedPricing, run
-from litmus.accounting.model import CostMethod, Event, Link, LotScope, Policy
+from litmus.accounting.model import (
+  CostMethod,
+  Event,
+  Link,
+  LotScope,
+  Policy,
+  PriceRecord,
+)
+from litmus.accounting.pricing import TablePricing
 from tests.conftest import event, leg, link, policy, t
 
 BOT = 'bot'
@@ -136,8 +144,8 @@ def test_a_move_between_opaque_compartments():
   assert (lot.asset, lot.cost) == ('position:opaque:vault', Decimal('110'))
 
 
-def test_a_fee_paid_from_inside_is_part_of_the_result():
-  """A vault withdrawal's commission, a fee leg in the opaque compartment, is paid from inside: the value out already nets it, so it books no expense of its own (rule 14) and only counts in the contents."""
+def test_a_fee_after_the_cost_is_recovered_is_a_gain():
+  """A vault withdrawal's commission, a fee leg in the opaque compartment, is a fee expense; booked after the redemption took the cost to zero, its whole value is a `performance` gain at its time (rule 14.14.1). The total result is unchanged."""
   events = [
     event('buy', 1, leg('USDC', '10000'), leg('EUR', '-10000')),
     *move('deposit', 2, 'USDC', '10000', 'A', BOT),
@@ -146,7 +154,7 @@ def test_a_fee_paid_from_inside_is_part_of_the_result():
       'withdraw:out',
       4,
       leg('USDC', '-10300', BOT, 'transfer'),
-      leg('USDC', '-100', BOT, 'expense', fee=True),
+      leg('USDC', '-100', BOT, 'expense', fee=True, label='fee'),
     ),
     event('withdraw:in', 4, leg('USDC', '10300', 'A', 'transfer')),
   ]
@@ -157,9 +165,92 @@ def test_a_fee_paid_from_inside_is_part_of_the_result():
     pricing=FixedPricing({('USDC', 'EUR'): '1'}),
   )
   assert result.complete, result.exceptions
-  assert [(f.event, f.label, f.value) for f in result.flows] == [
-    ('withdraw:out', 'performance', Decimal('300'))
+  assert [(f.event, f.asset, f.kind, f.label, f.value) for f in result.flows] == [
+    ('withdraw:out', POSITION, 'income', 'performance', Decimal('300')),
+    ('withdraw:out', 'USDC', 'expense', 'fee', Decimal('100')),
+    ('withdraw:out', POSITION, 'income', 'performance', Decimal('100')),
   ]
+  assert not [lot for lot in result.lots if lot.asset == POSITION]
+
+
+def test_a_fee_beyond_the_remaining_cost_takes_it_to_zero():
+  """Where the remaining cost is below the fee's value, the cost goes to zero and the rest is a `performance` gain at the fee's time (rule 14.14.1)."""
+  events = [
+    event('buy', 1, leg('USDC', '100'), leg('EUR', '-100')),
+    *move('in', 2, 'USDC', '100', 'A', BOT),
+    *move('out', 3, 'USDC', '95', BOT, 'A'),
+    event('fee', 4, leg('USDC', '-8', BOT, 'expense', fee=True, label='fee')),
+  ]
+  result = run(
+    events,
+    links=links('in', 'out'),
+    policy=opaque(),
+    pricing=FixedPricing({('USDC', 'EUR'): '1'}),
+  )
+  assert result.complete, result.exceptions
+  assert [(f.event, f.label, f.kind, f.value) for f in result.flows] == [
+    ('fee', 'fee', 'expense', Decimal('8')),
+    ('fee', 'performance', 'income', Decimal('3')),
+  ]
+  assert not [lot for lot in result.lots if lot.asset == POSITION]
+  (row,) = [row for row in result.open_rows if row.kind == 'opaque']
+  assert (row.quantity, row.cost) == (0, 0)
+
+
+def test_a_fee_without_a_price_stays_in_the_result():
+  """A reported fee that cannot be priced books nothing and reduces no cost; it still lowers the contents, so it lands in `performance`, with an informational item naming the record, compartment, asset and quantity (rule 14.14.3). The run stays complete, in strict mode too."""
+  events = [
+    event('buy', 1, leg('USDC', '100'), leg('EUR', '-100')),
+    *move('in', 2, 'USDC', '100', 'A', BOT),
+    event('fee', 3, leg('USDC', '-1', BOT, 'expense', fee=True, label='fee')),
+    event('snapshot', 4, leg('USDC', '11', BOT, 'contents')),
+    *move('out', 5, 'USDC', '110', BOT, 'A'),
+  ]
+  prices = [
+    PriceRecord(
+      asset='USDC', quote='EUR', time=t(day), source='market', price=Decimal(1)
+    )
+    for day in (2, 5)
+  ]
+  for strict in (False, True):
+    result = run(
+      events,
+      links=links('in', 'out'),
+      policy=opaque(),
+      pricing=TablePricing(prices),
+      strict=strict,
+    )
+    assert result.complete, result.exceptions
+    (item,) = result.exceptions
+    assert (item.code, item.event, item.detail) == (
+      'unpriced_opaque_fee',
+      'fee',
+      {'asset': 'USDC', 'compartment': BOT, 'quantity': '-1'},
+    )
+    assert [(f.event, f.label, f.value) for f in result.flows] == [
+      ('out:out', 'performance', Decimal(10))
+    ]
+
+
+def test_a_fee_outside_the_compartment_is_an_ordinary_fee():
+  """A withdrawal fee charged in spot is booked by rule 7 and touches neither the position's cost nor its contents (rule 14.14.4)."""
+  events = [
+    event('buy', 1, leg('USDC', '100'), leg('EUR', '-100')),
+    *move('in', 2, 'USDC', '90', 'A', BOT),
+    event('fee', 3, leg('USDC', '-1', 'A', 'expense', fee=True, label='fee')),
+  ]
+  result = run(
+    events,
+    links=links('in'),
+    policy=opaque(),
+    pricing=FixedPricing({('USDC', 'EUR'): '1'}),
+  )
+  assert result.complete, result.exceptions
+  assert [(f.compartment, f.label, f.value) for f in result.flows] == [
+    ('A', 'fee', Decimal('1'))
+  ]
+  (row,) = [row for row in result.open_rows if row.kind == 'opaque']
+  assert row.cost == 90
 
 
 def test_a_redemption_without_a_price_is_unbooked():

@@ -1,0 +1,270 @@
+{
+ "example": "policy 05 rule 14.14.5 and guide \u00a74.5: a fee reported inside an opaque compartment",
+ "ledger": {
+  "policy": {
+   "cost_method": "fifo",
+   "lot_scope": "compartment",
+   "functional_currency": "EUR",
+   "cash": [
+    "USDT"
+   ],
+   "minor_unit": 2,
+   "opaque_compartments": [
+    "copytrade"
+   ]
+  },
+  "prices": [
+   {
+    "asset": "USDT",
+    "quote": "EUR",
+    "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDT",
+    "quote": "EUR",
+    "time": "2026-01-02T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDT",
+    "quote": "EUR",
+    "time": "2026-01-03T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDT",
+    "quote": "EUR",
+    "time": "2026-01-04T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   }
+  ],
+  "events": [
+   {
+    "id": "buy",
+    "time": "2026-01-01T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDT",
+      "quantity": "1000",
+      "compartment": "spot",
+      "tag": "trade"
+     },
+     {
+      "asset": "EUR",
+      "quantity": "-1000",
+      "compartment": "spot",
+      "tag": "trade"
+     }
+    ]
+   },
+   {
+    "id": "to-copy-out",
+    "time": "2026-01-02T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDT",
+      "quantity": "-1000",
+      "compartment": "spot",
+      "tag": "transfer"
+     }
+    ]
+   },
+   {
+    "id": "to-copy-in",
+    "time": "2026-01-02T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDT",
+      "quantity": "1000",
+      "compartment": "copytrade",
+      "tag": "transfer"
+     }
+    ]
+   },
+   {
+    "id": "fee",
+    "time": "2026-01-03T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDT",
+      "quantity": "-0.80",
+      "compartment": "copytrade",
+      "tag": "expense",
+      "fee": true,
+      "label": "fee"
+     }
+    ]
+   },
+   {
+    "id": "back-out",
+    "time": "2026-01-04T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDT",
+      "quantity": "-1020",
+      "compartment": "copytrade",
+      "tag": "transfer"
+     }
+    ]
+   },
+   {
+    "id": "back-in",
+    "time": "2026-01-04T12:00:00Z",
+    "legs": [
+     {
+      "asset": "USDT",
+      "quantity": "1020",
+      "compartment": "spot",
+      "tag": "transfer"
+     }
+    ]
+   }
+  ],
+  "links": [
+   {
+    "src": "to-copy-out",
+    "dst": "to-copy-in"
+   },
+   {
+    "src": "back-out",
+    "dst": "back-in"
+   }
+  ]
+ },
+ "cases": [
+  {
+   "name": "after-the-fee",
+   "rules": [
+    "14.2",
+    "14.14.1",
+    "29"
+   ],
+   "as_of": "2026-01-03T23:59:59Z",
+   "expected": {
+    "complete": true,
+    "flows": [
+     {
+      "event": "fee",
+      "compartment": "copytrade",
+      "asset": "USDT",
+      "kind": "expense",
+      "fee": true,
+      "label": "fee",
+      "value": "0.80"
+     }
+    ],
+    "open_rows": [
+     {
+      "kind": "opaque",
+      "compartment": "copytrade",
+      "asset": "position:opaque:copytrade",
+      "quantity": "999.20",
+      "cost": "999.20"
+     }
+    ],
+    "totals": {
+     "realized": "0.00",
+     "income": "0.00",
+     "expenses": "0.80"
+    },
+    "journal": [
+     {
+      "event": "fee",
+      "account": "expense",
+      "compartment": "copytrade",
+      "asset": "USDT",
+      "label": "fee",
+      "debit": "0.80",
+      "credit": "0"
+     },
+     {
+      "event": "fee",
+      "account": "holding",
+      "compartment": "copytrade",
+      "asset": "position:opaque:copytrade",
+      "debit": "0",
+      "credit": "0.80"
+     }
+    ]
+   }
+  },
+  {
+   "name": "redeemed",
+   "rules": [
+    "14.4",
+    "14.7",
+    "14.14.1",
+    "14.14.5",
+    "29"
+   ],
+   "expected": {
+    "complete": true,
+    "flows": [
+     {
+      "event": "fee",
+      "compartment": "copytrade",
+      "asset": "USDT",
+      "kind": "expense",
+      "fee": true,
+      "label": "fee",
+      "value": "0.80"
+     },
+     {
+      "event": "back-out",
+      "compartment": "copytrade",
+      "asset": "position:opaque:copytrade",
+      "kind": "income",
+      "label": "performance",
+      "value": "20.80"
+     }
+    ],
+    "holdings": [
+     {
+      "compartment": "spot",
+      "asset": "USDT",
+      "quantity": "1020",
+      "cost": "1020.00"
+     }
+    ],
+    "totals": {
+     "realized": "0.00",
+     "income": "20.80",
+     "expenses": "0.80"
+    },
+    "journal": [
+     {
+      "event": "back-out",
+      "account": "holding",
+      "compartment": "spot",
+      "asset": "USDT",
+      "debit": "1020.00",
+      "credit": "0"
+     },
+     {
+      "event": "back-out",
+      "account": "holding",
+      "compartment": "copytrade",
+      "asset": "position:opaque:copytrade",
+      "debit": "0",
+      "credit": "999.20"
+     },
+     {
+      "event": "back-out",
+      "account": "income",
+      "compartment": "copytrade",
+      "asset": "position:opaque:copytrade",
+      "label": "performance",
+      "debit": "0",
+      "credit": "20.80"
+     }
+    ]
+   },
+   "note": "the fee line moves 0.80 from performance to fees; the total, +20.00, is unchanged"
+  }
+ ]
+}

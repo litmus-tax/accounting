@@ -459,6 +459,7 @@ ExceptionCode = Literal[
   'unbalanced',
   'cost_identity',
   'quantity_residue',
+  'unpriced_opaque_fee',
 ]
 """
 - `price_gap`: the pricing source had no price; the leg (or trade) is left unbooked.
@@ -484,6 +485,11 @@ ExceptionCode = Literal[
   holding nonzero but smaller than 1e-18; it was treated as zero, its basis
   released with the take (policy 05 rule 20.3). `detail` names the `asset`,
   `compartment` and `residue`. Never makes the run incomplete.
+- `unpriced_opaque_fee`: informational. A fee leg inside an opaque compartment
+  had no price at its time: it books no expense and reduces no cost, and stays
+  in the compartment's `performance` through its contents (policy 05 rule
+  14.14.3). `detail` names the `asset`, `compartment` and `quantity`; the event
+  is the record. Never makes the run incomplete.
 """
 
 
@@ -603,9 +609,9 @@ class RolloverRecord:
   cost_reference: str | None
 
 
-ResultVersion = Literal['0.12']
+ResultVersion = Literal['0.13']
 """The result schema this engine writes and reads (policy 05 rule 27.2)."""
-RESULT_VERSION: ResultVersion = '0.12'
+RESULT_VERSION: ResultVersion = '0.13'
 
 
 @dataclass(frozen=True)
@@ -648,8 +654,19 @@ class Ledger:
   group, a bare event a group of one.
   """
   schema_version: Literal[
-    '0.2', '0.3', '0.4', '0.5', '0.6', '0.7', '0.8', '0.9', '0.10', '0.11', '0.12'
-  ] = '0.12'
+    '0.2',
+    '0.3',
+    '0.4',
+    '0.5',
+    '0.6',
+    '0.7',
+    '0.8',
+    '0.9',
+    '0.10',
+    '0.11',
+    '0.12',
+    '0.13',
+  ] = '0.13'
   links: tuple[Link, ...] = ()
   policy: Policy | None = None
   prices: tuple[PriceRecord, ...] = ()

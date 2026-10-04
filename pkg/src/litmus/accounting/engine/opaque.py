@@ -2,10 +2,11 @@
 Opaque positions (policy 05 rule 14): an opaque compartment is one position,
 booked by value. Coins moved in carry their basis into it, coins taken out are
 a redemption at market value that releases cost up to that value, and any value
-beyond it is a `performance` result, one line per compartment. A fee paid from
-inside it is part of that result and books nothing of its own. Its contents are
-tracked per asset from its legs; when `contents` legs leave it empty, the cost
-left is a `performance` loss.
+beyond it is a `performance` result, one line per compartment. A fee the venue
+reports inside it is a fee expense at market value that reduces the remaining
+cost (rule 14.14); one without a price books nothing and stays in the result.
+Its contents are tracked per asset from its legs, fees included; when
+`contents` legs leave it empty, the cost left is a `performance` loss.
 
 Interim rule (specs#135, decision 23 open): results are recognised only at
 redemptions and at an empty compartment. Positions still open are never
@@ -43,8 +44,7 @@ class Opaque(Debt):
   def inside(self, leg: Leg) -> bool:
     """
     Whether a leg changes an opaque compartment's contents: its `transfer` and
-    `contents` legs, and the fees paid from inside it, which are part of its
-    result and book nothing of their own (rule 14).
+    `contents` legs, and the fees paid from inside it (rules 14.5 and 14.14).
     """
     return leg.compartment in self.opaque and (
       leg.fee or leg.tag in ('transfer', 'contents')
@@ -98,6 +98,52 @@ class Opaque(Debt):
       cost = exact_sum(share for _, _, share in taken)
       self.journal.add(event, 'holding', -cost, compartment=key[0], asset=key[1])
       self.result(event, compartment, -cost)
+
+  def fee_inside(self, event: Event, leg: Leg):
+    """
+    A fee leg the venue reports inside an opaque compartment (rule 14.14): an
+    expense at market value, never capitalised, that reduces the position's
+    remaining cost by that value; value beyond the remaining cost is a
+    `performance` gain. Without a price it books nothing, stays in the
+    compartment's result through its contents, and raises the informational
+    `unpriced_opaque_fee`.
+    """
+    try:
+      value = -self.market(event, leg)
+    except PriceGap:
+      self.report(
+        'unpriced_opaque_fee',
+        event.id,
+        f'fee of {leg.quantity} {leg.asset} in {leg.compartment} has no price: '
+        "left in the compartment's performance (policy 05 rule 14.14.3)",
+        asset=leg.asset,
+        compartment=leg.compartment,
+        quantity=str(leg.quantity),
+      )
+      return
+    self.journal.add(
+      event,
+      'expense',
+      value,
+      compartment=leg.compartment,
+      asset=leg.asset,
+      label=leg.label,
+      ref=('flow', len(self.flows)),
+    )
+    self.flows.append(
+      Flow(
+        event=event.id,
+        time=event.time,
+        asset=leg.asset,
+        compartment=leg.compartment,
+        quantity=leg.quantity,
+        value=value,
+        kind='expense',
+        fee=True,
+        label=leg.label,
+      )
+    )
+    self.redeem(event, leg.compartment, value)
 
   def result(self, event: Event, compartment: str, amount: Decimal):
     """A `performance` result of an opaque position: income when positive, expense when negative (rule 14.7)."""
