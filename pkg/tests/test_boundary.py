@@ -117,22 +117,19 @@ def test_zero_cost_unsolicited_receipt_realizes_everything_on_disposal():
   assert (row.proceeds, row.cost, row.pnl) == (D('3500'), D('0'), D('3500'))
 
 
-def test_carried_transfers_keep_the_series_check():
-  """Contributions follow the carried cost, so total P&L still equals net assets minus contributions."""
-  # policy 05 rules 13.3.1 and 39.5
+def test_carried_transfers_keep_the_cost_identity():
+  """Contributions follow the carried cost, so assets at cost still equal net contributions, with no price."""
+  # policy 05 rules 13.3.1 and 39.5.1
   r = run(
     [event('in', 1, transfer('1', basis='carried', cost=D('1000')))],
     policy=policy(),
-    pricing=PRICES,
-    grid=[t(2)],
+    pricing=FixedPricing({}),
   )
-  (point,) = r.series
-  assert (point.contributions, point.net_assets, point.total_pnl) == (
-    D('1000'),
-    D('3500'),
-    D('2500'),
-  )
-  assert 'series_mismatch' not in codes(r)
+  assert 'cost_identity' not in codes(r) and r.complete
+  assert [(row.kind, row.asset, row.quantity, row.cost) for row in r.open_rows] == [
+    ('holding', 'ETH', D('1'), D('1000'))
+  ]
+  assert r.prices == ()
 
 
 @pytest.mark.parametrize(

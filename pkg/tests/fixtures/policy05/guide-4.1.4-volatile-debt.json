@@ -22,6 +22,13 @@
    {
     "asset": "ETH",
     "quote": "USD",
+    "time": "2026-01-05T00:00:00Z",
+    "source": "market",
+    "price": "3500"
+   },
+   {
+    "asset": "ETH",
+    "quote": "USD",
     "time": "2026-01-10T00:00:00Z",
     "source": "market",
     "price": "3500"
@@ -34,6 +41,13 @@
     "price": "1"
    },
    {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2026-01-10T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
     "asset": "USDT",
     "quote": "USD",
     "time": "2026-01-01T00:00:00Z",
@@ -41,11 +55,11 @@
     "price": "1"
    },
    {
-    "asset": "ETH",
+    "asset": "USDT",
     "quote": "USD",
-    "time": "2026-01-05T00:00:00Z",
+    "time": "2026-01-10T00:00:00Z",
     "source": "market",
-    "price": "3500"
+    "price": "1"
    }
   ],
   "events": [
@@ -77,16 +91,12 @@
      }
     ]
    }
-  ],
-  "grid": [
-   "2026-01-05T12:00:00Z"
   ]
  },
  "cases": [
   {
    "name": "cost",
    "rules": [
-    "39.4",
     "9.4"
    ],
    "expected": {
@@ -109,83 +119,28 @@
     "totals": {
      "realized": "0.00"
     },
-    "liabilities": [],
-    "series": [
-     {
-      "at": "2026-01-05T12:00:00Z",
-      "complete": true,
-      "holdings": [
-       {
-        "asset": "ETH",
-        "cost": "3000.00",
-        "value": "3500.00",
-        "unrealized": "500.00"
-       }
-      ],
-      "liabilities": [
-       {
-        "asset": "ETH",
-        "cost": "3000.00",
-        "value": "3500.00",
-        "unrealized": "-500.00"
-       }
-      ],
-      "total_pnl": "0.00",
-      "realized": "0.00"
-     }
-    ]
+    "liabilities": []
    }
   },
   {
-   "name": "market",
+   "name": "cost-as-of",
    "rules": [
-    "39.4",
-    "9.4"
+    "39.5.1",
+    "term 14"
    ],
-   "policy": {
-    "liability_valuation": "market"
-   },
+   "as_of": "2026-01-05T12:00:00Z",
    "expected": {
     "complete": true,
-    "realized": [
+    "open_rows": [
      {
-      "event": "repay",
+      "kind": "holding",
       "asset": "ETH",
-      "pnl": "500.00"
+      "cost": "3000.00"
      },
      {
-      "event": "repay",
+      "kind": "liability",
       "asset": "ETH",
-      "pnl": "-500.00",
-      "compartment": "debt:aave-eth"
-     }
-    ],
-    "totals": {
-     "realized": "0.00"
-    },
-    "liabilities": [],
-    "series": [
-     {
-      "at": "2026-01-05T12:00:00Z",
-      "complete": true,
-      "holdings": [
-       {
-        "asset": "ETH",
-        "cost": "3000.00",
-        "value": "3500.00",
-        "unrealized": "500.00"
-       }
-      ],
-      "liabilities": [
-       {
-        "asset": "ETH",
-        "cost": "3000.00",
-        "value": "3500.00",
-        "unrealized": "-500.00"
-       }
-      ],
-      "total_pnl": "0.00",
-      "realized": "0.00"
+      "cost": "3000.00"
      }
     ]
    }

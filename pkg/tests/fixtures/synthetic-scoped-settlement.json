@@ -121,7 +121,28 @@
         "price": "0.9"
       },
       {
+        "asset": "USD-A",
+        "quote": "EUR",
+        "time": "2026-01-02T00:00:00Z",
+        "source": "market",
+        "price": "0.9"
+      },
+      {
         "asset": "USD-B",
+        "quote": "EUR",
+        "time": "2026-01-01T00:00:00Z",
+        "source": "market",
+        "price": "0.9"
+      },
+      {
+        "asset": "USD-B",
+        "quote": "EUR",
+        "time": "2026-01-02T00:00:00Z",
+        "source": "market",
+        "price": "0.9"
+      },
+      {
+        "asset": "USD-C",
         "quote": "EUR",
         "time": "2026-01-01T00:00:00Z",
         "source": "market",
@@ -130,7 +151,7 @@
       {
         "asset": "USD-C",
         "quote": "EUR",
-        "time": "2026-01-01T00:00:00Z",
+        "time": "2026-01-02T00:00:00Z",
         "source": "market",
         "price": "0.9"
       }

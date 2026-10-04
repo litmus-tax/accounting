@@ -116,8 +116,8 @@ class Debt(Booking):
     Book a repay leg: the asset given is a disposal at market with its normal
     PnL, and the liability shrinks by the quantity repaid, releasing a
     proportional share of its basis. The difference between the basis released
-    and the market value repaid is realized against the liability, under either
-    `liability_valuation` (policy 05 rule 9.4). Repaying more than is owed is
+    and the market value repaid is realized against the liability, which is
+    carried at cost until then (policy 05 rule 9.4). Repaying more than is owed is
     booked anyway, and reported as `negative_liability` when the liability is
     still negative after the atomic group (rule 6.3).
     """

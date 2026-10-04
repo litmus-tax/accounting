@@ -48,10 +48,16 @@ class Line:
 class Journal:
   """Lines in booking order."""
 
-  def __init__(self):
+  def __init__(self, cash: str):
+    self.cash = cash
+    """The functional currency: held without lots, its holding is its journal lines."""
     self.lines: list[Line] = []
     self.balances: dict[tuple[JournalAccount, str | None, str | None], Decimal] = {}
     """Running debits minus credits per `(account, compartment, asset)`."""
+    self.totals: dict[JournalAccount, Decimal] = {}
+    """Running debits minus credits per account kind."""
+    self.held_cash = Decimal(0)
+    """Running debits minus credits of the functional currency's holding lines."""
 
   def add(
     self,
@@ -72,6 +78,9 @@ class Journal:
     )
     key = (account, compartment, asset)
     self.balances[key] = self.balances.get(key, Decimal(0)) + amount
+    self.totals[account] = self.totals.get(account, Decimal(0)) + amount
+    if account == 'holding' and asset == self.cash:
+      self.held_cash += amount
 
   def rounded(self, line: Line, result: Result, minor_unit: int | None) -> Decimal:
     """The line's amount after rounding: the referenced row's rounded figure, else its own."""

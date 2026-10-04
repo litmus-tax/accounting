@@ -7,7 +7,9 @@
     "minor_unit": 2
   },
   "prices": [
-    {"asset": "USDT", "quote": "EUR", "time": "2026-01-01T00:00:00Z", "source": "market", "price": "0.9"}
+    {"asset": "USDT", "quote": "EUR", "time": "2026-01-01T00:00:00Z", "source": "market", "price": "0.9"},
+    {"asset": "USDT", "quote": "EUR", "time": "2026-01-02T00:00:00Z", "source": "market", "price": "0.9"},
+    {"asset": "USDT", "quote": "EUR", "time": "2026-01-03T00:00:00Z", "source": "market", "price": "0.9"}
   ],
   "events": [
     {"id": "cex:dep", "time": "2026-01-01T10:00:00Z", "legs": [

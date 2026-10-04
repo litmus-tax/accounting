@@ -22,6 +22,34 @@
     "time": "2025-01-01T00:00:00Z",
     "source": "market",
     "price": "1"
+   },
+   {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2025-02-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2025-03-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2025-04-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2025-05-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
    }
   ],
   "events": [

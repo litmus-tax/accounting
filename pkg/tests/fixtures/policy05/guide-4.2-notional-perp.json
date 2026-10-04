@@ -13,9 +13,44 @@
   },
   "prices": [
    {
+    "asset": "BTC-PERP",
+    "quote": "USDC",
+    "time": "2026-01-04T00:00:00Z",
+    "source": "market",
+    "price": "61000"
+   },
+   {
+    "asset": "BTC-PERP",
+    "quote": "USDC",
+    "time": "2026-01-05T00:00:00Z",
+    "source": "market",
+    "price": "61000"
+   },
+   {
     "asset": "USDC",
     "quote": "USD",
     "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2026-01-02T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2026-01-03T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2026-01-05T00:00:00Z",
     "source": "market",
     "price": "1"
    },
@@ -27,11 +62,25 @@
     "price": "1"
    },
    {
-    "asset": "BTC-PERP",
-    "quote": "USDC",
-    "time": "2026-01-04T00:00:00Z",
+    "asset": "USDT",
+    "quote": "USD",
+    "time": "2026-01-02T00:00:00Z",
     "source": "market",
-    "price": "61000"
+    "price": "1"
+   },
+   {
+    "asset": "USDT",
+    "quote": "USD",
+    "time": "2026-01-03T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDT",
+    "quote": "USD",
+    "time": "2026-01-05T00:00:00Z",
+    "source": "market",
+    "price": "1"
    }
   ],
   "events": [
@@ -113,9 +162,6 @@
      }
     ]
    }
-  ],
-  "grid": [
-   "2026-01-04T12:00:00Z"
   ]
  },
  "cases": [
@@ -123,9 +169,6 @@
    "name": "settled-basis",
    "rules": [
     "29",
-    "39.2",
-    "39.3",
-    "39.5",
     "8.1",
     "8.2",
     "8.4",
@@ -207,23 +250,24 @@
       "debit": "0",
       "credit": "31.00"
      }
-    ],
-    "series": [
+    ]
+   }
+  },
+  {
+   "name": "settled-basis-as-of",
+   "rules": [
+    "39.5.1",
+    "term 14"
+   ],
+   "as_of": "2026-01-04T12:00:00Z",
+   "expected": {
+    "complete": true,
+    "open_rows": [
      {
-      "at": "2026-01-04T12:00:00Z",
-      "complete": true,
-      "positions": [
-       {
-        "instrument": "BTC-PERP",
-        "size": "1",
-        "entry": "60000",
-        "mark": "61000",
-        "unrealized": "1000.00"
-       }
-      ],
-      "net_assets": "10960.00",
-      "contributions": "10000.00",
-      "total_pnl": "960.00"
+      "kind": "position",
+      "asset": "BTC-PERP",
+      "quantity": "1",
+      "cost": "60000"
      }
     ]
    }

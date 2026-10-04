@@ -1,4 +1,4 @@
-"""The pre-#17 `LotBook` (543bbfc), kept as a test oracle for the linear lot book; only `origins=`, `sign()` and `fork()` are shims for the current engine's calls. Since accounting 0.10 its quantity arithmetic is exact, as policy 05 rule 20.3 requires: quantities are added, subtracted and compared without rounding. It has no quantity net."""
+"""The pre-#17 `LotBook` (543bbfc), kept as a test oracle for the linear lot book; only `origins=`, `sign()`, `fork()` and the running totals (`totals`, `costs`, `cost`) are shims for the current engine's calls. Since accounting 0.10 its quantity arithmetic is exact, as policy 05 rule 20.3 requires: quantities are added, subtracted and compared without rounding. It has no quantity net."""
 
 from dataclasses import dataclass, replace
 from datetime import datetime
@@ -108,6 +108,21 @@ class LotBook:
   def sign(self, key: LotKey) -> int:
     """Shim for the current engine's call: the sign of the position."""
     return sign(self.position(key))
+
+  @property
+  def totals(self) -> dict[LotKey, Decimal]:
+    """Shim for the current engine's call: net quantity per key."""
+    return {key: self.position(key) for key in self.lots}
+
+  @property
+  def costs(self) -> dict[LotKey, Decimal]:
+    """Shim for the current engine's call: net basis per key."""
+    return {key: exact_sum(lot.cost for lot in lots) for key, lots in self.lots.items()}
+
+  @property
+  def cost(self) -> Decimal:
+    """Shim for the current engine's call: net basis of every key."""
+    return exact_sum(lot.cost for lots in self.lots.values() for lot in lots)
 
   def position(self, key: LotKey) -> Decimal:
     """Net signed quantity held under `key`."""

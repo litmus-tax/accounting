@@ -18,6 +18,90 @@
   },
   "prices": [
    {
+    "asset": "BTC",
+    "quote": "USD",
+    "time": "2025-01-01T00:00:00Z",
+    "source": "market",
+    "price": "91700"
+   },
+   {
+    "asset": "BTC",
+    "quote": "USD",
+    "time": "2025-11-01T00:00:00Z",
+    "source": "market",
+    "price": "91700"
+   },
+   {
+    "asset": "BTC",
+    "quote": "USD",
+    "time": "2025-11-25T00:00:00Z",
+    "source": "market",
+    "price": "91700"
+   },
+   {
+    "asset": "BTC",
+    "quote": "USD",
+    "time": "2025-11-26T00:00:00Z",
+    "source": "market",
+    "price": "91700"
+   },
+   {
+    "asset": "BTC",
+    "quote": "USD",
+    "time": "2025-11-28T00:00:00Z",
+    "source": "market",
+    "price": "91700"
+   },
+   {
+    "asset": "BTC",
+    "quote": "USD",
+    "time": "2025-12-01T00:00:00Z",
+    "source": "market",
+    "price": "91700"
+   },
+   {
+    "asset": "BTC",
+    "quote": "USD",
+    "time": "2025-12-04T00:00:00Z",
+    "source": "market",
+    "price": "91700"
+   },
+   {
+    "asset": "BTC",
+    "quote": "USD",
+    "time": "2025-12-06T00:00:00Z",
+    "source": "market",
+    "price": "91700"
+   },
+   {
+    "asset": "BTC",
+    "quote": "USD",
+    "time": "2025-12-08T00:00:00Z",
+    "source": "market",
+    "price": "91700"
+   },
+   {
+    "asset": "BTC",
+    "quote": "USD",
+    "time": "2025-12-13T00:00:00Z",
+    "source": "market",
+    "price": "91700"
+   },
+   {
+    "asset": "BTC",
+    "quote": "USD",
+    "time": "2025-12-19T00:00:00Z",
+    "source": "market",
+    "price": "91700"
+   },
+   {
+    "asset": "BTC",
+    "quote": "USD",
+    "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "91700"
+   },
+   {
     "asset": "USDC",
     "quote": "USD",
     "time": "2025-01-01T00:00:00Z",
@@ -25,9 +109,79 @@
     "price": "1"
    },
    {
-    "asset": "USDT",
+    "asset": "USDC",
     "quote": "USD",
-    "time": "2025-01-01T00:00:00Z",
+    "time": "2025-11-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2025-11-25T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2025-11-26T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2025-11-28T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2025-12-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2025-12-04T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2025-12-06T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2025-12-08T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2025-12-13T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2025-12-19T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2026-01-01T00:00:00Z",
     "source": "market",
     "price": "1"
    },
@@ -39,11 +193,165 @@
     "price": "1"
    },
    {
-    "asset": "BTC",
+    "asset": "USDE",
+    "quote": "USD",
+    "time": "2025-11-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDE",
+    "quote": "USD",
+    "time": "2025-11-25T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDE",
+    "quote": "USD",
+    "time": "2025-11-26T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDE",
+    "quote": "USD",
+    "time": "2025-11-28T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDE",
+    "quote": "USD",
+    "time": "2025-12-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDE",
+    "quote": "USD",
+    "time": "2025-12-04T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDE",
+    "quote": "USD",
+    "time": "2025-12-06T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDE",
+    "quote": "USD",
+    "time": "2025-12-08T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDE",
+    "quote": "USD",
+    "time": "2025-12-13T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDE",
+    "quote": "USD",
+    "time": "2025-12-19T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDE",
+    "quote": "USD",
+    "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDT",
     "quote": "USD",
     "time": "2025-01-01T00:00:00Z",
     "source": "market",
-    "price": "91700"
+    "price": "1"
+   },
+   {
+    "asset": "USDT",
+    "quote": "USD",
+    "time": "2025-11-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDT",
+    "quote": "USD",
+    "time": "2025-11-25T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDT",
+    "quote": "USD",
+    "time": "2025-11-26T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDT",
+    "quote": "USD",
+    "time": "2025-11-28T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDT",
+    "quote": "USD",
+    "time": "2025-12-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDT",
+    "quote": "USD",
+    "time": "2025-12-04T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDT",
+    "quote": "USD",
+    "time": "2025-12-06T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDT",
+    "quote": "USD",
+    "time": "2025-12-08T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDT",
+    "quote": "USD",
+    "time": "2025-12-13T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDT",
+    "quote": "USD",
+    "time": "2025-12-19T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDT",
+    "quote": "USD",
+    "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
    }
   ],
   "events": [
@@ -889,9 +1197,6 @@
     "src": "futures:strategy:5:out",
     "dst": "futures:strategy:5:in"
    }
-  ],
-  "grid": [
-   "2025-12-31T23:59:59Z"
   ]
  },
  "cases": [
@@ -963,66 +1268,77 @@
      "realized": "0.00",
      "income": "11.36",
      "expenses": "0.00"
-    },
-    "series": [
+    }
+   }
+  },
+  {
+   "name": "about-11-in-2025-as-of",
+   "rules": [
+    "39.5.1",
+    "term 14"
+   ],
+   "as_of": "2025-12-31T23:59:59Z",
+   "expected": {
+    "complete": true,
+    "open_rows": [
      {
-      "at": "2025-12-31T23:59:59Z",
-      "complete": true,
-      "total_pnl": "11.36",
-      "holdings": [
-       {
-        "compartment": "futures",
-        "asset": "USD",
-        "cost": "-200.00"
-       },
-       {
-        "compartment": "futures",
-        "asset": "USDT",
-        "quantity": "205.8433",
-        "cost": "205.84"
-       },
-       {
-        "compartment": "futures:strategy",
-        "asset": "position:opaque:futures:strategy",
-        "cost": "0.00",
-        "value": "0.00"
-       },
-       {
-        "compartment": "spot",
-        "asset": "BTC",
-        "quantity": "0.000033956",
-        "cost": "3.11"
-       },
-       {
-        "compartment": "spot",
-        "asset": "USD",
-        "cost": "-4200.00"
-       },
-       {
-        "compartment": "spot",
-        "asset": "USDC",
-        "quantity": "664.981500",
-        "cost": "664.98"
-       },
-       {
-        "compartment": "spot",
-        "asset": "USDE",
-        "quantity": "672.10722",
-        "cost": "672.11"
-       },
-       {
-        "compartment": "spot",
-        "asset": "USDT",
-        "quantity": "2865.312903841",
-        "cost": "2865.31"
-       },
-       {
-        "compartment": "spot:strategy",
-        "asset": "position:opaque:spot:strategy",
-        "cost": "0.00",
-        "value": "0.00"
-       }
-      ]
+      "kind": "holding",
+      "compartment": "futures",
+      "asset": "USD",
+      "cost": "-200.00"
+     },
+     {
+      "kind": "holding",
+      "compartment": "futures",
+      "asset": "USDT",
+      "quantity": "205.8433",
+      "cost": "205.84"
+     },
+     {
+      "kind": "opaque",
+      "compartment": "futures:strategy",
+      "asset": "position:opaque:futures:strategy",
+      "cost": "0.00"
+     },
+     {
+      "kind": "holding",
+      "compartment": "spot",
+      "asset": "BTC",
+      "quantity": "0.000033956",
+      "cost": "3.11"
+     },
+     {
+      "kind": "holding",
+      "compartment": "spot",
+      "asset": "USD",
+      "cost": "-4200.00"
+     },
+     {
+      "kind": "holding",
+      "compartment": "spot",
+      "asset": "USDC",
+      "quantity": "664.981500",
+      "cost": "664.98"
+     },
+     {
+      "kind": "holding",
+      "compartment": "spot",
+      "asset": "USDE",
+      "quantity": "672.10722",
+      "cost": "672.11"
+     },
+     {
+      "kind": "holding",
+      "compartment": "spot",
+      "asset": "USDT",
+      "quantity": "2865.312903841",
+      "cost": "2865.31"
+     },
+     {
+      "kind": "opaque",
+      "compartment": "spot:strategy",
+      "asset": "position:opaque:spot:strategy",
+      "cost": "0.00"
      }
     ]
    }

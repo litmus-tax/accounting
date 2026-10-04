@@ -9,8 +9,14 @@
     "cash": ["USDC", "USD", "EUR"]
   },
   "prices": [
+    {"asset": "USD", "quote": "EUR", "time": "2026-01-01T00:00:00Z", "source": "official", "price": "0.9"},
+    {"asset": "USD", "quote": "EUR", "time": "2026-01-02T00:00:00Z", "source": "official", "price": "0.9"},
+    {"asset": "USD", "quote": "EUR", "time": "2026-01-03T00:00:00Z", "source": "official", "price": "0.9"},
+    {"asset": "USD", "quote": "EUR", "time": "2026-01-04T00:00:00Z", "source": "official", "price": "0.9"},
     {"asset": "USDC", "quote": "USD", "time": "2026-01-01T00:00:00Z", "source": "market", "price": "1"},
-    {"asset": "USD", "quote": "EUR", "time": "2026-01-01T00:00:00Z", "source": "official", "price": "0.9"}
+    {"asset": "USDC", "quote": "USD", "time": "2026-01-02T00:00:00Z", "source": "market", "price": "1"},
+    {"asset": "USDC", "quote": "USD", "time": "2026-01-03T00:00:00Z", "source": "market", "price": "1"},
+    {"asset": "USDC", "quote": "USD", "time": "2026-01-04T00:00:00Z", "source": "market", "price": "1"}
   ],
   "events": [
     {"id": "dep", "time": "2026-01-01T10:00:00Z", "description": "deposit from outside", "legs": [

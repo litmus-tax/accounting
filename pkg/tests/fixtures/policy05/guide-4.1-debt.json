@@ -20,9 +20,51 @@
     "price": "1"
    },
    {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2026-01-02T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2026-01-31T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2026-02-02T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
     "asset": "USDT",
     "quote": "USD",
     "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDT",
+    "quote": "USD",
+    "time": "2026-01-02T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDT",
+    "quote": "USD",
+    "time": "2026-01-31T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDT",
+    "quote": "USD",
+    "time": "2026-02-02T00:00:00Z",
     "source": "market",
     "price": "1"
    }

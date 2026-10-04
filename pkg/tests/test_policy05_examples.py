@@ -4,12 +4,15 @@ Policy 05's worked examples (its guide and positions pages) as engine fixtures.
 Each file in `fixtures/policy05/` holds one example: the ledger (events, links,
 policy, prices) and one or more cases. A case may override policy fields, names
 the rules it checks, and gives the figures the example states, rounded as shown.
-A case the engine cannot reproduce yet carries `xfail` with the gap it waits for
+A case with `as_of` books the events up to it, as a revision's cut-off, and
+checks the open-lot rows there (policy 05 term 14). A case the engine cannot
+reproduce yet carries `xfail` with the gap it waits for
 (policy 05 rule 42.3); the mark is strict, so closing the gap flips the test.
 """
 
 import json
 from dataclasses import replace
+from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 import pydantic
@@ -93,19 +96,26 @@ def totals(result: Result) -> dict[str, Decimal]:
 
 
 def book(document: Row, case: Row) -> Result:
-  """Run the example's ledger under the case's policy."""
+  """Run the example's ledger under the case's policy, up to the case's `as_of` when it gives one (a books cut-off: the open-lot rows are those of that instant, policy 05 term 14)."""
   ledger = codec.parse_ledger(json.dumps(document['ledger']))
   assert ledger.policy is not None
   policy = pydantic.TypeAdapter(type(ledger.policy)).validate_python(
     {**document['ledger']['policy'], **case.get('policy', {})}
   )
   ledger = replace(ledger, policy=policy)
+  events = ledger.events
+  if 'as_of' in case:
+    cutoff = datetime.fromisoformat(case['as_of'].replace('Z', '+00:00'))
+    events = tuple(
+      item
+      for item in events
+      if all(e.time <= cutoff for e in (item if isinstance(item, tuple) else (item,)))
+    )
   return run(
-    ledger.events,
+    events,
     links=ledger.links,
     policy=policy,
-    pricing=TablePricing(ledger.prices, max_age=ledger.max_age),
-    grid=ledger.grid,
+    pricing=TablePricing(ledger.prices),
   )
 
 
@@ -133,30 +143,16 @@ def test_worked_example(document: Row, case: Row):
     ), want
   for key, want in expected.get('totals', {}).items():
     assert totals(result)[key] == Decimal(want), key
-  if 'series' in expected:
-    points = data['series']
-    assert len(points) == len(expected['series'])
-    for point, want in zip(points, expected['series']):
-      assert_point(point, want)
+  for want in expected.get('open_rows', []):
+    assert any(
+      project([row], [want]) == normalized([want]) for row in data['open_rows']
+    ), (want, data['open_rows'])
   if 'journal' in expected:
     events = {line['event'] for line in expected['journal']}
     actual = [line for line in data['journal'] if line['event'] in events]
     assert sorted(map(journal_key, actual)) == sorted(
       map(journal_key, expected['journal'])
     )
-
-
-def assert_point(point: Row, want: Row):
-  """A series point matches the expected keys; nested rows in order on their named keys."""
-  for key, value in want.items():
-    if isinstance(value, list):
-      rows: list[Row] = point[key]
-      assert len(rows) == len(value), (key, rows)
-      assert project(rows, value) == normalized(value), key
-    elif key == 'at':
-      assert point['at'].replace('Z', '+00:00') == value.replace('Z', '+00:00')
-    else:
-      assert number(point[key]) == number(value), (key, point[key])
 
 
 def journal_key(line: Row) -> tuple[Any, ...]:

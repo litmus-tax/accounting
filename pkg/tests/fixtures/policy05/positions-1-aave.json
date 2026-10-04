@@ -13,16 +13,23 @@
   },
   "prices": [
    {
-    "asset": "aUSDC",
+    "asset": "ETH",
     "quote": "USD",
     "time": "2026-01-01T00:00:00Z",
     "source": "market",
-    "price": "1"
+    "price": "3500"
    },
    {
     "asset": "ETH",
     "quote": "USD",
-    "time": "2026-01-01T00:00:00Z",
+    "time": "2026-01-31T00:00:00Z",
+    "source": "market",
+    "price": "3500"
+   },
+   {
+    "asset": "ETH",
+    "quote": "USD",
+    "time": "2026-02-02T00:00:00Z",
     "source": "market",
     "price": "3500"
    },
@@ -34,9 +41,58 @@
     "price": "1"
    },
    {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2026-01-31T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDC",
+    "quote": "USD",
+    "time": "2026-02-02T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
     "asset": "USDT",
     "quote": "USD",
     "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDT",
+    "quote": "USD",
+    "time": "2026-01-31T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "USDT",
+    "quote": "USD",
+    "time": "2026-02-02T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "aUSDC",
+    "quote": "USD",
+    "time": "2026-01-01T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "aUSDC",
+    "quote": "USD",
+    "time": "2026-01-31T00:00:00Z",
+    "source": "market",
+    "price": "1"
+   },
+   {
+    "asset": "aUSDC",
+    "quote": "USD",
+    "time": "2026-02-02T00:00:00Z",
     "source": "market",
     "price": "1"
    }

@@ -215,13 +215,11 @@ def test_contents_that_do_not_empty_recognise_nothing():
     links=links('in'),
     policy=opaque(),
     pricing=FixedPricing({('USDC', 'EUR'): '1'}),
-    grid=[t(4)],
   )
   assert result.complete, result.exceptions
   assert not result.flows
-  (point,) = result.series
-  (held,) = [h for h in point.holdings if h.asset == POSITION]
-  assert (held.cost, held.value, held.unrealized) == (100, 60, -40)
+  (held,) = [row for row in result.open_rows if row.asset == POSITION]
+  assert (held.kind, held.quantity, held.cost) == ('opaque', 100, 100)
 
 
 def test_a_compartment_not_declared_opaque_books_as_before():

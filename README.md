@@ -4,7 +4,10 @@ Pure accounting engine for crypto and trading books. Input: dated legs grouped
 into events, links between events, a policy, and a caller-implemented price
 source. Output: open lots, open liabilities, open perpetual positions, realized
 PnL, income and expense flows, internal moves, a balanced double-entry journal,
-a P&L series over a grid of instants, every price used, and an exceptions report. No venue
+the open-lot rows at the end of the run (what is held at cost at its `as_of`),
+every price used, and an exceptions report. It values nothing at market: it asks
+for a price only where an event needs a value, and checks its books with the
+cost identity, which needs no price (policy 05 rules 1.5 and 39.5.1). No venue
 concepts, no database, no fetching.
 
 Distribution `litmus-accounting`, import `litmus.accounting`. Python 3.11+.
@@ -23,7 +26,7 @@ python3 -m venv .venv
 ```python
 from decimal import Decimal
 from datetime import datetime, timezone
-from litmus.accounting import run, value, FixedPricing
+from litmus.accounting import run, FixedPricing
 from litmus.accounting.model import Event, Leg, Policy
 
 policy = Policy(cost_method='fifo', lot_scope='global', functional_currency='EUR', cash=('USDC',))
@@ -34,15 +37,15 @@ events = [
   )),
 ]
 result = run(events, policy=policy, pricing=FixedPricing({('BTC', 'EUR'): '30000'}))
-result.lots, result.liabilities, result.realized, result.flows, result.prices, result.exceptions, result.complete
-valuation = value(result.lots, liabilities=result.liabilities, at=datetime(2026, 12, 31, tzinfo=timezone.utc), policy=policy, pricing=FixedPricing({('BTC', 'EUR'): '40000'}))
+result.lots, result.liabilities, result.realized, result.flows, result.open_rows, result.prices, result.exceptions, result.complete
 ```
 
 Every type is a frozen dataclass in `litmus.accounting.model`. Implement the
 `Pricing` protocol (`price(asset, quote, time, *, source) -> Decimal | None`)
 to plug in a real price store; return `None` for a gap, never zero.
-`TablePricing(records, max_age=timedelta(...))` is the in-memory table the CLI
-uses; with `max_age` a price older than that is a gap instead of a carry-forward.
+`TablePricing(records)` is the in-memory table the CLI uses. It is daily: a row
+prices its own UTC day from its time on, and nothing is carried to a later day.
+Which price a day takes (a stale one, a peg) is the caller's choice.
 
 The model reference is in [docs/model.md](docs/model.md), the policy in
 [docs/policy.md](docs/policy.md), worked examples in
@@ -50,33 +53,30 @@ The model reference is in [docs/model.md](docs/model.md), the policy in
 
 ## CLI
 
-A `typer` app named `accounting` with four verbs. `--json` is accepted before
+A `typer` app named `accounting` with three verbs. `--json` is accepted before
 or after the verb.
 
 ```sh
 accounting run examples/perp.json            # human summary
 accounting run examples/perp.json --json     # full result
 accounting --json run examples/perp.json     # --json before the verb works too
-accounting run ledger.json --policy policy.json --prices prices.json --max-age P1D --strict
+accounting run ledger.json --policy policy.json --prices prices.json --strict
 accounting validate ledger.json              # shape and structure, no prices
-accounting value ledger.json --at 2026-12-31T23:59:59Z
 accounting schema ledger                     # print one schema
-accounting schema --out build/schema         # write all three
+accounting schema --out build/schema         # write both
 accounting schema --check build/schema       # fails if they drifted
 ```
 
 | Verb | Arguments and flags | Output with `--json` |
 |---|---|---|
-| `run` | `LEDGER [--policy FILE] [--prices FILE] [--max-age DURATION] [--strict]` | `Result` (`accounting schema result`) |
+| `run` | `LEDGER [--policy FILE] [--prices FILE] [--strict]` | `Result` (`accounting schema result`) |
 | `validate` | `LEDGER [--policy FILE] [--prices FILE]` | list of `ExceptionItem` |
-| `value` | `LEDGER --at ISO8601 [--policy FILE] [--prices FILE] [--max-age DURATION] [--strict]` | `Valuation` (`accounting schema valuation`) |
-| `schema` | `[ledger\|result\|valuation] [--out DIR] [--check DIR]` | one schema document; `[]` for `--check` |
+| `schema` | `[ledger\|result] [--out DIR] [--check DIR]` | one schema document; `[]` for `--check` |
 
 The ledger file holds `events`, optional `links`, and optionally an embedded
-`policy`, `prices` table and `max_age` (`--policy`, `--prices` and `--max-age`
-override). Prices are looked up as the latest record at or before the
-requested time for the pair, no older than `max_age` when one is set (ISO 8601
-duration such as `P1D`, or seconds).
+`policy` and `prices` table (`--policy` and `--prices` override). Prices are
+looked up as the latest record at or before the requested time for the pair on
+the same UTC day; a day without one is a gap.
 
 Completed calculations return zero, including results with findings or missing
 prices. Read `complete` and `exceptions` in the JSON result. Runtime failures,
@@ -89,8 +89,8 @@ The frozen dataclasses in `litmus.accounting.model` define the contract.
 Pydantic adapters in `codec.py` validate JSON and generate schemas from those
 same types. Generated schema files are build artifacts and are not committed.
 
-Use `accounting schema ledger`, `accounting schema result`, or
-`accounting schema valuation` to print a schema. Export all three with
+Use `accounting schema ledger` or `accounting schema result` to print a
+schema. Export both with
 `accounting schema --out build/schema` when a consumer needs files. A future
 documentation site can generate these schemas during its build.
 
@@ -109,8 +109,7 @@ shortness (`negative_position`, a rollover into a short holding,
 `negative_liability`) is checked only after the whole group (policy 05 rule 6.3). A `borrow` opens a lot at market value and a
 liability of the same quantity under `(liability compartment, asset)`; a `repay`
 is a disposal at market that reduces the liability and realizes its value change;
-`Policy.liability_valuation` (`cost` or `market`) says whether a valuation shows
-that change before repayment. Accrued interest is an expense. The
+until then the liability is carried at cost. Accrued interest is an expense. The
 caller supplies the cash list, the fiat list, income vs expense by sign, the
 `fee` flag, globally unique event ids, perpetual fills as `position` size legs
 (with their `notional` cash leg, or the venue's price on `pnl` venues), and the
@@ -135,7 +134,7 @@ accounting validate examples/rollover.json --json
 
 The synthetic rollover example carries €1000 into a receipt and pending claim,
 then realizes €300 on €1300 settlement, without a receipt price. New callers pin
-`schema_version: "0.11"`; generated schemas reject unknown JSON fields. Result
+`schema_version: "0.12"`; generated schemas reject unknown JSON fields. Result
 schema versions and their consumer impact are listed in
 [docs/migration.md](docs/migration.md).
 
@@ -180,9 +179,9 @@ start with the first published release.
 The public frozen models remain in `model.py`, JSON boundaries in `codec.py`,
 and caller-supplied pricing interfaces in `pricing.py`. The `engine/` package
 contains calculation, lot inventory, rollover ordering, exact arithmetic, and
-rounding. Valuation and CLI presentation remain separate. This is a pure library;
+rounding. CLI presentation remains separate. This is a pure library;
 it has no database or HTTP API. Schema exports are generated from its dataclasses
 and remain available to offline consumers.
 
-The engine, models, codecs, pricing, valuation, and schema generation pass strict
+The engine, models, codecs, pricing, and schema generation pass strict
 Pyright. No known accounting values use `Any`.

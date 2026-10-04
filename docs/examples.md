@@ -57,10 +57,9 @@ is built; once two ids are equal the bridge is a plain link.
 
 Result: realized PnL `451.50 EUR` (the bridge plus `-0.03` on the gas fee's
 ETH), expenses `1.95 EUR`, open lots `99 HYPE` at `1980.00` and `99.5 USDC` at
-`89.55`, two `unmatched_transfer` exceptions for the external deposits.
-`accounting value examples/bridge.json --at 2026-03-01T00:00:00Z` values the
-two lots at `2069.55 EUR` with zero unrealized (the price table has no later
-prices).
+`89.55`, two `unmatched_transfer` exceptions for the external deposits. The
+open-lot rows hold the same two holdings at cost; valuing them is the caller's
+(portfolio's live layer, policy 05 rule 39).
 
 ## 3. PnL-settled venue (`pnl_settled.json`)
 
@@ -99,8 +98,8 @@ on the sale and three expense flows of `10`, `30` and `25`.
 
 An Aave-style facility: borrow `5000 USDC` against a wallet that holds ETH,
 accrue `20 USDC` of unpaid interest, buy `20 USDC` with ETH, repay `5000`.
-Policy: FIFO, per-compartment lots, EUR, `liability_valuation: cost`,
-`max_age: P90D` on the price table.
+Policy: FIFO, per-compartment lots, EUR. The price table has a row on every
+day an event needs one: the engine carries no price forward.
 
 | Event | Legs |
 |---|---|
@@ -115,14 +114,9 @@ the same size, no income. The accrual grows the liability to `5020 USDC`
 (`4518 EUR`) and opens no lot. The repay is a FIFO disposal of the borrowed
 lot at `0.95`: PnL `250.00`, plus `-2.00` on the swap's ETH; the liability
 releases `4500` of basis and `20 USDC` (`18.00 EUR`) remain owed. Exit 0.
-`accounting value examples/loan.json --at 2026-06-01T00:00:00Z` reports the
-liability at `19.00 EUR` with `unrealized: null` (under `cost` the liability
-has no PnL of its own). Switch the policy to `liability_valuation: market`
-and the repay adds a `Realized` row against `liability-1` of `-250.00`,
-cancelling the asset's gain; the valuation then shows `unrealized: -1.00`.
-
-`accounting run examples/loan.json --max-age P1D` turns every price into a
-gap (the table is monthly), which is what `max_age` is for.
+The open-lot rows hold the liability at its carrying value, `18.00 EUR`: it is
+carried at cost until repaid (policy 05 rule 9.4), and its market value is
+portfolio's live layer.
 
 ## Policy 05's worked examples
 
@@ -142,7 +136,10 @@ it checks, and states the figures of the page, rounded as shown there:
 | `balances` | rows that must be among `Result.balances` |
 | `totals` | realized P&L, income and expenses summed from the rounded rows |
 | `journal` | every journal line of each event it mentions, in any order |
-| `series` | the series points at the ledger's `grid`, on the keys each names (nested rows in order) |
+| `open_rows` | rows that must be among `Result.open_rows`, on the keys each names |
+
+A case with `as_of` books only the events up to that instant, as a revision's
+cut-off, so its `open_rows` are what is held at cost then (policy 05 term 14).
 
 A case the engine cannot reproduce yet carries `xfail` naming its gap; the mark is
 strict, so the test fails once the gap is closed until the mark is removed. A

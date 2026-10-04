@@ -1,7 +1,9 @@
 """
 The engine: a pure function from events, links, policy and a pricing source to
-lots, realized PnL, income/expense flows, internal moves, prices used and an
-exceptions report.
+lots, realized PnL, income/expense flows, internal moves, prices used, the
+open-lot rows at the end of the run and an exceptions report. It values
+nothing at market: it asks for a price only where an event needs a value
+(policy 05 rule 1.5).
 
 Ordering is part of the contract: events come in atomic groups (policy 05
 rule 6.3), processed by time, ties in input order, and a group's events in
@@ -9,16 +11,17 @@ order; within an event borrow legs, then trades, then perpetual fills, then
 income legs, then transfers, then repay legs, then expense legs, then fee legs.
 A linked pair is booked when the earlier of its two events is processed, after
 the income legs of both. Holdings and liabilities are checked for shortness
-after each group, never between its events.
+after each group, never between its events, and so is the cost identity
+(policy 05 rule 39.5.1).
 """
 
 from dataclasses import replace
-from datetime import datetime
 from decimal import Decimal
 
-from litmus.accounting.engine import checks, series
+from litmus.accounting.engine import checks
 from litmus.accounting.engine.arithmetic import fixed_context
 from litmus.accounting.engine.checks import Linked, check
+from litmus.accounting.engine.remaining import Identity, open_rows
 from litmus.accounting.engine.rollovers import Rollovers
 from litmus.accounting.engine.rounding import round_result
 from litmus.accounting.model import (
@@ -28,7 +31,6 @@ from litmus.accounting.model import (
   Link,
   Policy,
   Result,
-  SeriesPoint,
 )
 from litmus.accounting.pricing import Pricing
 from typing_extensions import Sequence
@@ -112,7 +114,6 @@ def run(
   policy: Policy,
   pricing: Pricing,
   strict: bool = False,
-  grid: Sequence[datetime] = (),
 ) -> Result:
   """
   Run the books.
@@ -128,12 +129,12 @@ def run(
     policy: Cost method, lot scope, functional currency, valuation rules.
     pricing: Caller-implemented price source.
     strict: Raise `PriceGap` on the first missing price instead of reporting it.
-    grid: Instants to emit a series point at, after every event up to and
-      including each (policy 05 rule 39). Any order; duplicates are dropped.
 
   Returns:
     Lots, liabilities, realized PnL, flows, internal moves, balances, every
-    price asked for, and the exceptions report. `complete` is false when anything was left unbooked.
+    price asked for, the open-lot rows at the end of the run (policy 05 term
+    14), and the exceptions report. `complete` is false when anything was left
+    unbooked or the cost identity failed after a group (rule 39.5.1).
     Money fields are rounded to `policy.minor_unit` when it is set. The run uses
     the engine's own decimal context, never the caller's (policy 05 rule 2.2).
 
@@ -166,43 +167,8 @@ def run(
     )
     engine.complete = False
   failed: set[str] = set()
-  instants = sorted({at for at in grid if at.tzinfo is not None})
-  for at in grid:
-    if at.tzinfo is None:
-      engine.report(
-        'invalid_grid', None, f'grid instant {at.isoformat()} has no timezone'
-      )
-  points: list[SeriesPoint] = []
-  running = series.Running()
-
-  def snapshot(until: datetime | None):
-    """Emit the series points of every pending instant before `until`."""
-    while instants and (until is None or instants[0] < until):
-      at = instants.pop(0)
-      running.advance(engine.realized, engine.flows)
-      found, problem = series.point(
-        at,
-        valuer=engine.valuer,
-        book=engine.book,
-        journal=engine.journal,
-        liabilities=[
-          engine.liabilities[k].freeze() for k in sorted(engine.liabilities)
-        ],
-        perps=engine.perps,
-        running=running,
-        strict=strict,
-        opaque={
-          engine.position_key(compartment): contents
-          for compartment, contents in engine.contents.items()
-        },
-      )
-      points.append(found)
-      if problem is not None:
-        engine.exceptions.append(problem)
-        engine.complete = False
-
+  identity = Identity()
   for group in checked.groups:
-    snapshot(group[0].time)
     engine.open_group(len(group))
     for e in group:
       if any(dependency in failed for dependency in e.depends_on):
@@ -218,15 +184,27 @@ def run(
       if any(item.code == 'unbooked' for item in engine.exceptions[before:]):
         failed.add(e.id)
     engine.close_group()
-  snapshot(None)
+    problem = identity.check(
+      group[-1].id,
+      book=engine.book,
+      journal=engine.journal,
+      liabilities=(liability.cost for liability in engine.liabilities.values()),
+      realized=engine.realized,
+      flows=engine.flows,
+    )
+    if problem is not None:
+      engine.exceptions.append(problem)
+      engine.complete = False
+  liabilities = tuple(
+    engine.liabilities[k].freeze()
+    for k in sorted(engine.liabilities)
+    if engine.liabilities[k].quantity != 0
+  )
+  positions = tuple(engine.perps.open_positions())
   result = Result(
     policy=policy,
     lots=tuple(engine.book.open_lots()),
-    liabilities=tuple(
-      engine.liabilities[k].freeze()
-      for k in sorted(engine.liabilities)
-      if engine.liabilities[k].quantity != 0
-    ),
+    liabilities=liabilities,
     realized=tuple(engine.realized),
     flows=tuple(engine.flows),
     moves=tuple(engine.moves),
@@ -235,8 +213,19 @@ def run(
     exceptions=tuple(engine.exceptions),
     complete=engine.complete,
     rollovers=tuple(engine.rollovers),
-    positions=tuple(engine.perps.open_positions()),
-    series=tuple(points),
+    positions=positions,
+    open_rows=tuple(
+      open_rows(
+        engine.book,
+        engine.journal,
+        liabilities=liabilities,
+        positions=positions,
+        contents={
+          engine.position_key(compartment): inside
+          for compartment, inside in engine.contents.items()
+        },
+      )
+    ),
   )
   result = round_result(result, policy.minor_unit)
   journal, unbalanced = engine.journal.finish(result, policy.minor_unit)

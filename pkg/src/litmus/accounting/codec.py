@@ -14,7 +14,6 @@ from litmus.accounting.model import (
   Policy,
   PriceRecord,
   Result,
-  Valuation,
   ExceptionItem,
 )
 
@@ -22,7 +21,6 @@ ledger_adapter = pydantic.TypeAdapter(Ledger)
 policy_adapter = pydantic.TypeAdapter(Policy)
 prices_adapter = pydantic.TypeAdapter(list[PriceRecord])
 result_adapter = pydantic.TypeAdapter(Result)
-valuation_adapter = pydantic.TypeAdapter(Valuation)
 exceptions_adapter = pydantic.TypeAdapter(list[ExceptionItem])
 json_adapter = pydantic.TypeAdapter[pydantic.JsonValue](pydantic.JsonValue)
 
@@ -73,11 +71,6 @@ def parse_result(text: str | bytes) -> Result:
 def dump_result(result: Result) -> str:
   """Serialize a result as indented JSON."""
   return result_adapter.dump_json(result, indent=2).decode()
-
-
-def dump_valuation(valuation: Valuation) -> str:
-  """Serialize a valuation as indented JSON."""
-  return valuation_adapter.dump_json(valuation, indent=2).decode()
 
 
 def dump_exceptions(items: list[ExceptionItem]) -> str:

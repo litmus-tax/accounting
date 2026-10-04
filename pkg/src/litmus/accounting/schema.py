@@ -1,7 +1,7 @@
 """
-JSON schema for the ledger input, the result and the valuation, generated from
+JSON schema for the ledger input and the result, generated from
 the model dataclasses. Use `accounting schema` to print a schema or
-`accounting schema --out DIR` to export all three on demand.
+`accounting schema --out DIR` to export both on demand.
 """
 
 import json
@@ -10,8 +10,8 @@ from typing_extensions import Literal
 from pydantic import JsonValue, TypeAdapter
 from litmus.accounting import codec
 
-SchemaName = Literal['ledger', 'result', 'valuation']
-NAMES: tuple[SchemaName, ...] = ('ledger', 'result', 'valuation')
+SchemaName = Literal['ledger', 'result']
+NAMES: tuple[SchemaName, ...] = ('ledger', 'result')
 BASE_ID = 'https://litmus-tax.github.io/accounting/schema/'
 
 
@@ -19,16 +19,13 @@ json_object = TypeAdapter(dict[str, JsonValue])
 
 
 def schema(name: SchemaName) -> dict[str, JsonValue]:
-  """The JSON schema document for one of the three shapes."""
+  """The JSON schema document for one of the two shapes."""
   if name == 'ledger':
     body = codec.ledger_adapter.json_schema(mode='validation')
     title = 'Ledger input'
-  elif name == 'result':
+  else:
     body = codec.result_adapter.json_schema(mode='serialization')
     title = 'Accounting result'
-  else:
-    body = codec.valuation_adapter.json_schema(mode='serialization')
-    title = 'Period-end valuation'
   return {
     **json_object.validate_python(body),
     '$schema': 'https://json-schema.org/draft/2020-12/schema',
