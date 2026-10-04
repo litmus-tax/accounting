@@ -46,7 +46,7 @@ class Engine(Rollovers):
     """
     Book one event: borrows, trades, fills, income, transfers, repays,
     expenses, then fees (those inside an opaque compartment reduce its
-    position's cost, rule 14.14), and last whether its `contents` legs left an opaque
+    position's cost, and rebates there raise it, rule 14.14), and last whether its `contents` legs left an opaque
     compartment empty (policy 05 rule 14).
     """
     self.track(event)
@@ -74,7 +74,7 @@ class Engine(Rollovers):
       if leg.fee and index not in rollover_fees and leg not in misplaced
     ]
     fees = [leg for leg in paid if leg.compartment not in self.opaque]
-    inside = [leg for leg in paid if leg.compartment in self.opaque]
+    inside = [leg for leg in legs if self.charged(leg) and (leg in paid or not leg.fee)]
     capitalized = bool(trades) and self.policy.fee_treatment == 'capitalize'
     for leg in borrows:
       self.borrow(event, leg)

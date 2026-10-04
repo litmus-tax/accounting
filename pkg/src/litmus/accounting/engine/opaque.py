@@ -4,8 +4,9 @@ booked by value. Coins moved in carry their basis into it, coins taken out are
 a redemption at market value that releases cost up to that value, and any value
 beyond it is a `performance` result, one line per compartment. A fee the venue
 reports inside it is a fee expense at market value that reduces the remaining
-cost (rule 14.14); one without a price books nothing and stays in the result.
-Its contents are tracked per asset from its legs, fees included; when
+cost, and a rebate is `fee_rebate` income that raises it (rule 14.14); one
+without a price books nothing and stays in the result. Its contents are tracked
+per asset from its legs, fees and rebates included; when
 `contents` legs leave it empty, the cost left is a `performance` loss.
 
 Interim rule (specs#135, decision 23 open): results are recognised only at
@@ -21,6 +22,9 @@ from litmus.accounting.engine.debt import Debt
 from litmus.accounting.engine.totals import EXACT, ZERO, LotKey, crumb
 from litmus.accounting.model import Event, Flow, Leg, Link, Move
 from litmus.accounting.pricing import PriceGap
+
+REBATE = 'fee_rebate'
+"""The label of an `income` leg that is a fee rebate (policy 05 rule 7, row 2)."""
 
 PREFIX = 'position:opaque:'
 """The asset of an opaque compartment's position is this prefix and the compartment."""
@@ -41,20 +45,27 @@ class Opaque(Debt):
       position_asset(compartment),
     )
 
+  def charged(self, leg: Leg) -> bool:
+    """Whether a leg is a fee or rebate reported inside an opaque compartment (rule 14.14)."""
+    return leg.compartment in self.opaque and (
+      leg.fee or (leg.tag == 'income' and leg.label == REBATE)
+    )
+
   def inside(self, leg: Leg) -> bool:
     """
     Whether a leg changes an opaque compartment's contents: its `transfer` and
-    `contents` legs, and the fees paid from inside it (rules 14.5 and 14.14).
+    `contents` legs, and the fees and rebates reported inside it (rules 14.5
+    and 14.14).
     """
-    return leg.compartment in self.opaque and (
-      leg.fee or leg.tag in ('transfer', 'contents')
+    return self.charged(leg) or (
+      leg.compartment in self.opaque and leg.tag in ('transfer', 'contents')
     )
 
   def misplaced(self, event: Event, leg: Leg) -> bool:
     """
     Report and say whether a leg cannot be booked where it is: in an opaque
     compartment, which holds no lots (rule 14.1), a leg other than a `transfer`,
-    a `contents` leg or a fee; a `contents` leg anywhere else.
+    a `contents` leg, a fee or a rebate; a `contents` leg anywhere else.
     """
     if leg.compartment in self.opaque:
       if self.inside(leg):
@@ -101,30 +112,34 @@ class Opaque(Debt):
 
   def fee_inside(self, event: Event, leg: Leg):
     """
-    A fee leg the venue reports inside an opaque compartment (rule 14.14): an
-    expense at market value, never capitalised, that reduces the position's
-    remaining cost by that value; value beyond the remaining cost is a
-    `performance` gain. Without a price it books nothing, stays in the
-    compartment's result through its contents, and raises the informational
-    `unpriced_opaque_fee`.
+    A fee or rebate the venue reports inside an opaque compartment (rule
+    14.14), valued at market at its time. A fee is an expense, never
+    capitalised, that reduces the position's remaining cost by its value; value
+    beyond the remaining cost is a `performance` gain. A rebate is `fee_rebate`
+    income that raises the remaining cost by its value (rule 14.14.6). Without a
+    price it books nothing, stays in the compartment's result through its
+    contents, and raises the informational `unpriced_opaque_fee`.
     """
+    rebate = leg.quantity > 0
     try:
-      value = -self.market(event, leg)
+      value = self.market(event, leg)
     except PriceGap:
       self.report(
         'unpriced_opaque_fee',
         event.id,
-        f'fee of {leg.quantity} {leg.asset} in {leg.compartment} has no price: '
-        "left in the compartment's performance (policy 05 rule 14.14.3)",
+        f'{"rebate" if rebate else "fee"} of {leg.quantity} {leg.asset} in '
+        f"{leg.compartment} has no price: left in the compartment's performance "
+        '(policy 05 rule 14.14.3)',
         asset=leg.asset,
         compartment=leg.compartment,
         quantity=str(leg.quantity),
       )
       return
+    kind = 'income' if rebate else 'expense'
     self.journal.add(
       event,
-      'expense',
-      value,
+      kind,
+      -value,
       compartment=leg.compartment,
       asset=leg.asset,
       label=leg.label,
@@ -137,13 +152,16 @@ class Opaque(Debt):
         asset=leg.asset,
         compartment=leg.compartment,
         quantity=leg.quantity,
-        value=value,
-        kind='expense',
-        fee=True,
+        value=abs(value),
+        kind=kind,
+        fee=leg.fee,
         label=leg.label,
       )
     )
-    self.redeem(event, leg.compartment, value)
+    if rebate:
+      self.enter(event, leg.compartment, value, acquired=event.time, origin=event.id)
+    else:
+      self.redeem(event, leg.compartment, -value)
 
   def result(self, event: Event, compartment: str, amount: Decimal):
     """A `performance` result of an opaque position: income when positive, expense when negative (rule 14.7)."""
