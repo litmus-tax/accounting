@@ -79,7 +79,8 @@ of a tiny final contribution. Thus exact finite-decimal sums satisfy:
 `basis_out + written_off = basis_in + capitalized_costs`
 
 Audit slices and `origins` remain unrounded even when `minor_unit` rounds display
-money on lots/realizations. This allows exact audit conservation without confusing
+money on lots/realizations (by running total per journal account and per lot key,
+policy 05 rule 20.1). This allows exact audit conservation without confusing
 minor-unit display rounding with a loss of basis. Consumers summing very long
 Decimal strings must use sufficient precision; binary float is unsuitable.
 

@@ -150,4 +150,6 @@ class Debt(Booking):
     liability.quantity -= repaid
     liability.cost -= released
     liability.updated = event.time
-    self.realize_liability(event, leg, liability, given=value, released=released)
+    self.realize_liability(
+      event, liability, quantity=repaid, given=value, released=released
+    )

@@ -34,11 +34,11 @@ __init__ = ["engine", "pricing"]
 "engine/opaque.py" = { doc = "Opaque positions (policy 05 rule 14): entries carrying basis, redemptions at market value with cost recovery, `performance` results, and the empty compartment." }
 "engine/transfers.py" = { doc = "Transfers: linked pairs at carried basis, unlinked ones by their boundary basis, sides in opaque compartments routed to their positions, income before transfers." }
 "engine/rollovers.py" = { doc = "Rollovers: atomic basis carries, with allocation by market value across several outputs." }
-"engine/journal.py" = { doc = "The double-entry journal recorded as the engine books: lines per event on named accounts, rounded against the result rows, balance checked." }
+"engine/journal.py" = { doc = "The double-entry journal recorded as the engine books: lines per event on named accounts, balance checked, rounded lines with a `rounding` residue line." }
 "engine/lots.py" = { doc = "`LotBook`: open lots per key, sign-crossing closes and FIFO/LIFO/HIFO/average consumption order." }
 "engine/records.py" = { doc = "A lot book's records: the working `OpenLot`, `Consumed` and `Applied`, the HIFO rank, and exact allocation of a lot's origins." }
 "engine/perps.py" = { doc = "Open perpetual positions on a settled basis: fill pairing, entry basis per `perp_cost_method`, realized P&L in the settlement asset." }
 "engine/totals.py" = { doc = "A lot book's exact quantities: per-key running totals of quantity and basis, and the 1e-18 quantity net (policy 05 rule 20.3)." }
 "engine/remaining.py" = { doc = "What the books hold at cost without prices: the cost identity after each group and the open-lot rows at `as_of`." }
 "engine/operations.py" = { doc = "Structural checks and stable causal ordering for generic basis operations." }
-"engine/rounding.py" = { doc = "Rounds functional-currency money outputs to the minor unit, recomputing derived amounts from rounded parts." }
+"engine/rounding.py" = { doc = "Rounds money outputs to the minor unit by running total per journal account; the rows and open-lot rows restate the rounded lines." }

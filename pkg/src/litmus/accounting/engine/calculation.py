@@ -23,7 +23,7 @@ from litmus.accounting.engine.arithmetic import fixed_context
 from litmus.accounting.engine.checks import Linked, check
 from litmus.accounting.engine.remaining import Identity, open_rows
 from litmus.accounting.engine.rollovers import Rollovers
-from litmus.accounting.engine.rounding import round_result
+from litmus.accounting.engine.rounding import carried, round_result
 from litmus.accounting.model import (
   Balance,
   Event,
@@ -94,6 +94,7 @@ class Engine(Rollovers):
     for leg in inside:
       self.fee_inside(event, leg)
     self.emptied(event)
+    self.release_cleared(event)
 
 
 def balances(events: Events) -> list[Balance]:
@@ -229,8 +230,14 @@ def run(
       )
     ),
   )
-  result = round_result(result, policy.minor_unit)
-  journal, unbalanced = engine.journal.finish(result, policy.minor_unit)
+  if policy.minor_unit is None:
+    journal, unbalanced = engine.journal.finish()
+  else:
+    amounts, running = carried(engine.journal.lines, policy.minor_unit)
+    result = round_result(
+      result, policy.minor_unit, engine.journal.lines, amounts, running
+    )
+    journal, unbalanced = engine.journal.finish(amounts)
   return replace(
     result,
     journal=journal,

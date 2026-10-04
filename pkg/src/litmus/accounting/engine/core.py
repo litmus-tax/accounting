@@ -13,7 +13,7 @@ from typing_extensions import Literal
 from litmus.accounting.engine.journal import Journal
 from litmus.accounting.engine.lots import LotBook
 from litmus.accounting.engine.records import Applied
-from litmus.accounting.engine.totals import ZERO, LotKey
+from litmus.accounting.engine.totals import ZERO, LotKey, crumb
 from litmus.accounting.engine.perps import PositionBook
 from litmus.accounting.model import (
   Event,
@@ -315,16 +315,16 @@ class Core:
   def realize_liability(
     self,
     event: Event,
-    leg: Leg,
     liability: OpenLiability,
     *,
+    quantity: Decimal,
     given: Decimal,
     released: Decimal,
   ):
     """
-    The liability side of a repayment (policy 05 rule 9.4): `given` (negative)
-    is the market value given up, `released` the basis the liability released;
-    their sum is realized.
+    The liability side of a repayment (policy 05 rule 9.4): `quantity` repaid,
+    `given` (negative) the market value given up, `released` the basis the
+    liability released; their sum is realized.
     """
     index = len(self.realized)
     self.journal.add(
@@ -332,7 +332,7 @@ class Core:
       'liability',
       released,
       compartment=liability.compartment,
-      asset=leg.asset,
+      asset=liability.asset,
       ref=('realized_cost', index),
     )
     self.journal.add(
@@ -340,22 +340,42 @@ class Core:
       'realized',
       -(given + released),
       compartment=liability.compartment,
-      asset=leg.asset,
+      asset=liability.asset,
       ref=('realized_pnl', index),
     )
     self.realized.append(
       Realized(
         event=event.id,
         time=event.time,
-        asset=leg.asset,
+        asset=liability.asset,
         compartment=liability.compartment,
-        quantity=abs(leg.quantity),
+        quantity=quantity,
         proceeds=given,
         cost=-released,
         pnl=given + released,
         lots=(liability.id,),
       )
     )
+
+  def release_cleared(self, event: Event):
+    """
+    Realize the carrying value a liability still has when `event` left it owing
+    nothing (policy 05 rule 9.4): a repayment beyond what was owed, then an
+    accrual at the same instant, can bring its quantity back to zero with a cost
+    left over. Its basis is released with nothing given, so it is never dropped
+    from the open-lot rows while the journal still holds it.
+    """
+    for liability in self.liabilities.values():
+      if (
+        liability.updated == event.time
+        and liability.cost
+        and (liability.quantity == 0 or crumb(liability.quantity))
+      ):
+        released = liability.cost
+        liability.cost = Decimal(0)
+        self.realize_liability(
+          event, liability, quantity=ZERO, given=ZERO, released=released
+        )
 
   def owed(self, scope: tuple[str, str]) -> Decimal:
     """What is owed under a `(compartment, asset)` liability, zero when nothing is."""

@@ -4,27 +4,26 @@ The double-entry journal the engine derives as it books (policy 05 rule 29).
 Every booking primitive records signed lines (positive a debit, negative a
 credit) on named accounts: holdings at cost per lot key, liabilities, realized
 gains and losses, income and expense by label, and the external account for
-movements across the books' boundary. Lines that restate a result row carry a
-reference to it, so that after rounding they state the row's rounded figure.
-Each event must balance before rounding; after rounding a residue within the
-rounding bound goes to a `rounding` line.
+movements across the books' boundary. A line that a result row restates
+carries a reference to it. Each event must balance before rounding. Lines are
+rounded by running total per account (`rounding.carried`), the result rows
+restate their rounded lines, and a residue left after rounding goes to a
+`rounding` line.
 """
 
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
-from typing_extensions import Literal
+from typing_extensions import Literal, Sequence
 from litmus.accounting.model import (
   Event,
   ExceptionItem,
   JournalAccount,
   JournalLine,
-  Result,
 )
-from litmus.accounting.engine.rounding import money
 
 RefKind = Literal['realized_cost', 'realized_pnl', 'flow', 'move']
-"""Which rounded figure of which result row a line restates."""
+"""Which figure of which result row restates a line."""
 TOLERANCE = Decimal('1e-18')
 """Relative imbalance tolerated before rounding: decimal division residue only."""
 ZERO = Decimal(0)
@@ -82,33 +81,24 @@ class Journal:
     if account == 'holding' and asset == self.cash:
       self.held_cash += amount
 
-  def rounded(self, line: Line, result: Result, minor_unit: int | None) -> Decimal:
-    """The line's amount after rounding: the referenced row's rounded figure, else its own."""
-    sign = Decimal(1) if line.amount >= 0 else Decimal(-1)
-    if line.ref is None:
-      return line.amount if minor_unit is None else money(line.amount, minor_unit)
-    kind, index = line.ref
-    if kind == 'realized_cost':
-      return -result.realized[index].cost
-    if kind == 'realized_pnl':
-      return -result.realized[index].pnl
-    if kind == 'flow':
-      return sign * result.flows[index].value
-    return sign * result.moves[index].cost
-
   def finish(
-    self, result: Result, minor_unit: int | None
+    self, amounts: Sequence[Decimal] | None = None
   ) -> tuple[tuple[JournalLine, ...], list[ExceptionItem]]:
     """
-    The rounded journal of a rounded result, and an `unbalanced` exception for
-    each event whose lines do not balance (policy 05 rule 29.2).
+    The rounded journal, and an `unbalanced` exception for each event whose
+    lines do not balance (policy 05 rule 29.2).
+
+    Args:
+      amounts: Each line's rounded amount, in line order (`rounding.carried`);
+        None when nothing is rounded.
     """
-    events: dict[str, list[Line]] = {}
-    for line in self.lines:
-      events.setdefault(line.event, []).append(line)
+    events: dict[str, list[int]] = {}
+    for i, line in enumerate(self.lines):
+      events.setdefault(line.event, []).append(i)
     out: list[JournalLine] = []
     problems: list[ExceptionItem] = []
-    for event, lines in events.items():
+    for event, indices in events.items():
+      lines = [self.lines[i] for i in indices]
       raw = sum((line.amount for line in lines), Decimal(0))
       scale = max((abs(line.amount) for line in lines), default=Decimal(0))
       balanced = abs(raw) <= TOLERANCE * max(scale, Decimal(1))
@@ -121,12 +111,14 @@ class Journal:
             {'difference': str(raw)},
           )
         )
-      amounts = [self.rounded(line, result, minor_unit) for line in lines]
-      for line, amount in zip(lines, amounts):
+      rounded = [
+        self.lines[i].amount if amounts is None else amounts[i] for i in indices
+      ]
+      for line, amount in zip(lines, rounded):
         if amount:
           out.append(journal_line(line, amount))
-      residue = sum(amounts, Decimal(0))
-      if residue and minor_unit is not None and balanced:
+      residue = sum(rounded, Decimal(0))
+      if residue and amounts is not None and balanced:
         out.append(
           JournalLine(
             event=event,

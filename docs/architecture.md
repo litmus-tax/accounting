@@ -29,7 +29,7 @@
 | `engine/checks.py` | Structural checks that need no prices: invalid and duplicate events, dependencies, and links (unknown events, conflicts, mismatches). | `engine`, `model`, `pricing` |
 | `engine/core.py` | The engine's state and booking primitives: lot keys, the exceptions report, market values, legs into lots, and the liability ledger. | `engine`, `model`, `pricing` |
 | `engine/debt.py` | Liabilities: borrowing, accrued and reversed interest, repayment and its liability side. | `engine`, `model`, `pricing` |
-| `engine/journal.py` | The double-entry journal recorded as the engine books: lines per event on named accounts, rounded against the result rows, balance checked. | `engine`, `model`, `pricing` |
+| `engine/journal.py` | The double-entry journal recorded as the engine books: lines per event on named accounts, balance checked, rounded lines with a `rounding` residue line. | `engine`, `model`, `pricing` |
 | `engine/lots.py` | `LotBook`: open lots per key, sign-crossing closes and FIFO/LIFO/HIFO/average consumption order. | `engine`, `model`, `pricing` |
 | `engine/opaque.py` | Opaque positions (policy 05 rule 14): entries carrying basis, redemptions at market value with cost recovery, `performance` results, and the empty compartment. | `engine`, `model`, `pricing` |
 | `engine/operations.py` | Structural checks and stable causal ordering for generic basis operations. | `engine`, `model`, `pricing` |
@@ -37,7 +37,7 @@
 | `engine/records.py` | A lot book's records: the working `OpenLot`, `Consumed` and `Applied`, the HIFO rank, and exact allocation of a lot's origins. | `engine`, `model`, `pricing` |
 | `engine/remaining.py` | What the books hold at cost without prices: the cost identity after each group and the open-lot rows at `as_of`. | `engine`, `model`, `pricing` |
 | `engine/rollovers.py` | Rollovers: atomic basis carries, with allocation by market value across several outputs. | `engine`, `model`, `pricing` |
-| `engine/rounding.py` | Rounds functional-currency money outputs to the minor unit, recomputing derived amounts from rounded parts. | `engine`, `model`, `pricing` |
+| `engine/rounding.py` | Rounds money outputs to the minor unit by running total per journal account; the rows and open-lot rows restate the rounded lines. | `engine`, `model`, `pricing` |
 | `engine/totals.py` | A lot book's exact quantities: per-key running totals of quantity and basis, and the 1e-18 quantity net (policy 05 rule 20.3). | `engine`, `model`, `pricing` |
 | `engine/transfers.py` | Transfers: linked pairs at carried basis, unlinked ones by their boundary basis, sides in opaque compartments routed to their positions, income before transfers. | `engine`, `model`, `pricing` |
 <!-- structure:end -->
