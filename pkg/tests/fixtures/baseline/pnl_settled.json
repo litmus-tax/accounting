@@ -48,8 +48,8 @@
       "asset": "USDT",
       "compartment": "cex:futures",
       "quantity": "-1.25",
-      "proceeds": "1.13",
-      "cost": "1.13",
+      "proceeds": "1.12",
+      "cost": "1.12",
       "pnl": "0.00",
       "lots": [
         "lot-1"

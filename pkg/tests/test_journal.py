@@ -8,7 +8,7 @@ from decimal import Decimal as D
 from pathlib import Path
 import pytest
 from litmus.accounting import run, codec, FixedPricing
-from litmus.accounting.model import Event, Result
+from litmus.accounting.model import Event, PriceRecord, Result
 from litmus.accounting.pricing import TablePricing
 from litmus.accounting.engine.journal import Journal
 from tests.conftest import flat, leg, event, policy, t
@@ -130,8 +130,7 @@ def test_an_unbalanced_event_is_an_exception():
   e = Event('e', t(1), (leg('USDC', '1'),))
   journal.add(e, 'holding', D('10'), asset='USDC')
   journal.add(e, 'income', D('-9'), label='yield')
-  r = run([], policy=policy(), pricing=FixedPricing({}))
-  lines, problems = journal.finish(r, 2)
+  lines, problems = journal.finish()
   assert [(x.code, x.event, x.detail) for x in problems] == [
     ('unbalanced', 'e', {'difference': '1'})
   ]
@@ -277,3 +276,126 @@ def test_rule_29_every_example_journal_liability_equals_liability_rows_at_every_
     policy=replace(ledger.policy, minor_unit=None),
     pricing=TablePricing(ledger.prices),
   )
+
+
+def books_gap(result: Result) -> D:
+  """
+  Assets at cost (open-lot rows) less liabilities, less what the rounded rows
+  and the journal's `external` and `rounding` accounts say they must be
+  (policy 05 rule 39.5.1): zero when the rounded books tie.
+  """
+  balance: dict[str, D] = {}
+  for line in result.journal:
+    balance[line.account] = balance.get(line.account, D(0)) + line.debit - line.credit
+  held = sum(
+    (r.cost for r in result.open_rows if r.kind in ('holding', 'opaque')), D(0)
+  )
+  owed = sum((r.cost for r in result.open_rows if r.kind == 'liability'), D(0))
+  realized = sum((r.pnl for r in result.realized), D(0))
+  earned = sum(
+    (f.value if f.kind == 'income' else -f.value for f in result.flows), D(0)
+  )
+  contributions = -balance.get('external', D(0))
+  return (
+    held - owed - (contributions + realized + earned - balance.get('rounding', D(0)))
+  )
+
+
+@pytest.mark.parametrize('path', LEDGERS, ids=lambda p: p.stem)
+def test_the_rounded_rows_tie_to_what_is_held_at_cost(path: Path):
+  """After rounding, each open-lot row is its journal balance and the cost identity holds on the rows."""
+  # policy 05 rules 20.1, 29 and 39.5.1
+  ledger = ledger_of(path)
+  assert ledger.policy is not None
+  p = replace(ledger.policy, minor_unit=2)
+  r = run(
+    ledger.events, links=ledger.links, policy=p, pricing=TablePricing(ledger.prices)
+  )
+  balances: dict[tuple[str, str | None, str | None], D] = {}
+  for line in r.journal:
+    key = (line.account, line.compartment, line.asset)
+    balances[key] = balances.get(key, D(0)) + line.debit - line.credit
+  for row in r.open_rows:
+    if row.kind in ('holding', 'opaque'):
+      assert row.cost == balances.get(('holding', row.compartment, row.asset), D(0))
+    elif row.kind == 'liability':
+      assert row.cost == -balances.get(('liability', row.compartment, row.asset), D(0))
+  assert books_gap(r) == 0
+  assert all(x.pnl == x.proceeds - x.cost for x in r.realized)
+
+
+def test_rows_smaller_than_a_cent_add_up_to_their_exact_total():
+  """
+  300 yields of 0.004 BTC at 1 EUR are 1.20 EUR of income, not 300 rows of
+  0.00 under lots holding 1.20; selling them for 2 EUR realizes 0.80, so the
+  books' result is the 2.00 received.
+  """
+  # policy 05 rules 20.1 and 20.2: the 2025 draft's bitcoin, 4,155 bitget yields of ~0.005 EUR
+  yields = [
+    event(f'y{i}', 1, leg('BTC', '0.004', tag='income', label='yield'), hour=i % 24)
+    for i in range(300)
+  ]
+  sale = event('sell', 2, leg('BTC', '-1.2'), leg('EUR', '2'))
+  r = run(
+    [*yields, sale],
+    policy=policy(minor_unit=2),
+    pricing=FixedPricing({('BTC', 'EUR'): '1'}),
+  )
+  income = sum((f.value for f in r.flows), D(0))
+  assert income == D('1.20')
+  assert all(f.value in (D('0.00'), D('0.01')) for f in r.flows)
+  ((sold),) = r.realized
+  assert (sold.proceeds, sold.cost, sold.pnl) == (D('2.00'), D('1.20'), D('0.80'))
+  assert books_gap(r) == 0
+
+
+def test_fees_smaller_than_a_cent_add_up_to_their_exact_total():
+  """
+  400 fees of 0.004 USDC (Q3 2026: 113,447 dydx and hl fee rows of about half a
+  cent) are 1.60 EUR of fees and 1.60 of USDC cost out, both from their rows.
+  """
+  # policy 05 rules 20.1 and 20.2
+  fees = [
+    event(f'f{i}', 2, leg('USDC', '-0.004', fee=True, tag='expense'), hour=i % 24)
+    for i in range(400)
+  ]
+  r = run(
+    [event('buy', 1, leg('USDC', '10'), leg('EUR', '-10')), *fees],
+    policy=policy(minor_unit=2),
+    pricing=FixedPricing({('USDC', 'EUR'): '1'}),
+  )
+  assert sum((f.value for f in r.flows), D(0)) == D('1.60')
+  assert sum((x.cost for x in r.realized), D(0)) == D('1.60')
+  ((usdc),) = [row for row in r.open_rows if row.asset == 'USDC']
+  assert usdc.cost == D('8.40')
+  assert books_gap(r) == 0
+
+
+def test_a_liability_cleared_with_cost_left_releases_it():
+  """
+  A repayment beyond what is owed, then an accrual at the same instant at
+  another price, leaves the liability owing nothing at a cost of 0.50: it is
+  realized, not dropped from the open-lot rows while the journal holds it.
+  """
+  # policy 05 rule 9.4: Q3 2026's Aave tether and USDe debt, 0.05 EUR left
+  events = [
+    event('hold', 1, leg('USDC', '10'), leg('EUR', '-10')),
+    event('borrow', 1, leg('USDC', '100', tag='borrow', liability='debt'), hour=13),
+    event('repay', 2, leg('USDC', '-105', tag='repay', liability='debt')),
+    event('accrue', 2, leg('USDC', '5', 'debt', tag='borrow', label='interest')),
+  ]
+  prices = TablePricing(
+    PriceRecord('USDC', 'EUR', t(day), 'market', D(price))
+    for day, price in ((1, '1'), (2, '1.1'))
+  )
+  r = run(events, policy=policy(minor_unit=2), pricing=prices)
+  assert r.liabilities == ()
+  assert not [row for row in r.open_rows if row.kind == 'liability']
+  cleared = r.realized[-1]
+  assert (cleared.event, cleared.quantity, cleared.cost, cleared.pnl) == (
+    'accrue',
+    D(0),
+    D('-0.50'),
+    D('0.50'),
+  )
+  assert books_gap(r) == 0

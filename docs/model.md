@@ -125,7 +125,7 @@ See [policy.md](policy.md).
 | `external` | `(compartment, asset)` | unlinked transfers across the books' boundary; capitalized costs not paid in the ledger |
 | `rounding` | — | an event's rounding residue |
 
-Lines that restate a result row carry its rounded figure (a disposal's cost and P&L, a flow's value, a move's cost), so the journal ties to the rows. A linked transfer is one entry on its source event, with both sides of the move. Before rounding each event balances within decimal-division residue, else it is an `unbalanced` exception and the result is incomplete; after rounding a remaining residue becomes a `rounding` line. Unbooked legs have no lines.
+Lines are rounded by running total per account `(account, compartment, asset, label)`: the account's exact running total is rounded half up after each line, and the line is the change of that rounded total, so it is within one minor unit of its exact amount and an account's lines sum to its exact balance, rounded, over any stretch (policy 05 rule 20.1). The rows restate their lines (a disposal's cost and P&L, a flow's value, a move's cost at its source), a disposal's proceeds are its cost plus its P&L, and each open-lot row's cost is its account's rounded balance, so the rows tie to the journal and the cost identity holds on them (rule 39.5.1). A linked transfer is one entry on its source event, with both sides of the move. Before rounding each event balances within decimal-division residue, else it is an `unbalanced` exception and the result is incomplete; after rounding a remaining residue becomes a `rounding` line. Unbooked legs have no lines.
 
 ### `OpenRow`
 

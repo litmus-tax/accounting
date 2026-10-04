@@ -18,7 +18,7 @@ default.
 | `position_assets` | list of str | `[]` | Assets that may go net short (perp position assets). Any other asset going negative under its lot key is a `negative_position` exception (the short lot is still opened). |
 | `perp_cost_method` | `average` \| `fifo` \| `lifo` \| `hifo` | `average` | Which entries a reduction of a perpetual position on a `notional` compartment closes (below). |
 | `opaque_compartments` | list of str | `[]` | Compartments booked as one position by value (policy 05 rule 14; [model](model.md#opaque-positions)). |
-| `minor_unit` | int \| null | `null` | Decimal places of the functional currency's minor unit. When set, every money field of the result is rounded half-up to it at output; quantities and prices are never rounded, and `pnl` is recomputed from the rounded parts so `pnl = proceeds - cost` holds. |
+| `minor_unit` | int \| null | `null` | Decimal places of the functional currency's minor unit. When set, every money field of the result is rounded to it at output by running total per journal account (each row is the change of its account's exact running total rounded half up, policy 05 rule 20.1), so rows smaller than a minor unit never bias a total; open-lot rows are their accounts' rounded balances; quantities and prices are never rounded, and `proceeds = cost + pnl` holds on every row. |
 
 Strict mode is a run option, not a policy field: `run(..., strict=True)`
 raises `PriceGap` on the first missing price; the CLI

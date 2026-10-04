@@ -113,7 +113,9 @@ class Booking(Core):
     liability.quantity -= leg.quantity
     liability.cost -= released
     liability.updated = event.time
-    self.realize_liability(event, leg, liability, given=-value, released=released)
+    self.realize_liability(
+      event, liability, quantity=leg.quantity, given=-value, released=released
+    )
 
   def flow(self, event: Event, leg: Leg, *, instrument: str | None = None):
     """Book an income or expense leg at market value."""
