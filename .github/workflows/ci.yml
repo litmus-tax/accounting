@@ -12,7 +12,7 @@ concurrency:
 jobs:
   checks:
     name: checks and tests (${{ matrix.python }})
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, litmus]
     timeout-minutes: 20
     strategy:
       matrix:
