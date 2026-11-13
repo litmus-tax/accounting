@@ -199,3 +199,60 @@ After every atomic group the engine checks, without prices (policy 05 rule 39.5.
 4. A move takes lots in cost-method order and recreates them in the destination with their original `acquired` and `event`, so a later FIFO, LIFO or HIFO disposal in the destination still sees the right lots.
 5. Every price asked is recorded once per `(asset, quote, effective time)`.
 6. Liabilities are keyed by `(liability compartment, asset)` (policy 05 rule 9.1). Two facilities lending the same asset into one wallet stay apart as long as the caller names each facility's liability compartment in `Leg.liability`; labels never identify a liability.
+
+## Where accounting lives, and the input contract
+
+This section says what portfolio hands the engine, and why the line between them is where it is. It was policy 05 in the specs repository; the rules here are what the engine and portfolio's translation do.
+
+### Accounting books; portfolio values
+
+1. **Accounting logic lives only in this engine:** choosing lots, cost basis, realized P&L, recognising income and expense, carrying liabilities at cost, carrying basis across internal moves and position changes, what is still held at cost at `as_of` (the open-lot rows), and rounding money.
+2. **Portfolio only selects, maps, prices and values.** It selects the inputs (imported records, links, corrections in force), maps natures to engine operations by the one table below, supplies the prices events need, runs the engine and sums its rows. It also keeps the live layer (NAV and mark-to-market P&L every day, without the engine) and joins it with a revision's realized results and open-lot rows into unrealized P&L. It never computes cost, realized P&L or a flow.
+3. **The engine values nothing at market** (owner, 2026-10-03). It uses a price only where an event needs a value: a trade at trade time, income and expense at receipt or payment, a fee paid in a coin, a transfer across the boundary, a redemption out of an opaque compartment, a basis allocation across outputs, a perp result in the settlement asset. It takes no grid of instants and computes no market value, unrealized P&L or NAV.
+4. Units never book, and the app, the CLI and third parties never compute a policy-dependent figure: they show what portfolio serves.
+
+*Why:* valuation was computed twice. The engine valued holdings on a daily grid from a price table portfolio settled for it, while portfolio valued the same holdings for live views with the full rules (a peg fallback, the first available price, LP and vault receipts from daily component snapshots, a label on each value), so the books and `state?at=` could disagree on one day's value. Booking needs no market value of holdings: realized results need prices only at events, and unrealized P&L is a measurement, not an entry. Its two halves are known in two places, the remaining cost only in the engine and the value only in valuation; each computes its half, and their difference needs neither to know the other's rules.
+
+### The engine is a pure function
+
+It does no I/O and reads no clock or randomness, and fixes its own decimal context. The same ledger bytes give the same result bytes on any machine. Events are processed in time order; ties keep input order, so the caller emits events in the records' order `(time, seq, id)`.
+
+*Why:* sealed books must replay to the byte years later, and a replay on another machine must not drift because the ambient precision differs.
+
+### One unit record is one event
+
+All the legs a record keeps go into one event with the record's id and time, so a fee or gas leg stays with the trade or transfer that caused it. `internal` legs are the one exception: they become two linked `transfer` events inside the resource, so basis can move between compartments.
+
+*Why:* the engine capitalises fees and allocates trade value only within one event. Splitting a trade's fee into its own event made `fee_treatment: capitalize` a no-op.
+
+**Atomic groups** (owner, 2026-10-03). Portfolio hands events as atomic groups (its `atomic_groups` option: same instant, same chain transaction, or none), and the engine checks shortness only between groups. *Why:* the records of one transaction are served in source order, which need not be the order value moved. On ethereum1's Aave debt swap of 2026-05-25 (one transaction) the repayment of 8,002.40 USDT is served before the CoW swap that bought that USDT with USDC borrowed in the same transaction, so the books reported USDT short for an instant that never existed on chain. A real short across two instants is still reported.
+
+### Natures map to engine operations by one table
+
+Portfolio reads only the record envelope, legs, flags and the declared compartment metadata (`class`, `visibility`, `settlement`), never a unit's `detail`.
+
+| Nature | Engine operation | What it books |
+|---|---|---|
+| `trade` | `trade` legs; perp legs follow the perpetual rules ([policy.md](policy.md)) | A disposal of what is given and an acquisition of what is received, valued by the side the policy fixes (`cash`, `trade_valuation`). |
+| `fee`, `gas` | `expense`, `fee: true`; a positive `fee` (a rebate) is `income` labelled `fee_rebate` | An expense at market value; a fee paid in a non-cash asset is also a disposal of it. Under `capitalize`, a fee in a trade event goes into basis or proceeds. |
+| `funding` | `income` or `expense` by sign | A flow at market value. |
+| `realized_pnl` | `income` or `expense` by sign | A flow, only on `pnl` compartments; on a `notional` one the engine computes the result, so the leg is unbooked with an item. |
+| `yield`, `bonus` | `income` (a negative `bonus`, a clawback, is `expense`) | Income at market value; the received quantity opens a lot at that value. |
+| `borrow`, `repay` | `borrow` / `repay` on the cash leg; the `liability` counter-leg names the liability | A lot and a liability of equal value; a repayment disposes of the asset and releases the liability's cost. |
+| `interest` | by the leg's compartment class | An expense, accrued (the liability grows) or paid. |
+| `liquidity` | [positions](positions.md); into or out of an opaque compartment, the opaque position | An internal move, a basis carry, or an exchange. |
+| `internal` | two linked `transfer` events | Lots move at carried basis; nothing is realized. |
+| `transfer` | `transfer`, linked or not | Linked: lots move at carried basis. Unlinked: by its tag ([policy.md](policy.md)). |
+| `unknown` | none: the whole record is unbooked | Nothing; the books are incomplete. |
+| `performance` | none by itself: it changes an opaque position's contents | The position's results, by value. |
+| `adjustment` | `income` or `expense` by sign, label `adjustment` | A flow at market value; reports list adjustments apart, with their cause. |
+
+Labels are the nature's name, so a report can split flows by nature. A nature the table does not name for a compartment class, or a record whose natures are inconsistent, is unbooked with an item, like `unknown`.
+
+*Why:* units classify so that booking has one rule per nature and none per unit. Portfolio's old adapters read kinds and `detail` in every unit (3,923 lines), which is how classification leaked into the feed.
+
+**Legless and spam records produce no event.** A legless record is informational. A record flagged `unsolicited` produces no event, and a leg in an asset its unit judges spam is dropped while the rest of the record is booked (owner, 2026-09-28). *Why:* a record that moved nothing has nothing to book, and pricing spam would put fake value into the books.
+
+**`unknown` blocks the whole record.** *Why:* booking half a trade invents a disposal or an acquisition; the record is the unit that must balance, and an `unknown` leg blocks visibly until a unit correction or catalogue fix classifies it.
+
+**The books record every input decision.** Every link, correction and option that changed what an event books is in the revision's inputs, with its actor. *Why:* an accountant must be able to say why a figure is what it is, and a corrections list that is not in the package cannot be replayed.

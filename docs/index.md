@@ -11,6 +11,12 @@ policy. Portfolio owns those decisions and preserves evidence behind event IDs.
 4. [Scoped notional accounting](notional.md): compartment eligibility and global pools.
 5. [CLI and replay](cli.md): commands and exit behavior.
 6. [Migration and extension](migration.md): schema versions, strict validation and fixtures.
+7. [Guide](guide.md): double-entry bookkeeping as Litmus applies it, with worked examples.
+8. [Positions](positions.md): staking, receipts, NFT liquidity, claims, perpetuals and opaque compartments, with worked examples.
+9. [Journal export](journal-export.md) and its [examples](https://github.com/litmus-tax/portfolio/blob/main/docs/journal-export-examples.md) (in the private portfolio repository, as they use real books): export profiles, charts and formats (designed, not built yet).
+10. [Decisions](decisions.md): what was decided, why, and by whom.
+
+Why the input contract and the policy are what they are is in [model.md](model.md#where-accounting-lives-and-the-input-contract) and [policy.md](policy.md#why-the-policy-is-what-it-is).
 
 The frozen dataclasses in `litmus.accounting.model` define the contract.
 Pydantic TypeAdapter provides validation and generates JSON Schema on demand

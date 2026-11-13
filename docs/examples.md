@@ -59,7 +59,7 @@ Result: realized PnL `451.50 EUR` (the bridge plus `-0.03` on the gas fee's
 ETH), expenses `1.95 EUR`, open lots `99 HYPE` at `1980.00` and `99.5 USDC` at
 `89.55`, two `unmatched_transfer` exceptions for the external deposits. The
 open-lot rows hold the same two holdings at cost; valuing them is the caller's
-(portfolio's live layer, policy 05 rule 39).
+(portfolio's live layer).
 
 ## 3. PnL-settled venue (`pnl_settled.json`)
 
@@ -115,15 +115,12 @@ the same size, no income. The accrual grows the liability to `5020 USDC`
 lot at `0.95`: PnL `250.00`, plus `-2.00` on the swap's ETH; the liability
 releases `4500` of basis and `20 USDC` (`18.00 EUR`) remain owed. Exit 0.
 The open-lot rows hold the liability at its carrying value, `18.00 EUR`: it is
-carried at cost until repaid (policy 05 rule 9.4), and its market value is
+carried at cost until repaid, and its market value is
 portfolio's live layer.
 
-## Policy 05's worked examples
+## The worked examples of the guide and positions
 
-Every worked example of Litmus policy 05 (its
-[guide](https://github.com/litmus-tax/specs/blob/main/docs/policies/05-accounting/guide.md)
-and [positions](https://github.com/litmus-tax/specs/blob/main/docs/policies/05-accounting/positions.md)
-pages) is an engine fixture in `pkg/tests/fixtures/policy05/` (policy 05 rule 42),
+Every worked example of the [guide](guide.md) and [positions](positions.md) is an engine fixture in `pkg/tests/fixtures/policy05/`,
 run by `pkg/tests/test_policy05_examples.py`. One file per example holds the
 ledger and one or more cases; a case may override policy fields, lists the rules
 it checks, and states the figures of the page, rounded as shown there:
@@ -139,9 +136,8 @@ it checks, and states the figures of the page, rounded as shown there:
 | `open_rows` | rows that must be among `Result.open_rows`, on the keys each names |
 
 A case with `as_of` books only the events up to that instant, as a revision's
-cut-off, so its `open_rows` are what is held at cost then (policy 05 term 14).
+cut-off, so its `open_rows` are what is held at cost then.
 
 A case the engine cannot reproduce yet carries `xfail` naming its gap; the mark is
 strict, so the test fails once the gap is closed until the mark is removed. A
-change to an example on the policy page and a change to its fixture go together
-(rule 42.4).
+change to an example on its page and a change to its fixture go together.

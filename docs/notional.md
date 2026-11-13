@@ -58,3 +58,13 @@ superseded interest5 leaves debt120 and received cash100. The synthetic fixture
 `pkg/tests/fixtures/synthetic-signed-debt-accrual.json` tests negative interest
 adjustments against invented opening and closing debt quantities. Raw `balances` still sum supplied legs, including
 signed noncash interest, so wallet audit callers must exclude those legs explicitly.
+
+## Venue-reported P&L
+
+A venue's own figure for a closed position's P&L (Hyperliquid's `closedPnl`, a dYdX indexer's) is a diagnostic, never an input.
+
+1. On `pnl` compartments the venue's realized P&L is the cash itself (the `realized_pnl` legs), so there is nothing to reconcile.
+2. On `notional` compartments the engine computes realized P&L from the fills. A cross-check would compare, per position and period, the venue's closed P&L with the engine's and raise an `info` item when they differ. It needs units to serve the venue figure in a shared shape, because portfolio never reads a unit's `detail`; until then each revision lists realized P&L per position so a person can compare.
+3. Venues use an average entry. Under the default `perp_cost_method: average` the two figures should agree exactly, so a difference is worth a look; under another method differences are expected.
+
+*Why:* booking both the notional legs and a venue P&L on the same compartment double-counts, and a venue's figure is not independent evidence: dYdX's "venue" P&L in the original tooling was computed by the SDK itself, with average cost, so treating it as a second source would be circular (owner, 2026-09-26: a `realized_pnl` leg only where it moves cash, `detail` elsewhere).
