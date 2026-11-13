@@ -24,7 +24,7 @@ These are the cases where books go wrong quietly: a principal booked as income, 
 
    *Why:* the coin never left the owner; only where it sits changed. Staking is not a disposal in any regime we know of, and treating it as one would realize gains on every delegation.
 2. **Positions are declared generically**.
-   1. A unit that serves a record changing a position also serves the operation in a shared shape: `{position_id, action, representation, holding?, effects: [{component, delta, claim_id?, asset?}]}`, where `holding` is the receipt's asset key for `fungible_receipt`, and `asset` names what a claim will pay. This promotes evm's `detail.operation` into the contract ([policy 03](../03-unit-contract/contract.md) amendment).
+   1. A unit that serves a record changing a position also serves the operation in a shared shape: `{position_id, action, representation, holding?, effects: [{component, delta, claim_id?, asset?}]}`, where `holding` is the receipt's asset key for `fungible_receipt`, and `asset` names what a claim will pay. Today evm serves this shape as `detail.operation`; promoting it into the shared [unit contract](https://github.com/litmus-tax/shared/blob/main/unit/docs/contract.md) is still to do.
    2. Portfolio books positions from that shape and the legs only. It never reads a kind or `detail` to tell entering from leaving.
    3. A record whose position cannot be assessed (the unit marks it `unassessable`, or a claim has no `asset`) is unbooked with an item, like `unknown`.
 
