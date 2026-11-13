@@ -120,10 +120,7 @@ portfolio's live layer.
 
 ## Policy 05's worked examples
 
-Every worked example of Litmus policy 05 (its
-[guide](https://github.com/litmus-tax/specs/blob/main/docs/policies/05-accounting/guide.md)
-and [positions](https://github.com/litmus-tax/specs/blob/main/docs/policies/05-accounting/positions.md)
-pages) is an engine fixture in `pkg/tests/fixtures/policy05/` (policy 05 rule 42),
+Every worked example of the [guide](guide.md) and [positions](positions.md) is an engine fixture in `pkg/tests/fixtures/policy05/` (policy 05 rule 42),
 run by `pkg/tests/test_policy05_examples.py`. One file per example holds the
 ledger and one or more cases; a case may override policy fields, lists the rules
 it checks, and states the figures of the page, rounded as shown there:
