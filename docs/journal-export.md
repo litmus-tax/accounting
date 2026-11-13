@@ -1,6 +1,6 @@
 # Journal export
 
-> **Not built yet.** Export profiles and the journal export are a design the owner decided on 2026-10-02; the engine's journal (`Result.journal`, [model.md](model.md)) exists, and portfolio's counterparties and boundary report exist. This page is the reference for building the rest. The [examples](journal-export-examples.md) run it on real data.
+> **Not built yet.** Export profiles and the journal export are a design the owner decided on 2026-10-02; the engine's journal (`Result.journal`, [model.md](model.md)) exists, and portfolio's counterparties and boundary report exist. This page is the reference for building the rest. The [examples](https://github.com/litmus-tax/portfolio/blob/main/docs/journal-export-examples.md) (private portfolio repository) run it on real data.
 
 The journal export maps the engine's balanced journal to an accountant's chart, so the books can be posted into a general ledger (Holded first). Who is on the other side of each boundary transfer comes from portfolio's [boundary transfers](https://github.com/litmus-tax/portfolio/blob/main/docs/boundary-transfers.md).
 
@@ -26,7 +26,7 @@ The journal export maps the engine's balanced journal to an accountant's chart, 
 
    *Why:* the same books go to different readers in different shapes: an accountant posts one entry per month in their chart, an auditor wants every event, another ledger wants its own columns. None of that is accounting, so none of it may stale sealed books or need a rebuild. Bundling the four parts under one name lets the owner, the CLI or an agent repeat an export exactly ("Holded monthly, 2025") without restating it.
 2. **Charts: presets and custom.**
-   1. A chart maps each **category** to an account code and name, and each **counterparty** to a code and an optional name (the counterparty's label by default): `marcel-loan` → `551` "Préstamo socio (Marcel)". It also holds the **clearing account**, optional **overrides** per tracked account (a subaccount per venue) and per asset (its asset class), and the **code width** (codes padded on the right with zeros, 8 for Holded: `551` → `55100000`).
+   1. A chart maps each **category** to an account code and name, and each **counterparty** to a code and an optional name (the counterparty's label by default): `shareholder-loan` → `551` "Préstamo socio". It also holds the **clearing account**, optional **overrides** per tracked account (a subaccount per venue) and per asset (its asset class), and the **code width** (codes padded on the right with zeros, 8 for Holded: `551` → `55100000`).
    2. **Presets** ship with Litmus and are read-only:
       1. **"Spain PGC: crypto as inventories"**: crypto and stablecoins under 300 (*existencias*), trading results 769 / 669;
       2. **"Spain PGC: crypto as intangible"**: crypto and stablecoins under 206 (*inmovilizado intangible*), disposals 771 / 671;
@@ -55,7 +55,7 @@ The journal export maps the engine's balanced journal to an accountant's chart, 
     | 12 | `income.other`, `expense.other` | flows labelled `bonus` and `unsolicited`, by side (a clawback is an expense) | — | 778 / 678 Ingresos / Gastos excepcionales | 778 / 678 |
     | 13 | `adjustment.gain`, `adjustment.loss` | flows labelled `adjustment`, by side | — | 7781 / 6781 Ajustes sin detalle | 7781 / 6781 |
     | 14 | `rounding.gain`, `rounding.loss` | `rounding` | — | 769 / 669 | 769 / 669 |
-    | 15 | `boundary` | `external` of a boundary transfer's event | Préstamo socio (Marcel); bank | the counterparty's code, else the clearing account | as left |
+    | 15 | `boundary` | `external` of a boundary transfer's event | Préstamo socio; bank | the counterparty's code, else the clearing account | as left |
     | 16 | `external.other` | any other `external` line (a cost not paid in the ledger) | — | the clearing account | as left |
 
     1. An open position books nothing and has no line. Collateral is `holding` by its asset.
@@ -107,7 +107,7 @@ The journal export maps the engine's balanced journal to an accountant's chart, 
        ```
 
        1. `file`: `csv` or `xlsx`; for CSV, the separator, quoting, encoding and whether to write a header; `max_lines` splits files at entry boundaries (0: never).
-       2. Each column is a CEL expression over one journal line, `line`, with fields: `entry` (int), `date` (string, RFC 3339 with offset, in the profile's timezone), `period` (`2025-11`), `level`, `account` and `account_name`, `categories` (list of the categories in the line), `debit` and `credit` (decimal strings with `.`, rounded), `description`, `note`, `reference`, `counterparty` and `counterparty_label` (boundary lines; empty when untagged), `tracked_account`, `compartment`, `asset`, `quantity`, `sources` (record or event ids), `revision`, `profile`. The entry's other lines are not in scope. The [examples](journal-export-examples.md) list the fields with their types and show real lines.
+       2. Each column is a CEL expression over one journal line, `line`, with fields: `entry` (int), `date` (string, RFC 3339 with offset, in the profile's timezone), `period` (`2025-11`), `level`, `account` and `account_name`, `categories` (list of the categories in the line), `debit` and `credit` (decimal strings with `.`, rounded), `description`, `note`, `reference`, `counterparty` and `counterparty_label` (boundary lines; empty when untagged), `tracked_account`, `compartment`, `asset`, `quantity`, `sources` (record or event ids), `revision`, `profile`. The entry's other lines are not in scope. The [examples](https://github.com/litmus-tax/portfolio/blob/main/docs/journal-export-examples.md) list the fields with their types and show real lines.
        3. A timestamp is written as ISO 8601 with its offset unless the expression formats it otherwise; the format's columns are stored in the profile, so a layout without an offset is an explicit, recorded choice.
        4. `filter` is an optional CEL predicate; a line it rejects is left out, and the export's `README` counts what was left out and states that the file no longer balances if it did.
     3. **One CEL, one set of bounds.** Custom formats use the CEL library and helper functions of the cex venue specs, plus two pure formatting helpers: `format_date(date, pattern)` and `format_decimal(amount, decimal_mark, group_mark)`. CEL has no loops; helpers are pure and linear; a format's size and an export's lines are limited, and an export runs in a job with a time limit, because the library has no cost limit of its own. An expression that fails on a line fails the export with the line and the error, never a silently empty cell.
@@ -135,4 +135,4 @@ The journal export maps the engine's balanced journal to an accountant's chart, 
 
 ## Profiles on one revision
 
-The [export examples](journal-export-examples.md) run three profiles ("Holded monthly", "Auditor detail" and a custom CEL format) on the same November and December 2025 books. Changing a profile, or adding one, stales nothing: the next export simply states the new profile version.
+The [export examples](https://github.com/litmus-tax/portfolio/blob/main/docs/journal-export-examples.md) (in the private portfolio repository, as they use real books) run three profiles ("Holded monthly", "Auditor detail" and a custom CEL format) on the same November and December 2025 books. Changing a profile, or adding one, stales nothing: the next export simply states the new profile version.
